@@ -44,7 +44,7 @@ def generate_random_dataset(dataset_size=100, image_h=416, image_w=416, max_boxe
     return dataset
 
 
-def render(dataset):
+def render(image, y):
     '''
 
     :param dataset: images and bounding box dataset
@@ -52,8 +52,8 @@ def render(dataset):
     :return: -
     :rtype:
     '''
-    image, y = list(dataset.as_numpy_iterator())[0]
-    images = tf.expand_dims(image, axis=0)# * 255
+    # image, y = list(dataset.as_numpy_iterator())[0]
+    # images = tf.expand_dims(image, axis=0)# * 255
 
     boxes = y[..., 0:4].astype(float)  # / [image.shape[1], image.shape[0], image.shape[1], image.shape[0]]
     indices = [1, 0, 3, 2]
@@ -61,12 +61,19 @@ def render(dataset):
     boxes = boxes[0:10]
     boxes = tf.expand_dims(boxes, axis=0)
     boxes = tf.cast(boxes, tf.float32) / 416
-
+    #
     colors = [[1, 255, 0]]
 
-    images = tf.image.draw_bounding_boxes(
-        images, boxes, colors, name=None
+    image = tf.image.draw_bounding_boxes(
+        image, boxes, colors, name=None
     )
 
-    plt.imshow(images.numpy()[0])
-    plt.show()
+    # ax.imshow(image[0])
+    # plt.show()
+    return image[0]
+
+# Create two subplots and unpack the output array immediately
+# f, (ax1, ax2) = plt.subplots(1, 2, sharey=True)
+# ax1.plot(x, y)
+# ax1.set_title('Sharing Y axis')
+# ax2.scatter(x, y)
