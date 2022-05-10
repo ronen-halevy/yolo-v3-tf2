@@ -17,7 +17,7 @@ from parse_tfrecords import parse_tfrecords
 
 from preprocess_dataset import preprocess_dataset
 
-from utils import render
+from utils import render_bboxes
 from utils import generate_random_dataset
 
 
@@ -85,7 +85,7 @@ def config_train():
         dataset = generate_random_dataset()
         anchors = np.array(
             [[[10, 13], [16, 30], [33, 23]], [[30, 61], [62, 45], [59, 119]], [[116, 90], [156, 198], [373, 326]]],
-            np.float32) / image_size
+            np.float32) # / image_size
     else:
         dataset = parse_tfrecords(tfrecords_dir, image_size, max_boxes, class_file)
 
@@ -93,14 +93,14 @@ def config_train():
         # read_anchors(anchors_file) if anchors_file else \
         anchors = np.array(
             [[[20, 23], [10, 13], [16, 30]], [[30, 61], [62, 45], [59, 19]], [[116, 90], [156, 198], [373, 326]]],
-            np.float32) / image_size
+            np.float32) # / image_size
 
     dataset_size = dataset_limit_size if dataset_limit_size else dataset.cardinality().numpy()
 
     if args.render_dataset_example:
         image, y = list(dataset.as_numpy_iterator())[0]
         images = tf.expand_dims(image, axis=0)  # * 255
-        render(images, y)
+        render_bboxes(images, y)
 
     return dataset, dataset_size, batch_size, image_size, anchors, max_boxes, grid_sizes
 
