@@ -37,7 +37,7 @@ def parse_tfrecord_fn(record, image_size, max_boxes, class_table=None):
     :param max_boxes: Pad number of boxes to max_boxes, to achieve uniform size. Caution! Fails if number of boxes in
     any entry exeeds > max_boxes
     :type max_boxes:
-    :param image_size: Assumed square
+cd ../y     :param image_size: Assumed square. Resizing, otherwise image shapes values are None.
     :type image_size:
     :return: Transformed dataset
     :rtype:
