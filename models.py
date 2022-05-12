@@ -89,7 +89,7 @@ def darknet53(input_data, name=None):
 
 def get_grids_common_block(filters, name=None):
     def grids_common_block(input_data):
-        input = Input(input_data.shape[1:])
+        input = Input(input_data.shape[1:], name=f'{name} input')
         conv = conv_block(input, filters, 1)
         conv = conv_block(conv, filters * 2, 3)
         conv = conv_block(conv, filters, 1)
@@ -100,20 +100,21 @@ def get_grids_common_block(filters, name=None):
 
 def get_concat_block(nfilters, name=None):
     def concat_block(prev_grid_intermediate, darknet_intermediate_out):
-        inputs = Input(prev_grid_intermediate.shape[1:]), Input(darknet_intermediate_out.shape[1:])
-        inputs, skip = inputs
-        conv = conv_block(inputs, nfilters=nfilters,  kernel_size=1)
+        inputs = Input(prev_grid_intermediate.shape[1:], name=f'{name} input1'), Input(darknet_intermediate_out.shape[1:], name=f'{name} input2')
+        input, skip = inputs
+        conv = conv_block(input, nfilters=nfilters,  kernel_size=1)
         conv = UpSampling2D(2)(conv)
         conv = Concatenate()([conv, skip])
-        return Model(input, conv, name=name)(prev_grid_intermediate, darknet_intermediate_out)
+        return Model(inputs, conv, name=name)((prev_grid_intermediate, darknet_intermediate_out))
     return concat_block
 
 def get_grid_output(nfilters, anchors, classes, name=None):
-    def grid_output(data_in):
-        inputs = Input(data_in.shape[1:])
-        conv = conv_block(inputs, nfilters=32, kernel_size=3)
+    def grid_output(input_data):
+        input = Input(input_data.shape[1:], name=f'{name} input')
+        conv = conv_block(input, nfilters, kernel_size=3)
         conv = conv_block(conv, nfilters=anchors*(classes + 5), kernel_size=1, batch_norm=False)
-        return Model(inputs, conv, name=name)(inputs)
+        return Model(input, conv, name=name)(input_data)
+
     return grid_output
 
 
@@ -121,19 +122,19 @@ def get_grid_output(nfilters, anchors, classes, name=None):
 
 
 def model(size=None, nanchors=3, nclasses=80):
-    input = Input([size, size, 3])
+    input = Input([size, size, 3], name='darknet53 input')
     out1, out2, darknet_out = darknet53(input, name='darknet53')(input)
     coarse_intermediate_out = get_grids_common_block(filters=512, name='coarse_grid_path')(darknet_out)
-    coarse_output = get_grid_output(nfilters=1024, anchors=nanchors, classes=nclasses, name='yolo_output_0')(coarse_intermediate_out)
+    coarse_output = get_grid_output(nfilters=1024, anchors=nanchors, classes=nclasses, name='coarse_output')(coarse_intermediate_out)
 
 
 
     med_concat_out = get_concat_block(nfilters=256)(coarse_intermediate_out, out2)
-    med_intermediate_out = get_grids_common_block(filters=256, name='med_grid_path')(Input(med_concat_out))
-    med_output = get_grid_output(512, anchors=nanchors, classses=nclasses, name='yolo_output_0')(med_intermediate_out)
-
-    fine_concat_out = get_concat_block(nfilters=128)(Input(med_intermediate_out, out1))
-    fine_intermediate_out = get_grids_common_block(filters=256, name='med_grid_path')(Input(fine_concat_out))
-    fine_output = get_grid_output(256, anchors=nanchors, classses=nclasses, name='yolo_output_0')(fine_intermediate_out)
+    med_intermediate_out = get_grids_common_block(filters=256, name='med_grid_path')(med_concat_out)
+    med_output = get_grid_output(512, anchors=nanchors, classes=nclasses, name='med_output')(med_intermediate_out)
+    #
+    fine_concat_out = get_concat_block(nfilters=128)(med_intermediate_out, out1)
+    fine_intermediate_out = get_grids_common_block(filters=256, name='fine_grid_path')(fine_concat_out)
+    fine_output = get_grid_output(256, anchors=nanchors, classes=nclasses, name='fine_output')(fine_intermediate_out)
 
     return Model(input, (coarse_output, med_output, fine_output), name='yolov3')

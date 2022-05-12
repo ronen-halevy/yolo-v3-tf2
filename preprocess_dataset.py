@@ -80,7 +80,7 @@ def arrange_in_grid(y_train, anchors, downsize_stride, output_shape, max_boxes):
     scale_dataset = tf.scatter_nd(
         indices, y_train, output_shape
     )
-    tf.print(scale_dataset.shape)
+    # tf.print(scale_dataset.shape)
 
     return scale_dataset
 

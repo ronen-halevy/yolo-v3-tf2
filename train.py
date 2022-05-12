@@ -69,6 +69,9 @@ def config_train():
     parser.add_argument("--dataset_limit_size", type=str, default=100,
                         help='Train will limit dataset to dataset_size. If None, no limit is set')
 
+    parser.add_argument("--learning_rate", type=float, default=0.001,
+                        help='learning_rate')
+
     grid_sizes = np.array([13, 26, 52])
 
     args = parser.parse_args()
@@ -105,11 +108,74 @@ def config_train():
     return dataset, dataset_size, batch_size, image_size, anchors, max_boxes, grid_sizes
 
 
-def train():
+def train(learning_rate=0.001, mode='eager_fit'):
     dataset, dataset_size, batch_size, image_size, anchors, max_boxes, grid_sizes = config_train()
     train_dataset, test_dataset, val_dataset = split_dataset(dataset, dataset_size)
     dataset = preprocess_dataset(dataset, batch_size, image_size, anchors, grid_sizes, max_boxes)
+    optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
+    from models import model
 
+    model = model(size=None, nanchors=3, nclasses=80)
+    model.predict(dataset)
+
+    # model = model.compile(optimizer=optimizer, loss=loss,
+    #               run_eagerly=(FLAGS.mode == 'eager_fit'))
+    # loss = [YoloLoss(anchors[mask], classes=FLAGS.num_classes)
+    #         for mask in anchor_masks]
+
+
+
+
+
+    #
+    #
+    # from yolov3 import decode
+    # num_classes = 80
+    # strides = 32
+    # decode(conv_output, anchors, strides, num_classes)
+    #
+    # epochs = 10
+    # for epoch in range(1, epochs + 1):
+    #     for batch, (images, labels) in enumerate(train_dataset):
+    #         with tf.GradientTape() as tape:
+    #             outputs = model(images, training=True)
+    #             regularization_loss = tf.reduce_sum(model.losses)
+    #             pred_loss = []
+    #             for output, label, loss_fn in zip(outputs, labels, loss):
+    #                 pred_loss.append(loss_fn(label, output))
+    #             total_loss = tf.reduce_sum(pred_loss) + regularization_loss
+    #
+    #         grads = tape.gradient(total_loss, model.trainable_variables)
+    #         optimizer.apply_gradients(
+    #             zip(grads, model.trainable_variables))
+    #
+    #         logging.info("{}_train_{}, {}, {}".format(
+    #             epoch, batch, total_loss.numpy(),
+    #             list(map(lambda x: np.sum(x.numpy()), pred_loss))))
+    #         avg_loss.update_state(total_loss)
+    #
+    #     for batch, (images, labels) in enumerate(val_dataset):
+    #         outputs = model(images)
+    #         regularization_loss = tf.reduce_sum(model.losses)
+    #         pred_loss = []
+    #         for output, label, loss_fn in zip(outputs, labels, loss):
+    #             pred_loss.append(loss_fn(label, output))
+    #         total_loss = tf.reduce_sum(pred_loss) + regularization_loss
+    #
+    #         logging.info("{}_val_{}, {}, {}".format(
+    #             epoch, batch, total_loss.numpy(),
+    #             list(map(lambda x: np.sum(x.numpy()), pred_loss))))
+    #         avg_val_loss.update_state(total_loss)
+    #
+    #     logging.info("{}, train: {}, val: {}".format(
+    #         epoch,
+    #         avg_loss.result().numpy(),
+    #         avg_val_loss.result().numpy()))
+    #
+    #     avg_loss.reset_states()
+    #     avg_val_loss.reset_states()
+    #     model.save_weights(
+    #         'checkpoints/yolov3_train_{}.tf'.format(epoch))
 
 if __name__ == '__main__':
     train()
