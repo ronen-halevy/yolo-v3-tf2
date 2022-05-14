@@ -66,8 +66,8 @@ def creat_yolo_anchors(dataset, anchors_out_file):
     anchors = np.round(kmeans.cluster_centers_)
 
     sorted_anchors = sort_anchors(anchors).astype(np.float32)
-    np.savetxt(anchors_out_file, anchors, delimiter=',', fmt='%10.5f')
-    print(f'result anchors:\n{anchors}')
+    np.savetxt(anchors_out_file, sorted_anchors, delimiter=',', fmt='%10.5f')
+    print(f'result anchors:\n{sorted_anchors}')
     return sorted_anchors
 
 def main():
