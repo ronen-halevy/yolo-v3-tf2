@@ -11,13 +11,13 @@
 # ================================================================
 
 import numpy as np
-
 from sklearn.cluster import KMeans
-import matplotlib.pyplot as plt
 import argparse
-
+import pathlib
+import os
 
 from parse_tfrecords import parse_tfrecords
+
 
 # def plot_scatter_graph(w_h, kmeans):
 #     image_width = 2 * max(w_h[..., 0])
@@ -30,9 +30,8 @@ from parse_tfrecords import parse_tfrecords
 #     plt.figure(figsize=(10, 10))
 #     plt.show()
 def sort_anchors(anchors):
-    anchors_sorted = anchors[(anchors[:,0]*anchors[:,1]).argsort()]
+    anchors_sorted = anchors[(anchors[:, 0] * anchors[:, 1]).argsort()]
     return anchors_sorted
-
 
 
 def arrange_wh_array(labels):
@@ -43,7 +42,10 @@ def arrange_wh_array(labels):
     mask = np.all(w_h != [0., 0.], axis=-1)
     w_h = w_h[mask]
 
+
 import tensorflow as tf
+
+
 def arrange_wh_array(labels):
     w_h_tuples = (labels[..., 2] - labels[..., 0], labels[..., 3] - labels[..., 1])
     widths = tf.expand_dims(w_h_tuples[0], axis=-1)
@@ -53,8 +55,8 @@ def arrange_wh_array(labels):
     w_h = w_h[mask]
     return w_h
 
-def creat_yolo_anchors(dataset, anchors_out_file):
 
+def creat_yolo_anchors(dataset, anchors_out_file):
     w_h = dataset.map(lambda _, labels: (
         arrange_wh_array(labels)
     ))
@@ -66,9 +68,14 @@ def creat_yolo_anchors(dataset, anchors_out_file):
     anchors = np.round(kmeans.cluster_centers_)
 
     sorted_anchors = sort_anchors(anchors).astype(np.float32)
+
+    head, tail = os.path.split(anchors_out_file)
+    pathlib.Path(head).mkdir(parents=True, exist_ok=True)
+
     np.savetxt(anchors_out_file, sorted_anchors, delimiter=',', fmt='%10.5f')
     print(f'result anchors:\n{sorted_anchors}')
     return sorted_anchors
+
 
 def main():
     parser = argparse.ArgumentParser()
@@ -87,7 +94,7 @@ def main():
     parser.add_argument("--image_size", type=int, default=416,
                         help='image_size assumed a square')
 
-    parser.add_argument("--anchors_out_file", type=str, default='shapes_yolov3_anchors.txt',
+    parser.add_argument("--anchors_out_file", type=str, default='anchors/shapes_yolov3_anchors.txt',
                         help='image_size assumed a square')
 
     args = parser.parse_args()
@@ -98,6 +105,7 @@ def main():
 
     dataset = parse_tfrecords(tfrecords_dir, image_size, max_boxes, class_file=None)
     anchors = creat_yolo_anchors(dataset, anchors_out_file)
+
 
 if __name__ == '__main__':
     main()

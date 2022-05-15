@@ -28,11 +28,9 @@ def resize_image(image, t_w, t_h):
     scaled_image = tf.image.pad_to_bounding_box(
         image, (t_h - n_h) // 2, (t_w - n_w) // 2, t_h, t_w
     )
-    # y_n = tf.squeeze(y_n, axis=0)
     return scaled_image
 
 
-# @tf.function
 def arrange_in_grid(y_train, anchors, downsize_stride, output_shape, max_boxes):
     """
 
@@ -58,25 +56,24 @@ def arrange_in_grid(y_train, anchors, downsize_stride, output_shape, max_boxes):
     intersection = tf.minimum(box_wh[..., 0], grid_anchors[..., 0]) * tf.minimum(box_wh[..., 1], grid_anchors[..., 1])
     iou = intersection / (box_area + anchor_area - intersection)
 
-    iou_max = tf.math.argmax(iou, axis=-1)
-    iou_max = tf.expand_dims(iou_max, axis=-1)
-    iou_max = tf.cast(iou_max, tf.int32)
+    best_anchor_indices = tf.math.argmax(iou, axis=-1)
+    best_anchor_indices = tf.expand_dims(best_anchor_indices, axis=-1)
+    best_anchor_indices = tf.cast(best_anchor_indices, tf.int32)
     box_xy = (y_train[..., 0:2] + y_train[..., 2:4]) / 2
     box_xy = tf.cast(box_xy, tf.float32)
 
     grid_xy = tf.cast(box_xy // downsize_stride, tf.int32)
 
-    indices_tmp = tf.concat([grid_xy, iou_max], axis=-1)
+    indices_grid_anchor = tf.concat([grid_xy, best_anchor_indices], axis=-1)
 
     batches = y_train.shape[0]
-    # !!!! ronen should be number of boxes 950)
-    # boxes = y_train.shape[-1]
+
     boxes = max_boxes
     batch_box_indices = tf.tile(tf.expand_dims(tf.range(batches), -1), [1, boxes])
 
     batch_box_indices = tf.expand_dims(batch_box_indices, axis=-1)
     batch_box_indices = tf.cast(batch_box_indices, tf.int32)
-    indices = tf.concat([batch_box_indices, indices_tmp], axis=-1)
+    indices = tf.concat([batch_box_indices, indices_grid_anchor], axis=-1)
     scale_dataset = tf.scatter_nd(
         indices, y_train, output_shape
     )
@@ -85,14 +82,15 @@ def arrange_in_grid(y_train, anchors, downsize_stride, output_shape, max_boxes):
     return scale_dataset
 
 
-def preprocess_dataset(dataset, batch_size, image_size, anchors, grid_sizes, max_boxes):
+def preprocess_dataset(dataset, batch_size, image_size, anchors_table, grid_sizes, max_boxes):
     dataset = dataset.batch(batch_size, drop_remainder=True)
     downsize_strides = image_size / grid_sizes
+
     dataset = dataset.map(lambda x, y: (
         resize_image(x, image_size, image_size),
-        tuple([arrange_in_grid(y, tf.convert_to_tensor(anchor), grid_stride,
-                               [batch_size, grid_size, grid_size, 3, 5], max_boxes) for anchor, grid_stride, grid_size
+        tuple([arrange_in_grid(y, tf.convert_to_tensor(anchors), grid_stride, # ronen TODO was 3,6 check shape
+                               [batch_size, grid_size, grid_size, anchors.shape[0], tf.shape(y)[-1]], max_boxes) for anchors, grid_stride, grid_size
                in
-               zip(anchors, downsize_strides, grid_sizes)])
+               zip(anchors_table, downsize_strides, grid_sizes)])
     ))
     return dataset

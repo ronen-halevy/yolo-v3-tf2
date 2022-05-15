@@ -16,10 +16,12 @@ import argparse
 from parse_tfrecords import parse_tfrecords
 
 from preprocess_dataset import preprocess_dataset
+from numpy import loadtxt
 
 from utils import render_bboxes
 from utils import generate_random_dataset
-
+from preprocess_dataset import preprocess_dataset
+from loss_func import get_loss_func
 
 def split_dataset(dataset, dataset_size):
     train_size = int(0.7 * dataset_size)
@@ -34,8 +36,13 @@ def split_dataset(dataset, dataset_size):
     test_dataset = test_dataset.take(test_size)
 
     return train_dataset, test_dataset, val_dataset
-    from preprocess_dataset import preprocess_dataset
 
+
+def insert_objectiveness_entry(lablels):
+    (boxes, classes) = tf.split(lablels, [4, 1], axis=-1)
+    objectiveness_entry = tf.cast(tf.fill(tf.shape(classes), 1), dtype=tf.float32)
+    lablels = tf.concat([boxes, objectiveness_entry, classes], axis=-1)
+    return lablels
 
 def config_train():
     parser = argparse.ArgumentParser()
@@ -63,16 +70,16 @@ def config_train():
     parser.add_argument("--image_size", type=int, default=416,
                         help='Algorithm"s image_size . Assumed a square')
 
-    parser.add_argument("--anchors_file", type=str, default=None,
+    parser.add_argument("--anchors_file", type=str, default='anchors/shapes_yolov3_anchors.txt',
                         help='anchors_file')
 
-    parser.add_argument("--dataset_limit_size", type=str, default=100,
+    parser.add_argument("--dataset_limit_size", type=str, default=None,
                         help='Train will limit dataset to dataset_size. If None, no limit is set')
 
     parser.add_argument("--learning_rate", type=float, default=0.001,
                         help='learning_rate')
 
-    grid_sizes = np.array([13, 26, 52])
+    grid_sizes_table = np.array([13, 26, 52])
 
     args = parser.parse_args()
     tfrecords_dir = args.tfrecords_dir
@@ -83,20 +90,22 @@ def config_train():
     use_debug_dataset = args.use_debug_dataset
     anchors_file = args.anchors_file
     dataset_limit_size = args.dataset_limit_size
+    anchors_file = args.anchors_file
 
     if use_debug_dataset:
         dataset = generate_random_dataset()
-        anchors = np.array(
+        anchors_table = np.array(
             [[[10, 13], [16, 30], [33, 23]], [[30, 61], [62, 45], [59, 119]], [[116, 90], [156, 198], [373, 326]]],
             np.float32) # / image_size
+        nclasses = 80 # ronen TODO
     else:
         dataset = parse_tfrecords(tfrecords_dir, image_size, max_boxes, class_file)
+        dataset = dataset.map(lambda x, y: (x, insert_objectiveness_entry(y)))
 
-        # anchors =
-        # read_anchors(anchors_file) if anchors_file else \
-        anchors = np.array(
-            [[[20, 23], [10, 13], [16, 30]], [[30, 61], [62, 45], [59, 19]], [[116, 90], [156, 198], [373, 326]]],
-            np.float32) # / image_size
+        anchors_table = loadtxt(anchors_file, comments="#", delimiter=",", unpack=False)
+        nanchors_per_grid = 3
+        anchors_table = anchors_table.reshape(-1, nanchors_per_grid, 2)
+        nclasses = 80 # ronen TODO
 
     dataset_size = dataset_limit_size if dataset_limit_size else dataset.cardinality().numpy()
 
@@ -105,18 +114,24 @@ def config_train():
         images = tf.expand_dims(image, axis=0)  # * 255
         render_bboxes(images, y)
 
-    return dataset, dataset_size, batch_size, image_size, anchors, max_boxes, grid_sizes
+    return dataset, dataset_size, batch_size, image_size, anchors_table, max_boxes, grid_sizes_table, nclasses
 
 
 def train(learning_rate=0.001, mode='eager_fit'):
-    dataset, dataset_size, batch_size, image_size, anchors, max_boxes, grid_sizes = config_train()
+    dataset, dataset_size, batch_size, image_size, anchors_table, max_boxes, grid_sizes_table, nclasses = config_train()
     train_dataset, test_dataset, val_dataset = split_dataset(dataset, dataset_size)
-    dataset = preprocess_dataset(dataset, batch_size, image_size, anchors, grid_sizes, max_boxes)
+    train_dataset = preprocess_dataset(train_dataset, batch_size, image_size, anchors_table, grid_sizes_table, max_boxes)
     optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
-    from models import model
+    from models import yolov3_model
+    y_model = yolov3_model(anchors_table, image_size, nclasses=nclasses)
 
-    model = model(size=None, nanchors=3, nclasses=80)
-    model.predict(dataset)
+    # loss_f = [get_loss_func(anchors, nclasses=nclasses)
+    #         for anchors in anchors_table]
+
+
+    # model.fit(dataset)
+    # model.predict(dataset)
+
 
     # model = model.compile(optimizer=optimizer, loss=loss,
     #               run_eagerly=(FLAGS.mode == 'eager_fit'))
@@ -125,25 +140,17 @@ def train(learning_rate=0.001, mode='eager_fit'):
 
 
 
-
-
-    #
-    #
-    # from yolov3 import decode
-    # num_classes = 80
-    # strides = 32
-    # decode(conv_output, anchors, strides, num_classes)
-    #
-    # epochs = 10
-    # for epoch in range(1, epochs + 1):
-    #     for batch, (images, labels) in enumerate(train_dataset):
-    #         with tf.GradientTape() as tape:
-    #             outputs = model(images, training=True)
-    #             regularization_loss = tf.reduce_sum(model.losses)
-    #             pred_loss = []
-    #             for output, label, loss_fn in zip(outputs, labels, loss):
-    #                 pred_loss.append(loss_fn(label, output))
-    #             total_loss = tf.reduce_sum(pred_loss) + regularization_loss
+    epochs = 10
+    for epoch in range(1, epochs + 1):
+        for batch, (images, labels) in enumerate(train_dataset):
+            with tf.GradientTape() as tape:
+                outputs = y_model(images)
+                print(epoch, batch)
+                regularization_loss = tf.reduce_sum(y_model.losses)
+                pred_loss = []
+                # for output, label, loss_fn in zip(outputs, labels, loss_f):
+                #     pred_loss.append(loss_fn(label, output))
+    #           total_loss = tf.reduce_sum(pred_loss) + regularization_loss
     #
     #         grads = tape.gradient(total_loss, model.trainable_variables)
     #         optimizer.apply_gradients(
