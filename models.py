@@ -132,7 +132,7 @@ def get_grid_output(nfilters, nanchors, nclasses, name=None):
     return grid_output
 
 
-def grid_out_decode(grid_pred, anchors, nclasses):
+def grid_pred_decode(grid_pred, anchors, nclasses):
     batch_size = tf.shape(grid_pred)[0]
     pred_xy, pred_wh, pred_obj, pred_class = tf.split(grid_pred, [XY_FEILD, WH_FEILD, OBJ_FIELD, nclasses], axis=-1)
     grid_size = tf.shape(grid_pred)[1]
@@ -167,12 +167,12 @@ def yolov3_model(anchors_table, image_size=None, nclasses=80):
     fine_grid_pred = get_grid_output(256, nanchors=nanchors, nclasses=nclasses, name='fine_output')(
         fine_intermediate_out)
 
-    coarse_grid_out = Lambda(lambda x: grid_out_decode(x, anchors_table[0], nclasses),
-                             name='coarse_grid_out_decode')(coarse_grid_pred)
-    med_grid_out = Lambda(lambda x: grid_out_decode(x, anchors_table[1], nclasses),
-                          name='med_grid_out_decode')(med_grid_pred)
-    fine_grid_out = Lambda(lambda x: grid_out_decode(x, anchors_table[2], nclasses),
-                           name='fine_grid_out_decode')(fine_grid_pred)
+    coarse_grid_out = Lambda(lambda x: grid_pred_decode(x, anchors_table[0], nclasses),
+                             name='coarse_grid_pred_decode')(coarse_grid_pred)
+    med_grid_out = Lambda(lambda x: grid_pred_decode(x, anchors_table[1], nclasses),
+                          name='med_grid_pred_decode')(med_grid_pred)
+    fine_grid_out = Lambda(lambda x: grid_pred_decode(x, anchors_table[2], nclasses),
+                           name='fine_grid_pred_decode')(fine_grid_pred)
 
     # outputs = Lambda(lambda x: yolo_nms(x, anchors, masks, classes),
     #                  name='yolo_nms')((boxes_0[:3], boxes_1[:3], boxes_2[:3]))

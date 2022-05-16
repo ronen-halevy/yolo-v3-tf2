@@ -102,6 +102,7 @@ def config_train():
         dataset = parse_tfrecords(tfrecords_dir, image_size, max_boxes, class_file)
         dataset = dataset.map(lambda x, y: (x, insert_objectiveness_entry(y)))
 
+        # cc = next(dataset.as_numpy_iterator())
         anchors_table = loadtxt(anchors_file, comments="#", delimiter=",", unpack=False)
         nanchors_per_grid = 3
         anchors_table = anchors_table.reshape(-1, nanchors_per_grid, 2)
@@ -121,12 +122,13 @@ def train(learning_rate=0.001, mode='eager_fit'):
     dataset, dataset_size, batch_size, image_size, anchors_table, max_boxes, grid_sizes_table, nclasses = config_train()
     train_dataset, test_dataset, val_dataset = split_dataset(dataset, dataset_size)
     train_dataset = preprocess_dataset(train_dataset, batch_size, image_size, anchors_table, grid_sizes_table, max_boxes)
+
     optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
     from models import yolov3_model
     y_model = yolov3_model(anchors_table, image_size, nclasses=nclasses)
 
-    # loss_f = [get_loss_func(anchors, nclasses=nclasses)
-    #         for anchors in anchors_table]
+    loss_f = [get_loss_func(anchors, nclasses=nclasses)
+            for anchors in anchors_table]
 
 
     # model.fit(dataset)
@@ -138,8 +140,6 @@ def train(learning_rate=0.001, mode='eager_fit'):
     # loss = [YoloLoss(anchors[mask], classes=FLAGS.num_classes)
     #         for mask in anchor_masks]
 
-
-
     epochs = 10
     for epoch in range(1, epochs + 1):
         for batch, (images, labels) in enumerate(train_dataset):
@@ -148,8 +148,8 @@ def train(learning_rate=0.001, mode='eager_fit'):
                 print(epoch, batch)
                 regularization_loss = tf.reduce_sum(y_model.losses)
                 pred_loss = []
-                # for output, label, loss_fn in zip(outputs, labels, loss_f):
-                #     pred_loss.append(loss_fn(label, output))
+                for output, label, loss_fn in zip(outputs, labels, loss_f):
+                    pred_loss.append(loss_fn(label, output))
     #           total_loss = tf.reduce_sum(pred_loss) + regularization_loss
     #
     #         grads = tape.gradient(total_loss, model.trainable_variables)

@@ -125,13 +125,7 @@ def main():
     class_file = args.classes
     max_boxes = args.max_boxes
     image_size = args.image_size
-    # tf.config.run_functions_eagerly(False)
-    # tf.data.experimental.enable_debug_mode()
-
     dataset = parse_tfrecords(tfrecords_dir, image_size, max_boxes, class_file)
-    dbg_len = (len(list(dataset.as_numpy_iterator())))
-    print(f'Done parsing dataset! {dbg_len} entries')
-
 
 if __name__ == '__main__':
     main()
