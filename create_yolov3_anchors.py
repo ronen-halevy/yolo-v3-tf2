@@ -56,7 +56,7 @@ def arrange_wh_array(labels):
     return w_h
 
 
-def creat_yolo_anchors(dataset, anchors_out_file):
+def creat_yolo_anchors(dataset):
     w_h = dataset.map(lambda _, labels: (
         arrange_wh_array(labels)
     ))
@@ -65,15 +65,8 @@ def creat_yolo_anchors(dataset, anchors_out_file):
     w_h = list(w_h.as_numpy_iterator())
     kmeans = KMeans(n_clusters=9)
     kmeans.fit(w_h)
-    anchors = np.round(kmeans.cluster_centers_)
-
+    anchors = kmeans.cluster_centers_
     sorted_anchors = sort_anchors(anchors).astype(np.float32)
-
-    head, tail = os.path.split(anchors_out_file)
-    pathlib.Path(head).mkdir(parents=True, exist_ok=True)
-
-    np.savetxt(anchors_out_file, sorted_anchors, delimiter=',', fmt='%10.5f')
-    print(f'result anchors:\n{sorted_anchors}')
     return sorted_anchors
 
 
@@ -104,7 +97,12 @@ def main():
     anchors_out_file = args.anchors_out_file
 
     dataset = parse_tfrecords(tfrecords_dir, image_size, max_boxes, class_file=None)
-    anchors = creat_yolo_anchors(dataset, anchors_out_file)
+    anchors = creat_yolo_anchors(dataset)
+    head, tail = os.path.split(anchors_out_file)
+    pathlib.Path(head).mkdir(parents=True, exist_ok=True)
+
+    np.savetxt(anchors_out_file, anchors, delimiter=',', fmt='%10.5f')
+    print(f'result anchors:\n{anchors}')
 
 
 if __name__ == '__main__':
