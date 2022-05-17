@@ -63,14 +63,11 @@ def arrange_in_grid(y_train, anchors, output_shape, max_boxes):
     batch_indices = tf.tile(tf.range(batches)[:, tf.newaxis], [1, max_boxes])[:, :, tf.newaxis]
     grid_indices = tf.concat([batch_indices, box_center_xy_grid_indices, best_anchor_indices], axis=-1)
 
-    mask = y_train[..., 2] != 0.
-    y_train = y_train[mask]
-    grid_indices = grid_indices[mask]
-
-    dataset_in_grid = tf.scatter_nd(
-        grid_indices, y_train, output_shape
+    # to ensure uniqueness in grid entries, taking the max:
+    dataset_in_grid = tf.zeros(output_shape)
+    dataset_in_grid = tf.tensor_scatter_nd_max(
+        dataset_in_grid, grid_indices, y_train
     )
-
     return dataset_in_grid
 
 

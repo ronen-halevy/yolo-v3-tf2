@@ -76,7 +76,7 @@ def config_train():
     parser.add_argument("--dataset_limit_size", type=str, default=None,
                         help='Train will limit dataset to dataset_size. If None, no limit is set')
 
-    parser.add_argument("--learning_rate", type=float, default=0.001,
+    parser.add_argument("--learning_rate", type=float, default=0.0001,
                         help='learning_rate')
 
     grid_sizes_table = np.array([13, 26, 52])
@@ -96,7 +96,7 @@ def config_train():
         dataset = generate_random_dataset()
         anchors_table = np.array(
             [[[10, 13], [16, 30], [33, 23]], [[30, 61], [62, 45], [59, 119]], [[116, 90], [156, 198], [373, 326]]],
-            np.float32) # / image_size
+            np.float32) / image_size
         nclasses = 80 # ronen TODO
     else:
         dataset = parse_tfrecords(tfrecords_dir, image_size, max_boxes, class_file)
@@ -121,11 +121,18 @@ def config_train():
 def train(learning_rate=0.001, mode='eager_fit'):
     dataset, dataset_size, batch_size, image_size, anchors_table, max_boxes, grid_sizes_table, nclasses = config_train()
     train_dataset, test_dataset, val_dataset = split_dataset(dataset, dataset_size)
-    train_dataset = preprocess_dataset(train_dataset, batch_size, image_size, anchors_table, grid_sizes_table, max_boxes)
 
+    # ds = next(train_dataset.as_numpy_iterator())
+    # y = ds[1]
+    # y = tf.tile(y[tf.newaxis, :,: ], [32, 1, 1])
+    # from preprocess_dataset import arrange_in_grid
+    # xx = arrange_in_grid(y, tf.convert_to_tensor(anchors_table[0]),  # ronen TODO was 3,6 check shape
+    #                  [batch_size, 13, 13, anchors_table[0].shape[0], tf.shape(y)[-1]], max_boxes)
+
+    train_dataset = preprocess_dataset(train_dataset, batch_size, image_size, anchors_table, grid_sizes_table, max_boxes)
     optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
     from models import yolov3_model
-    y_model = yolov3_model(anchors_table, image_size, nclasses=nclasses)
+    yolo_model = yolov3_model(anchors_table, image_size, nclasses=nclasses)
 
     loss_f = [get_loss_func(anchors, nclasses=nclasses)
             for anchors in anchors_table]
@@ -141,25 +148,33 @@ def train(learning_rate=0.001, mode='eager_fit'):
     #         for mask in anchor_masks]
 
     epochs = 10
+    avg_loss = tf.keras.metrics.Mean('loss', dtype=tf.float32)
+    avg_val_loss = tf.keras.metrics.Mean('val_loss', dtype=tf.float32)
     for epoch in range(1, epochs + 1):
         for batch, (images, labels) in enumerate(train_dataset):
             with tf.GradientTape() as tape:
-                outputs = y_model(images)
+                outputs = yolo_model(images)
                 print(epoch, batch)
-                regularization_loss = tf.reduce_sum(y_model.losses)
+                regularization_loss = tf.reduce_sum(yolo_model.losses)
                 pred_loss = []
                 for output, label, loss_fn in zip(outputs, labels, loss_f):
                     pred_loss.append(loss_fn(label, output))
-    #           total_loss = tf.reduce_sum(pred_loss) + regularization_loss
+                total_loss = tf.reduce_sum(pred_loss) + regularization_loss
     #
-    #         grads = tape.gradient(total_loss, model.trainable_variables)
-    #         optimizer.apply_gradients(
-    #             zip(grads, model.trainable_variables))
-    #
-    #         logging.info("{}_train_{}, {}, {}".format(
-    #             epoch, batch, total_loss.numpy(),
-    #             list(map(lambda x: np.sum(x.numpy()), pred_loss))))
-    #         avg_loss.update_state(total_loss)
+            grads = tape.gradient(total_loss, yolo_model.trainable_variables)
+            optimizer.apply_gradients(
+                zip(grads, yolo_model.trainable_variables))
+            # from absl import logging
+            import logging
+            logging.basicConfig(level=logging.INFO,
+                                format='%(levelname)s %(message)s',
+                                )
+
+            logging.info(f'epoch: {epoch} batch: {batch} total_loss: {total_loss.numpy()} ')
+            for index, grid_loss in enumerate(pred_loss):
+                logging.info(f' pred_loss grid {index} xy,wh,obj,class: {list(map(lambda x: np.sum(x.numpy()), grid_loss))}')
+
+            avg_loss.update_state(total_loss)
     #
     #     for batch, (images, labels) in enumerate(val_dataset):
     #         outputs = model(images)
@@ -181,8 +196,8 @@ def train(learning_rate=0.001, mode='eager_fit'):
     #
     #     avg_loss.reset_states()
     #     avg_val_loss.reset_states()
-    #     model.save_weights(
-    #         'checkpoints/yolov3_train_{}.tf'.format(epoch))
+        yolo_model.save_weights(
+            'checkpoints/yolov3_train_{}.tf'.format(epoch))
 
 if __name__ == '__main__':
     train()

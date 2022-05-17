@@ -104,7 +104,7 @@ def get_loss_func(anchors, nclasses=80, ignore_thresh=0.5):
         obj_loss = calc_obj_loss(pred_obj, true_obj, obj_mask, ignore_mask)
 
         class_loss = calc_class_loss(pred_class, true_class_idx, obj_mask)
-        return xy_loss + wh_loss + obj_loss + class_loss
+        return xy_loss, wh_loss, obj_loss, class_loss
 
     return loss
 

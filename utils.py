@@ -12,7 +12,7 @@
 
 import tensorflow as tf
 
-def generate_random_dataset(dataset_size=100, image_h=416, image_w=416, max_boxes=50, classes=80):
+def generate_random_dataset(dataset_size=300, image_h=416, image_w=416, max_boxes=100, classes=80):
     '''
 
     :param dataset_size:
@@ -34,8 +34,9 @@ def generate_random_dataset(dataset_size=100, image_h=416, image_w=416, max_boxe
                               seed=42)
     y_max = tf.random.uniform(shape=[dataset_size, max_boxes, 1], minval=xy_min[:, :, 1:2], maxval=1, dtype=tf.float32,
                               seed=42)
-    boxes = tf.concat([xy_min, x_max, y_max], axis=-1) * image_h
-    classes = tf.random.uniform(shape=[dataset_size, max_boxes, 1], minval=0, maxval=classes, dtype=tf.int32, seed=42)
+    objectivenss = tf.ones(shape=[dataset_size, max_boxes, 1],dtype=tf.float32)
+    boxes = tf.concat([xy_min, x_max, y_max, objectivenss], axis=-1)
+    classes = tf.random.uniform(shape=[dataset_size, max_boxes, 1], minval=0, maxval=classes-1, dtype=tf.int32, seed=42)
     classes = tf.cast(classes, tf.float32)
     labels = tf.concat([boxes, classes], -1)
     dataset = tf.data.Dataset.from_tensor_slices((images, labels))
