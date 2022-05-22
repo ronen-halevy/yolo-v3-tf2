@@ -15,7 +15,7 @@ import tensorflow as tf
 def load_fake_dataset():
     x_train = tf.image.decode_jpeg(
         open('./girl.png', 'rb').read(), channels=3)
-    x_train = tf.expand_dims(x_train, axis=0)
+    x_train = tf.cast(tf.expand_dims(x_train, axis=0) , tf.float32) / 255
 
     labels = [
         [0.18494931, 0.03049111, 0.9435849,  0.96302897, 0],

@@ -37,13 +37,10 @@ def bbox_iou(boxes1, boxes2):
 
 
 def broadcast_iou(box_1, box_2):
-    # box_1: (..., (x1, y1, x2, y2))
-    # box_2: (N, (x1, y1, x2, y2))
 
-    # broadcast boxes
     box_1 = tf.expand_dims(box_1, -2)
     box_2 = tf.expand_dims(box_2, 0)
-    # new_shape: (..., N, (x1, y1, x2, y2))
+
     new_shape = tf.broadcast_dynamic_shape(tf.shape(box_1), tf.shape(box_2))
     box_1 = tf.broadcast_to(box_1, new_shape)
     box_2 = tf.broadcast_to(box_2, new_shape)
@@ -122,11 +119,9 @@ def calc_xy_loss(pred_xy_center_offset, true_xy_center, grid_size, true_obj, box
 
 
 def calc_wh_loss(pred_wh, true_wh, true_obj, box_loss_scale, grid_size, anchors):
-    true_wh = tf.math.log(true_wh / anchors)
-    true_wh = tf.where(tf.math.is_inf(true_wh),
-                       tf.zeros_like(true_wh), true_wh)
     squared_wh_loss = true_obj * box_loss_scale * \
                       tf.reduce_sum(tf.square(true_wh - pred_wh), axis=-1)
+
     sum_squared_wh_loss = tf.reduce_sum(squared_wh_loss, axis=(1, 2, 3))
 
     return sum_squared_wh_loss
@@ -164,7 +159,6 @@ def get_loss_func(anchors, nclasses=80, iou_ignore_thresh=0.5):
         pred_bbox = arrange_pred_bbox(decoded_pred_xy_center_offset, decoded_pred_wh, grid_size)
 
         true_bbox = arrange_true_bbox(true_xy_min, true_xy_max, grid_size)
-        # todo check if negative
         true_obj_mask = tf.squeeze(true_obj, axis=-1)
         iou_ignore_mask = calc_iou_ignore_mask(true_bbox, pred_bbox, true_obj_mask, iou_ignore_thresh)
 
@@ -174,7 +168,7 @@ def get_loss_func(anchors, nclasses=80, iou_ignore_thresh=0.5):
         true_xy_center = (true_xy_min + true_xy_max) / 2
 
         xy_loss = calc_xy_loss(decoded_pred_xy_center_offset, true_xy_center, grid_size, true_obj_mask, box_loss_scale)
-        wh_loss = calc_wh_loss(pred_wh, true_wh, true_obj_mask, box_loss_scale, grid_size, anchors)
+        wh_loss = calc_wh_loss(decoded_pred_wh, true_wh, true_obj_mask, box_loss_scale, grid_size, anchors)
         class_loss = calc_class_loss(decoded_pred_class, true_class_idx, true_obj_mask)
 
         return xy_loss + wh_loss + obj_loss + class_loss

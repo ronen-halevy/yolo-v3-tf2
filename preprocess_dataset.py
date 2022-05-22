@@ -63,7 +63,6 @@ def arrange_in_grid(y_train, anchors, output_shape, max_boxes):
     batch_indices = tf.tile(tf.range(batches)[:, tf.newaxis], [1, max_boxes])[:, :, tf.newaxis]
     grid_indices = tf.concat([batch_indices, box_center_xy_grid_indices, best_anchor_indices], axis=-1)
 
-
     mask = y_train[...,2] != 0
     y_train = y_train[mask]
     grid_indices = grid_indices[mask]
@@ -85,12 +84,12 @@ def preprocess_dataset(dataset, batch_size, image_size, anchors_table, grid_size
     dataset = dataset.batch(batch_size, drop_remainder=True) # TODO check that again!!
 
     downsize_strides = image_size / grid_sizes
-
+    OBJ_FIELD_WIDTH = 1
     dataset = dataset.map(lambda x, y: (
         resize_image(x, image_size, image_size),
         tuple([arrange_in_grid(y, tf.convert_to_tensor(anchors),  # ronen TODO was 3,6 check shape
                                #+1 is a patch - todo add the obj in dataset already...
-                               [batch_size, grid_size, grid_size, anchors.shape[0], tf.shape(y)[-1]+1], max_boxes
+                               [batch_size, grid_size, grid_size, anchors.shape[0], tf.shape(y)[-1]+OBJ_FIELD_WIDTH], max_boxes
                                ) for anchors, grid_stride, grid_size
                in
                zip(anchors_table, downsize_strides, grid_sizes)]
