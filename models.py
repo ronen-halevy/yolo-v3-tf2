@@ -133,15 +133,18 @@ def get_grid_output(nfilters, nanchors, nclasses, name=None):
 
 
 def grid_pred_decode(grid_pred, anchors, nclasses):
-    batch_size = tf.shape(grid_pred)[0]
     pred_xy, pred_wh, pred_obj, pred_class = tf.split(grid_pred, [XY_FEILD, WH_FEILD, OBJ_FIELD, nclasses], axis=-1)
+
     grid_size = tf.shape(grid_pred)[1]
     grid_range = tf.range(grid_size, dtype=tf.int32)
     grid_x = tf.tile(tf.expand_dims(grid_range, axis=0), [grid_size, 1])
     grid_y = tf.tile(tf.expand_dims(grid_range, axis=-1), [1, grid_size])
     grid = tf.concat([tf.expand_dims(grid_x, axis=-1), tf.expand_dims(grid_y, axis=-1)], axis=-1)
+
+    batch_size = tf.shape(grid_pred)[0]
     grid = tf.tile(grid[tf.newaxis, :, :, tf.newaxis, :], [batch_size, 1, 1, anchors.shape[0], 1])
     grid = tf.cast(grid, tf.float32)
+
     box_xy = (tf.sigmoid(pred_xy) + tf.cast(grid, tf.float32)) / tf.cast(grid_size, tf.float32)
     box_wh = tf.exp(pred_wh) * anchors
     box_xy_min = box_xy - box_wh / 2
@@ -163,7 +166,7 @@ def yolov3_model(anchors_table, image_size=None, nclasses=80):
     med_grid_pred = get_grid_output(512, nanchors=nanchors, nclasses=nclasses, name='med_output')(med_intermediate_out)
 
     fine_concat_out = get_concat_block(nfilters=128)(med_intermediate_out, out1)
-    fine_intermediate_out = get_grids_common_block(filters=256, name='fine_grid_path')(fine_concat_out)
+    fine_intermediate_out = get_grids_common_block(filters=128, name='fine_grid_path')(fine_concat_out)
     fine_grid_pred = get_grid_output(256, nanchors=nanchors, nclasses=nclasses, name='fine_output')(
         fine_intermediate_out)
 
@@ -177,6 +180,9 @@ def yolov3_model(anchors_table, image_size=None, nclasses=80):
     # outputs = Lambda(lambda x: yolo_nms(x, anchors, masks, classes),
     #                  name='yolo_nms')((boxes_0[:3], boxes_1[:3], boxes_2[:3]))
 
-    # return Model(inputs, (coarse_grid_pred, med_grid_pred, fine_grid_pred), name='yolov3')
+    # return Model(inputs, (coarse_intermediate_out, med_intermediate_out, fine_intermediate_out), name='yolov3')
+
+    return Model(inputs, (coarse_grid_pred, med_grid_pred, fine_grid_pred), name='yolov3')
 
     return Model(inputs, (coarse_grid_out, med_grid_out, fine_grid_out), name='yolov3')
+

@@ -12,6 +12,21 @@
 
 import tensorflow as tf
 
+def load_fake_dataset():
+    x_train = tf.image.decode_jpeg(
+        open('./girl.png', 'rb').read(), channels=3)
+    x_train = tf.expand_dims(x_train, axis=0)
+
+    labels = [
+        [0.18494931, 0.03049111, 0.9435849,  0.96302897, 0],
+        [0.01586703, 0.35938117, 0.17582396, 0.6069674, 56],
+        [0.09158827, 0.48252046, 0.26967454, 0.6403017, 67]
+    ] + [[0, 0, 0, 0, 0]] * 97
+    y_train = tf.convert_to_tensor(labels, tf.float32)
+    y_train = tf.expand_dims(y_train, axis=0)
+
+    return tf.data.Dataset.from_tensor_slices((x_train, y_train))
+
 def generate_random_dataset(dataset_size=300, image_h=416, image_w=416, max_boxes=100, classes=80):
     '''
 
