@@ -43,7 +43,7 @@ def split_dataset(dataset, dataset_size):
 
 def get_config():
     import os
-    if 'COLAB_GPU' in os.environ:
+    if 'COLAB_GPU' in os.environ: # colab does not support argparse
         parser = argparse.ArgumentParser()
 
         parser.add_argument('--use_debug_dataset', default=False, action='store_true')
