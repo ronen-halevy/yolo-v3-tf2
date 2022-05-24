@@ -57,7 +57,7 @@ def get_config():
                             help='limit on max input examples')
 
         parser.add_argument("--classes_name_fle", type=str,
-                            default='/home/ronen/PycharmProjects/shapes-dataset/dataset/class.names',
+                            default='datasets/shapes/class.names',
                             help='path to classes names file needed to annotate plotted objects')
 
         parser.add_argument("--max_bboxes", type=int, default=100,
@@ -90,7 +90,7 @@ def get_config():
             render_dataset_example = False
             tfrecords_dir = '/home/ronen/PycharmProjects/create-tfrecords/dataset/tfrecords'
             limit = None
-            classes_name_fle = '/home/ronen/PycharmProjects/shapes-dataset/dataset/class.names'
+            classes_name_fle = 'datasets/shapes/class.names'
             max_bboxes = 100
             batch_size = 4
             image_size = 416
