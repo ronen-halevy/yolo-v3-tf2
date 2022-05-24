@@ -67,12 +67,7 @@ def arrange_in_grid(y_train, anchors, output_shape, max_bboxes):
     y_train = y_train[mask]
     grid_indices = grid_indices[mask]
 
-    y_train_h, y_train_t = tf.split(y_train, [4,1], axis=-1)
-    obj = tf.fill(tf.shape(y_train_t), 1.0)
-    y_train = tf.concat([y_train_h, obj, y_train_t], axis=-1)
-
-
-    # to ensure uniqueness in grid entries, taking the max:
+     # to ensure uniqueness in grid entries, taking the max:TODO - prefers bigger if on same grid box
     dataset_in_grid = tf.zeros(output_shape)
     dataset_in_grid = tf.tensor_scatter_nd_max(
         dataset_in_grid, grid_indices, y_train
@@ -89,7 +84,7 @@ def preprocess_dataset(dataset, batch_size, image_size, anchors_table, grid_size
         resize_image(x, image_size, image_size),
         tuple([arrange_in_grid(y, tf.convert_to_tensor(anchors),  # ronen TODO was 3,6 check shape
                                #+1 is a patch - todo add the obj in dataset already...
-                               [batch_size, grid_size, grid_size, anchors.shape[0], tf.shape(y)[-1]+OBJ_FIELD_WIDTH], max_bboxes
+                               [batch_size, grid_size, grid_size, anchors.shape[0], tf.shape(y)[-1]], max_bboxes
                                ) for anchors, grid_stride, grid_size
                in
                zip(anchors_table, downsize_strides, grid_sizes)]

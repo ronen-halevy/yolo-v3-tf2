@@ -16,22 +16,21 @@ import os
 
 
 
-def load_fake_dataset(render_dataset_example=False):
+def load_fake_dataset():
     x_train = tf.image.decode_jpeg(
         open('./girl.png', 'rb').read(), channels=3)
     x_train = tf.cast(tf.expand_dims(x_train, axis=0), tf.float32) / 255
 
     labels = [
-                 [0.18494931, 0.03049111, 0.9435849, 0.96302897, 0],
-                 [0.01586703, 0.35938117, 0.17582396, 0.6069674, 56],
-                 [0.09158827, 0.48252046, 0.26967454, 0.6403017, 67]
-             ] + [[0, 0, 0, 0, 0]] * 97
-    if render_dataset_example:
-        render_bboxes(x_train, labels)
+                 [0.18494931, 0.03049111, 0.9435849, 0.96302897, 1, 0],
+                 [0.01586703, 0.35938117, 0.17582396, 0.6069674, 1, 56],
+                 [0.09158827, 0.48252046, 0.26967454, 0.6403017, 1, 67]
+             ] + [[0, 0, 0, 0, 0, 0]] * 97
+    # if render_dataset_example:
+    #     render_bboxes(x_train, labels)
 
     y_train = tf.convert_to_tensor(labels, tf.float32)
 
-    render_bboxes(x_train, y_train.numpy())
 
     return tf.data.Dataset.from_tensor_slices((x_train, y_train))
 
@@ -74,40 +73,17 @@ def render_bboxes(image, bboxes):
     indices = [1, 0, 3, 2]
     bboxes = tf.gather(bboxes, indices, axis=-1)
     colors = [[1, 255, 0]]
+    # expand dims only if needed:
+    image = tf.squeeze(image)[tf.newaxis, ...]
     image = tf.image.draw_bounding_boxes(
         image, bboxes, colors, name=None
     )
     plt.imshow(image[0])
     plt.show()
 
-# def render_bboxes1(image, y):
-#     '''
-#
-#     :param image:
-#     :type image:
-#     :param y:
-#     :type y:
-#     :return:
-#     :rtype:
-#     '''
-#
-#     bboxes = y[..., 0:4].astype(float)  # / [image.shape[1], image.shape[0], image.shape[1], image.shape[0]]
-#     indices = [1, 0, 3, 2]
-#     bboxes = bboxes[..., indices]
-#     bboxes = bboxes[0:10]
-#     bboxes = tf.expand_dims(bboxes, axis=0)
-#     bboxes = tf.cast(bboxes, tf.float32)
-#     colors = [[1, 255, 0]]
-#
-#     image = tf.image.draw_bounding_boxes(
-#         image, bboxes, colors, name=None
-#     )
-#     plt.imshow(image[0])
-#     plt.show()
-#     return image[0] / 255
 
 
-def load_sample_dataset(annotations_path, class_names_path, max_bboxes, render_dataset_example):
+def load_sample_dataset(annotations_path, class_names_path, max_bboxes):
 
     with open(annotations_path) as f:
         annotations = json.load(f)
@@ -128,20 +104,18 @@ def load_sample_dataset(annotations_path, class_names_path, max_bboxes, render_d
 
     labels = tf.convert_to_tensor(labels, tf.string)
     labels = tf.cast(class_table.lookup(labels), tf.float32)[:, tf.newaxis]
-    bboxes = tf.convert_to_tensor(bboxes, tf.float32)
-    bboxes = tf.concat([bboxes, labels], axis=-1)
 
+    objectivenes = tf.fill(labels.shape, 1.)
+    bboxes = tf.convert_to_tensor(bboxes, tf.float32)
+    bboxes = tf.concat([bboxes, objectivenes, labels], axis=-1)
     nbboxes = bboxes.shape[0]
     npad_boxes = max(max_bboxes - nbboxes, 0)
-    pad_boxes = tf.convert_to_tensor([[0., 0., 0., 0., 0.]] * npad_boxes)
+    pad_boxes = tf.convert_to_tensor([[0., 0., 0., 0., 0., 0.]] * npad_boxes)
     bboxes = tf.concat([bboxes, pad_boxes], axis = 0)
-    # bboxes = bboxes + [[0, 0, 0, 0, 0]] * npad_boxes
 
     # y_train = tf.convert_to_tensor(bboxes, tf.float32)
     y_train = tf.expand_dims(bboxes, axis=0)
 
-    if render_dataset_example:
-        render_bboxes(x_train, bboxes)
 
 
     return tf.data.Dataset.from_tensor_slices((x_train, y_train))

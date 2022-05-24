@@ -1,14 +1,3 @@
-#! /usr/bin/env python
-# coding=utf-8
-# ================================================================
-#   Copyright (C) 2022 . All rights reserved.
-#
-#   File name   : read_dataset.py
-#   Author      : ronen halevy 
-#   Created date:  4/27/22
-#   Description :
-#
-# ================================================================
 # ! /usr/bin/env python
 # coding=utf-8
 # ================================================================
@@ -70,12 +59,19 @@ def parse_tfrecord_fn(record, image_size, max_bboxes, class_table=None):
                             tf.sparse.to_dense(example['image/object/bbox/xmax']),
                             tf.sparse.to_dense(example['image/object/bbox/ymax'])
                             ], axis=1)
-
-    if max_bboxes:
-        paddings = [[0, max_bboxes - tf.shape(y_train)[0]], [0, 0]]
-        y_train = tf.pad(y_train, paddings)
-
     return x_train, y_train
+
+def insert_objectiveness_entry(lablels):
+    (boxes, classes) = tf.split(lablels, [4, 1], axis=-1)
+    objectiveness_entry = tf.cast(tf.fill(tf.shape(classes), 1), dtype=tf.float32)
+    lablels = tf.concat([boxes, objectiveness_entry, classes], axis=-1)
+    return lablels
+
+
+def pad_to_max_boxes(y_train, max_bboxes):
+    paddings = [[0, max_bboxes - tf.shape(y_train)[0]], [0, 0]]
+    y_train = tf.pad(y_train, paddings)
+    return y_train
 
 
 def parse_tfrecords(tfrecords_dir, image_size, max_bboxes, class_file=None):
@@ -98,6 +94,9 @@ def parse_tfrecords(tfrecords_dir, image_size, max_bboxes, class_file=None):
     dataset = files.flat_map(tf.data.TFRecordDataset)
 
     dataset = dataset.map(lambda record: parse_tfrecord_fn(record, image_size, max_bboxes, class_table))
+    dataset = dataset.map(lambda x, y: (x, insert_objectiveness_entry(y)))
+    dataset = dataset.map(lambda x, y: (x,pad_to_max_boxes(y, max_bboxes)))
+
     return dataset
 
 
