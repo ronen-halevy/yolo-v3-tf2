@@ -18,7 +18,6 @@ from parse_tfrecords import parse_tfrecords
 from numpy import loadtxt
 import logging
 
-
 from utils import render_bboxes
 from utils import generate_random_dataset, load_fake_dataset, load_sample_dataset
 from preprocess_dataset import preprocess_dataset
@@ -43,49 +42,64 @@ def split_dataset(dataset, dataset_size):
 
 
 def get_config():
-    parser = argparse.ArgumentParser()
+    import os
+    if 'COLAB_GPU' in os.environ:
+        parser = argparse.ArgumentParser()
 
-    parser.add_argument('--use_debug_dataset', default=False, action='store_true')
+        parser.add_argument('--use_debug_dataset', default=False, action='store_true')
 
-    parser.add_argument('--render_dataset_example', default=False, action='store_true')
+        parser.add_argument('--render_dataset_example', default=False, action='store_true')
 
-    parser.add_argument("--tfrecords_dir", type=str,
-                        default='/home/ronen/PycharmProjects/create-tfrecords/dataset/tfrecords',
-                        help='path to tfrecords files')
-    parser.add_argument("--limit", type=int, default=None,
-                        help='limit on max input examples')
+        parser.add_argument("--tfrecords_dir", type=str,
+                            default='/home/ronen/PycharmProjects/create-tfrecords/dataset/tfrecords',
+                            help='path to tfrecords files')
+        parser.add_argument("--limit", type=int, default=None,
+                            help='limit on max input examples')
 
-    parser.add_argument("--classes_name_fle", type=str,
-                        default='/home/ronen/PycharmProjects/shapes-dataset/dataset/class.names',
-                        help='path to classes names file needed to annotate plotted objects')
+        parser.add_argument("--classes_name_fle", type=str,
+                            default='/home/ronen/PycharmProjects/shapes-dataset/dataset/class.names',
+                            help='path to classes names file needed to annotate plotted objects')
 
-    parser.add_argument("--max_bboxes", type=int, default=100,
-                        help='max bounding boxes in an example image')
+        parser.add_argument("--max_bboxes", type=int, default=100,
+                            help='max bounding boxes in an example image')
 
-    parser.add_argument("--batch_size", type=int, default=4,
-                        help='batch_size')
+        parser.add_argument("--batch_size", type=int, default=4,
+                            help='batch_size')
 
-    parser.add_argument("--image_size", type=int, default=416,
-                        help='Algorithm"s image_size . Assumed a square')
+        parser.add_argument("--image_size", type=int, default=416,
+                            help='Algorithm"s image_size . Assumed a square')
 
-    parser.add_argument("--anchors_file", type=str, default='datasets/shapes/shapes_yolov3_anchors.txt',
-                        help='anchors_file')
+        parser.add_argument("--anchors_file", type=str, default='datasets/shapes/shapes_yolov3_anchors.txt',
+                            help='anchors_file')
 
+        parser.add_argument("--dataset_limit_size", type=str, default=None,
+                            help='Train will limit dataset to dataset_size. If None, no limit is set')
 
-    parser.add_argument("--dataset_limit_size", type=str, default=None,
-                        help='Train will limit dataset to dataset_size. If None, no limit is set')
+        parser.add_argument("--learning_rate", type=float, default=0.001,
+                            help='learning_rate')
 
-    parser.add_argument("--learning_rate", type=float, default=0.001,
-                        help='learning_rate')
+        parser.add_argument("--epochs", type=int, default=50,
+                            help='epochs')
 
-    parser.add_argument("--epochs", type=int, default=50,
-                        help='epochs')
+        parser.add_argument("--mode", type=str, default="eager_tf",
+                            help="model's execution mode")
+        args = parser.parse_args()
+    else:
+        class args:
+            use_debug_dataset = True
+            render_dataset_example = False
+            tfrecords_dir = '/home/ronen/PycharmProjects/create-tfrecords/dataset/tfrecords'
+            limit = None
+            classes_name_fle = '/home/ronen/PycharmProjects/shapes-dataset/dataset/class.names'
+            max_bboxes = 100
+            batch_size = 4
+            image_size = 416
+            anchors_file = 'datasets/shapes/shapes_yolov3_anchors.txt'
+            dataset_limit_size = None
+            learning_rate = 0.001
+            epochs = 50
+            mode = "eager_tf"
 
-    parser.add_argument("--mode", type=str, default="eager_tf",
-                        help="model's execution mode")
-
-
-    args = parser.parse_args()
     tfrecords_dir = args.tfrecords_dir
     image_size = args.image_size
     batch_size = args.batch_size
@@ -100,6 +114,7 @@ def get_config():
 
     return tfrecords_dir, classes_name_fle, batch_size, image_size, anchors_file, max_bboxes, epochs, mode, learning_rate, render_dataset_example, use_debug_dataset
 
+
 def get_anchors(anchors_file):
     number_of_scale_grids = 3
     anchors_per_scale_grid = 3
@@ -110,7 +125,7 @@ def get_anchors(anchors_file):
     return anchors_table
 
 
-def load_dataset(tfrecords_dir, use_debug_dataset,  image_size, max_bboxes, classes_name_fle):
+def load_dataset(tfrecords_dir, use_debug_dataset, image_size, max_bboxes, classes_name_fle):
     debug_annotations_path = 'datasets/shapes/debug_dataset_sample/annotations.json'
     if use_debug_dataset:
         dataset = load_sample_dataset(debug_annotations_path, classes_name_fle, max_bboxes)
@@ -133,7 +148,7 @@ def main():
 
     tfrecords_dir, classes_name_fle, batch_size, image_size, anchors_file, max_bboxes, epochs, mode, learning_rate, render_dataset_example, use_debug_dataset = get_config()
 
-    dataset, nclasses = load_dataset(tfrecords_dir, use_debug_dataset,  image_size, max_bboxes, classes_name_fle)
+    dataset, nclasses = load_dataset(tfrecords_dir, use_debug_dataset, image_size, max_bboxes, classes_name_fle)
     if render_dataset_example:
         x_train, bboxes = next(iter(dataset))
         render_bboxes(x_train, bboxes)
