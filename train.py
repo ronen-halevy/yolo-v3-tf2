@@ -20,7 +20,7 @@ import logging
 
 
 from utils import render_bboxes
-from utils import generate_random_dataset, load_fake_dataset
+from utils import generate_random_dataset, load_fake_dataset, load_sample_dataset
 from preprocess_dataset import preprocess_dataset
 from loss_func import get_loss_func
 
@@ -53,7 +53,7 @@ def config_train():
 
     parser.add_argument('--use_debug_dataset', default=True, action='store_true')
 
-    parser.add_argument('--render_dataset_example', default=False, action='store_true')
+    parser.add_argument('--render_dataset_example', default=True, action='store_true')
 
     parser.add_argument("--tfrecords_dir", type=str,
                         default='/home/ronen/PycharmProjects/create-tfrecords/dataset/tfrecords',
@@ -65,7 +65,7 @@ def config_train():
                         default='/home/ronen/PycharmProjects/shapes-dataset/dataset/class.names',
                         help='path to classes names file needed to annotate plotted objects')
 
-    parser.add_argument("--max_boxes", type=int, default=100,
+    parser.add_argument("--max_bboxes", type=int, default=100,
                         help='max bounding boxes in an example image')
 
     parser.add_argument("--batch_size", type=int, default=4,
@@ -74,13 +74,16 @@ def config_train():
     parser.add_argument("--image_size", type=int, default=416,
                         help='Algorithm"s image_size . Assumed a square')
 
-    parser.add_argument("--anchors_file", type=str, default='anchors/shapes_yolov3_anchors.txt',
+    parser.add_argument("--anchors_file", type=str, default='datasets/shapes/shapes_yolov3_anchors.txt',
                         help='anchors_file')
+
+    parser.add_argument("--label_names_file", type=str, default='datasets/shapes/class.names',
+                        help='label_names_file')
 
     parser.add_argument("--dataset_limit_size", type=str, default=None,
                         help='Train will limit dataset to dataset_size. If None, no limit is set')
 
-    parser.add_argument("--learning_rate", type=float, default=0.001,
+    parser.add_argument("--learning_rate", type=float, default=0.005,
                         help='learning_rate')
 
     parser.add_argument("--epochs", type=int, default=50,
@@ -96,41 +99,58 @@ def config_train():
     image_size = args.image_size
     batch_size = args.batch_size
     class_file = args.classes
-    max_boxes = args.max_boxes
+    max_bboxes = args.max_bboxes
     use_debug_dataset = args.use_debug_dataset
     dataset_limit_size = args.dataset_limit_size
     anchors_file = args.anchors_file
+    label_names_file = args.label_names_file
     learning_rate = args.learning_rate
     epochs = args.epochs
     mode = args.mode
+    render_dataset_example = args.render_dataset_example
 
-    if use_debug_dataset:
-        dataset = load_fake_dataset()
+    debug_annotations_path = 'datasets/shapes/debug_dataset_sample/annotations.json'
+    class_names_path = 'datasets/shapes/class.names'
+
+    if use_debug_dataset == 'BB':
+        dataset = load_fake_dataset(render_dataset_example)
         dataset = dataset.repeat()
 
         anchors_table = np.array([[(10, 13), (16, 30), (33, 23)], [(30, 61), (62, 45),
                                                                    (59, 119)], [(116, 90), (156, 198), (373, 326)]],
                                  np.float32) / image_size
         nclasses = 80  # ronen TODO
+
+    elif use_debug_dataset:
+
+        dataset = load_sample_dataset(debug_annotations_path, class_names_path, max_bboxes, render_dataset_example)
+        dataset = dataset.repeat()
+        number_of_scale_grids = 3
+        anchors_per_scale_grid = 3
+        anchor_entry_size = 2
+        anchors_table = loadtxt(anchors_file, dtype=np.float, delimiter=',')
+        anchors_table = anchors_table.reshape(number_of_scale_grids, anchors_per_scale_grid, anchor_entry_size)
+        dataset_names = loadtxt(class_names_path, dtype=str)
+        nclasses = dataset_names.shape[0]
     else:
-        dataset = parse_tfrecords(tfrecords_dir, image_size, max_boxes, class_file)
+        dataset = parse_tfrecords(tfrecords_dir, image_size, max_bboxes, class_file)
         dataset = dataset.map(lambda x, y: (x, insert_objectiveness_entry(y)))
 
-        anchors_table = loadtxt(anchors_file, comments="#", delimiter=",", unpack=False)
-        nanchors_per_grid = 3
-        anchors_table = anchors_table.reshape(-1, nanchors_per_grid, 2)
-        nclasses = 80  # ronen TODO
+        anchors_table = loadtxt(anchors_file)
+
+        number_of_scale_grids = 3
+        anchors_per_scale_grid = 3
+        anchor_entry_size = 2
+        anchors_table = anchors_table.reshape(number_of_scale_grids, anchors_per_scale_grid, anchor_entry_size)
+        dataset_names = loadtxt(label_names_file, dtype=str)
+        nclasses = dataset_names.shape[0]
 
     dataset_size = dataset_limit_size if dataset_limit_size else dataset.cardinality().numpy()
 
-    if args.render_dataset_example:
-        image, y = list(dataset.as_numpy_iterator())[0]
-        images = tf.expand_dims(image, axis=0)  # * 255
-        render_bboxes(images, y)
 
     # Descending anchors_table Order:
     anchors_table = np.flip(np.sort(anchors_table, axis=- 1))
-    return dataset, dataset_size, batch_size, image_size, anchors_table, max_boxes, grid_sizes_table, nclasses, epochs, mode, learning_rate
+    return dataset, dataset_size, batch_size, image_size, anchors_table, max_bboxes, grid_sizes_table, nclasses, epochs, mode, learning_rate
 
 
 def main():
@@ -141,7 +161,7 @@ def main():
 
     physical_devices = tf.config.experimental.list_physical_devices('GPU')
 
-    train_dataset, dataset_size, batch_size, image_size, anchors_table, max_boxes, grid_sizes_table, nclasses, epochs, mode, learning_rate = config_train()
+    train_dataset, dataset_size, batch_size, image_size, anchors_table, max_bboxes, grid_sizes_table, nclasses, epochs, mode, learning_rate = config_train()
 
     from models import yolov3_model
 
@@ -156,7 +176,7 @@ def main():
                   run_eagerly=(mode == 'eager_fit'))
 
     train_dataset = preprocess_dataset(train_dataset, batch_size, image_size, anchors_table, grid_sizes_table,
-                                       max_boxes)
+                                       max_bboxes)
 
     # train_dataset = train_dataset.shuffle(buffer_size=512)
     # train_dataset = train_dataset.repeat()

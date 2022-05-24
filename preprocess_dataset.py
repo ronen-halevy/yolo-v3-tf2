@@ -31,7 +31,7 @@ def resize_image(image, t_w, t_h):
     return scaled_image
 
 
-def arrange_in_grid(y_train, anchors, output_shape, max_boxes):
+def arrange_in_grid(y_train, anchors, output_shape, max_bboxes):
     """
 
     :param y_train:
@@ -42,8 +42,8 @@ def arrange_in_grid(y_train, anchors, output_shape, max_boxes):
     :type downsize_stride:
     :param output_shape:
     :type output_shape:
-    :param max_boxes:
-    :type max_boxes:
+    :param max_bboxes:
+    :type max_bboxes:
     :return:
     :rtype:
     """
@@ -60,7 +60,7 @@ def arrange_in_grid(y_train, anchors, output_shape, max_boxes):
     box_center_xy = (y_train[..., 0:2] + y_train[..., 2:4]) / 2
     box_center_xy_grid_indices = tf.cast(box_center_xy * output_shape[1:3], tf.int32)
     batches = y_train.shape[0]
-    batch_indices = tf.tile(tf.range(batches)[:, tf.newaxis], [1, max_boxes])[:, :, tf.newaxis]
+    batch_indices = tf.tile(tf.range(batches)[:, tf.newaxis], [1, max_bboxes])[:, :, tf.newaxis]
     grid_indices = tf.concat([batch_indices, box_center_xy_grid_indices, best_anchor_indices], axis=-1)
 
     mask = y_train[...,2] != 0
@@ -80,7 +80,7 @@ def arrange_in_grid(y_train, anchors, output_shape, max_boxes):
     return dataset_in_grid
 
 
-def preprocess_dataset(dataset, batch_size, image_size, anchors_table, grid_sizes, max_boxes):
+def preprocess_dataset(dataset, batch_size, image_size, anchors_table, grid_sizes, max_bboxes):
     dataset = dataset.batch(batch_size, drop_remainder=True) # TODO check that again!!
 
     downsize_strides = image_size / grid_sizes
@@ -89,7 +89,7 @@ def preprocess_dataset(dataset, batch_size, image_size, anchors_table, grid_size
         resize_image(x, image_size, image_size),
         tuple([arrange_in_grid(y, tf.convert_to_tensor(anchors),  # ronen TODO was 3,6 check shape
                                #+1 is a patch - todo add the obj in dataset already...
-                               [batch_size, grid_size, grid_size, anchors.shape[0], tf.shape(y)[-1]+OBJ_FIELD_WIDTH], max_boxes
+                               [batch_size, grid_size, grid_size, anchors.shape[0], tf.shape(y)[-1]+OBJ_FIELD_WIDTH], max_bboxes
                                ) for anchors, grid_stride, grid_size
                in
                zip(anchors_table, downsize_strides, grid_sizes)]
