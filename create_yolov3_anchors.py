@@ -81,7 +81,7 @@ def main():
     parser.add_argument("--classes", type=str,
                         default='/home/ronen/PycharmProjects/shapes-dataset/dataset/class.names',
                         help='path to classes names file needed to annotate plotted objects')
-    parser.add_argument("--max_boxes", type=int, default=100,
+    parser.add_argument("--max_bboxes", type=int, default=100,
                         help='max bounding boxes in an example image')
 
     parser.add_argument("--image_size", type=int, default=416,
@@ -92,11 +92,11 @@ def main():
 
     args = parser.parse_args()
     tfrecords_dir = args.tfrecords_dir
-    max_boxes = args.max_boxes
+    max_bboxes = args.max_bboxes
     image_size = args.image_size
     anchors_out_file = args.anchors_out_file
 
-    dataset = parse_tfrecords(tfrecords_dir, image_size, max_boxes, class_file=None)
+    dataset = parse_tfrecords(tfrecords_dir, image_size, max_bboxes, class_file=None)
     anchors = creat_yolo_anchors(dataset)
     head, tail = os.path.split(anchors_out_file)
     pathlib.Path(head).mkdir(parents=True, exist_ok=True)

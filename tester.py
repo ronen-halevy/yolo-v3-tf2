@@ -53,9 +53,9 @@ def test_preprocess_dataset():
     :return:
     :rtype:
     """
-    dataset, dataset_size, batch_size, image_size, anchors, max_boxes, grid_sizes = train.config_train()
+    dataset, dataset_size, batch_size, image_size, anchors, max_bboxes, grid_sizes = train.config_train()
     train_dataset, test_dataset, val_dataset = train.split_dataset(dataset, dataset_size)
-    dataset = preprocess_dataset.preprocess_dataset(dataset, batch_size, image_size, anchors, grid_sizes, max_boxes)
+    dataset = preprocess_dataset.preprocess_dataset(dataset, batch_size, image_size, anchors, grid_sizes, max_bboxes)
     plot_transformed_dataset(dataset)
     # Create two subplots and unpack the output array immediately
 

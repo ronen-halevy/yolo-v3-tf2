@@ -26,7 +26,7 @@ import tensorflow as tf
 import argparse
 
 
-def parse_tfrecord_fn(record, image_size, max_boxes, class_table=None):
+def parse_tfrecord_fn(record, image_size, max_bboxes, class_table=None):
     """
 
     :param record: A record read from TfRecord files
@@ -34,9 +34,9 @@ def parse_tfrecord_fn(record, image_size, max_boxes, class_table=None):
     :param class_table: A table to map string class labels to number representation. If missing, dataset's class
     entries are ignored.
     :type class_table:
-    :param max_boxes: Pad number of boxes to max_boxes, to achieve uniform size. Caution! Fails if number of boxes in
-    any entry exeeds > max_boxes
-    :type max_boxes:
+    :param max_bboxes: Pad number of boxes to max_bboxes, to achieve uniform size. Caution! Fails if number of boxes in
+    any entry exeeds > max_bboxes
+    :type max_bboxes:
     :param image_size: Assumed square. Resizing, otherwise image shapes values are None.
     :type image_size:
     :return: Transformed dataset
@@ -71,19 +71,19 @@ def parse_tfrecord_fn(record, image_size, max_boxes, class_table=None):
                             tf.sparse.to_dense(example['image/object/bbox/ymax'])
                             ], axis=1)
 
-    if max_boxes:
-        paddings = [[0, max_boxes - tf.shape(y_train)[0]], [0, 0]]
+    if max_bboxes:
+        paddings = [[0, max_bboxes - tf.shape(y_train)[0]], [0, 0]]
         y_train = tf.pad(y_train, paddings)
 
     return x_train, y_train
 
 
-def parse_tfrecords(tfrecords_dir, image_size, max_boxes, class_file=None):
+def parse_tfrecords(tfrecords_dir, image_size, max_bboxes, class_file=None):
     """
     :param tfrecords_dir:
     :type tfrecords_dir:
-    :param max_boxes:
-    :type max_boxes:
+    :param max_bboxes:
+    :type max_bboxes:
     :param class_file: If none, class labels will not be assigned to integers
     :type class_file:
     :return:
@@ -97,7 +97,7 @@ def parse_tfrecords(tfrecords_dir, image_size, max_boxes, class_file=None):
 
     dataset = files.flat_map(tf.data.TFRecordDataset)
 
-    dataset = dataset.map(lambda record: parse_tfrecord_fn(record, image_size, max_boxes, class_table))
+    dataset = dataset.map(lambda record: parse_tfrecord_fn(record, image_size, max_bboxes, class_table))
     return dataset
 
 
@@ -112,7 +112,7 @@ def main():
     parser.add_argument("--classes", type=str,
                         default='/home/ronen/PycharmProjects/shapes-dataset/dataset/class.names',
                         help='path to classes names file needed to annotate plotted objects')
-    parser.add_argument("--max_boxes", type=int, default=100,
+    parser.add_argument("--max_bboxes", type=int, default=100,
                         help='max bounding boxes in an example image')
 
     parser.add_argument("--image_size", type=int, default=416,
@@ -123,9 +123,9 @@ def main():
     tfrecords_dir = args.tfrecords_dir
 
     class_file = args.classes
-    max_boxes = args.max_boxes
+    max_bboxes = args.max_bboxes
     image_size = args.image_size
-    dataset = parse_tfrecords(tfrecords_dir, image_size, max_boxes, class_file)
+    dataset = parse_tfrecords(tfrecords_dir, image_size, max_bboxes, class_file)
 
 if __name__ == '__main__':
     main()

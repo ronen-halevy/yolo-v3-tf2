@@ -22,17 +22,17 @@ import numpy as np
 
 tfrecords_dir = '/home/ronen/PycharmProjects/create-tfrecords/dataset/tfrecords'
 image_size = 416
-max_boxes = 100
+max_bboxes = 100
 class_file = None
 
-dataset, dataset_size, batch_size, image_size, anchors, max_boxes, grid_sizes = train.config_train()
+dataset, dataset_size, batch_size, image_size, anchors, max_bboxes, grid_sizes = train.config_train()
 
 image_batch, y_train = next(dataset.as_numpy_iterator())
 y_train = tf.expand_dims(y_train, axis=0)
 downsize_stride = 32
 output_shape = [32,13,13,3,5]
-dataset = preprocess_dataset.arrange_in_grid(y_train, anchors[0], downsize_stride, output_shape, max_boxes)
+dataset = preprocess_dataset.arrange_in_grid(y_train, anchors[0], downsize_stride, output_shape, max_bboxes)
 
 pass
 
-# def arrange_in_grid(y_train, anchors, downsize_stride, output_shape, max_boxes)
+# def arrange_in_grid(y_train, anchors, downsize_stride, output_shape, max_bboxes)
