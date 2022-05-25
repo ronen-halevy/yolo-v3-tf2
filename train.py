@@ -43,7 +43,7 @@ def split_dataset(dataset, dataset_size):
 
 def get_config():
     import os
-    if 'COLAB_GPU' not in os.environ: # colab does not support argparse
+    if 'COLAB_GPU' not in os.environ:  # colab does not support argparse
         parser = argparse.ArgumentParser()
 
         parser.add_argument('--use_debug_dataset', default=False, action='store_true')
@@ -92,7 +92,7 @@ def get_config():
             limit = None
             classes_name_fle = 'datasets/shapes/class.names'
             max_bboxes = 100
-            batch_size = 4
+            batch_size = 32
             image_size = 416
             anchors_file = 'datasets/shapes/shapes_yolov3_anchors.txt'
             dataset_limit_size = None
@@ -148,6 +148,12 @@ def main():
 
     tfrecords_dir, classes_name_fle, batch_size, image_size, anchors_file, max_bboxes, epochs, mode, learning_rate, render_dataset_example, use_debug_dataset = get_config()
 
+    lr_init = 1e-3
+    lr_end = 1e-6
+    steps_per_epoch = int(10000 / batch_size)
+    total_steps = epochs * steps_per_epoch
+    warmup_epochs = 2
+
     dataset, nclasses = load_dataset(tfrecords_dir, use_debug_dataset, image_size, max_bboxes, classes_name_fle)
     if render_dataset_example:
         x_train, bboxes = next(iter(dataset))
@@ -156,7 +162,7 @@ def main():
 
     model = yolov3_model(anchors_table, image_size, nclasses=nclasses)
 
-    optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
+    optimizer = tf.keras.optimizers.Adam()
 
     loss = [get_loss_func(anchors, nclasses=nclasses)
             for anchors in anchors_table]
@@ -168,31 +174,49 @@ def main():
 
     train_dataset = preprocess_dataset(dataset, batch_size, image_size, anchors_table, grid_sizes_table,
                                        max_bboxes)
-
     if mode == 'eager_tf':
         # Eager mode is great for debugging
         # Non eager graph mode is recommended for real training
         avg_loss = tf.keras.metrics.Mean('loss', dtype=tf.float32)
         avg_val_loss = tf.keras.metrics.Mean('val_loss', dtype=tf.float32)
 
+        global_steps = tf.Variable(1, trainable=False, dtype=tf.int64)
         for epoch in range(1, epochs + 1 + 1000):
-            for batch, (images, labels) in enumerate(train_dataset):
+            for batch_count, (images, labels) in enumerate(train_dataset):
                 with tf.GradientTape() as tape:
                     outputs = model(images, training=True)
                     regularization_loss = tf.reduce_sum(model.losses)
                     pred_loss = []
                     for output, label, loss_fn in zip(outputs, labels, loss):
                         pred_loss.append(loss_fn(label, output))
-                    total_loss = tf.reduce_sum(pred_loss) + regularization_loss
+                    pred_loss_stack_all = tf.stack(pred_loss, axis=1)
+                    pred_loss_per_grid = tf.reduce_sum(pred_loss_stack_all, axis=0)
+                    pred_loss_per_source = tf.reduce_sum(pred_loss_stack_all, axis=1)
+
+                    total_loss = tf.reduce_sum(pred_loss_per_source) + regularization_loss
+
+                    # total_loss = tf.reduce_sum(pred_loss) + regularization_loss
+
+                warmup_steps = warmup_epochs * steps_per_epoch
+                if global_steps < warmup_steps:
+                    lr = global_steps / warmup_steps * lr_init
+                else:
+                    lr = lr_end + 0.5 * (lr_init - lr_end) * (
+                        (1 + tf.cos((global_steps - warmup_steps) / (total_steps - warmup_steps) * np.pi))
+                    )
+                optimizer.lr.assign(lr.numpy())
 
                 grads = tape.gradient(total_loss, model.trainable_variables)
                 optimizer.apply_gradients(
                     zip(grads, model.trainable_variables))
 
-                logging.info("{}_train_{}, {}, {}".format(
-                    epoch, batch, total_loss.numpy(),
-                    list(map(lambda x: np.sum(x.numpy()), pred_loss))))
+                logging.info(
+                    f'{epoch}_train_{batch_count}_lr:{optimizer.lr.numpy():.6f}, totLoss:{total_loss.numpy()}, perGrid{list(pred_loss_per_grid.numpy())}, perSource[xy,wh,obj,class]:{pred_loss_per_source.numpy()}, perGridPerSeource:{[list(x.numpy()) for idx, x in enumerate(pred_loss)]}')
+                # logging.info(f'Detailed Loss Grid-n[xy,wh,obj,class]: {[list(x.numpy()) for idx, x in enumerate(pred_loss)]}')
+
                 avg_loss.update_state(total_loss)
+
+                global_steps.assign_add(1)
 
 
 if __name__ == '__main__':

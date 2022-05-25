@@ -37,7 +37,6 @@ def bbox_iou(boxes1, boxes2):
 
 
 def broadcast_iou(box_1, box_2):
-
     box_1 = tf.expand_dims(box_1, -2)
     box_2 = tf.expand_dims(box_2, 0)
 
@@ -170,7 +169,7 @@ def get_loss_func(anchors, nclasses=80, iou_ignore_thresh=0.5):
         xy_loss = calc_xy_loss(decoded_pred_xy_center_offset, true_xy_center, grid_size, true_obj_mask, box_loss_scale)
         wh_loss = calc_wh_loss(decoded_pred_wh, true_wh, true_obj_mask, box_loss_scale, grid_size, anchors)
         class_loss = calc_class_loss(decoded_pred_class, true_class_idx, true_obj_mask)
-
-        return xy_loss + wh_loss + obj_loss + class_loss
+        return tf.stack([tf.math.reduce_sum(xy_loss), tf.math.reduce_sum(wh_loss), tf.math.reduce_sum(obj_loss),
+                         tf.math.reduce_sum(class_loss)])
 
     return new_lose
