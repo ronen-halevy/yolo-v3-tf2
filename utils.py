@@ -29,7 +29,7 @@ def load_fake_dataset():
     # if render_dataset_example:
     #     render_bboxes(x_train, labels)
 
-    y_train = tf.convert_to_tensor(labels, tf.float32)
+    y_train = tf.convert_to_tensor(labels, tf.float32)[tf.newaxis,...]
 
 
     return tf.data.Dataset.from_tensor_slices((x_train, y_train))

@@ -133,13 +133,20 @@ def get_anchors(anchors_file):
 
 def load_dataset(tfrecords_dir, use_debug_dataset, image_size, max_bboxes, classes_name_fle, debug_annotations_path=None):
     if use_debug_dataset:
-        dataset = load_sample_dataset(debug_annotations_path, classes_name_fle, max_bboxes)
-        dataset = dataset.repeat()
+        if debug_annotations_path is not None:
+            dataset = load_sample_dataset(debug_annotations_path, classes_name_fle, max_bboxes)
+        else:
+            dataset = load_fake_dataset()
+            nclasses = 80
     else:
         dataset = parse_tfrecords(tfrecords_dir, image_size, max_bboxes, classes_name_fle)
 
-    dataset_names = loadtxt(classes_name_fle, dtype=str)
-    nclasses = dataset_names.shape[0]
+    if not use_debug_dataset or  debug_annotations_path:
+        dataset_names = loadtxt(classes_name_fle, dtype=str)
+        nclasses = dataset_names.shape[0]
+
+    dataset = dataset.repeat()
+
     return dataset, nclasses
 
 
