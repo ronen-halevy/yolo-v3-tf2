@@ -79,7 +79,6 @@ def preprocess_dataset(dataset, batch_size, image_size, anchors_table, grid_size
     dataset = dataset.batch(batch_size, drop_remainder=True) # TODO check that again!!
 
     downsize_strides = image_size / grid_sizes
-    OBJ_FIELD_WIDTH = 1
     dataset = dataset.map(lambda x, y: (
         resize_image(x, image_size, image_size),
         tuple([arrange_in_grid(y, tf.convert_to_tensor(anchors),  # ronen TODO was 3,6 check shape
