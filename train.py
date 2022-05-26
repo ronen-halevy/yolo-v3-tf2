@@ -46,7 +46,7 @@ def get_config():
     if 'COLAB_GPU' not in os.environ:  # colab does not support argparse
         parser = argparse.ArgumentParser()
 
-        parser.add_argument('--use_debug_dataset', default=False, action='store_true')
+        parser.add_argument('--use_debug_dataset', default=True, action='store_true')
 
         parser.add_argument('--render_dataset_example', default=False, action='store_true')
 
@@ -83,6 +83,10 @@ def get_config():
 
         parser.add_argument("--mode", type=str, default="eager_tf",
                             help="model's execution mode")
+
+        parser.add_argument("--debug_annotations_path", type=str, default='datasets/shapes/debug_dataset_sample/annotations.json',
+                            help="model's execution mode")
+
         args = parser.parse_args()
     else:
         class args:
@@ -92,13 +96,14 @@ def get_config():
             limit = None
             classes_name_fle = 'datasets/shapes/class.names'
             max_bboxes = 100
-            batch_size = 32
+            batch_size = 4
             image_size = 416
             anchors_file = 'datasets/shapes/shapes_yolov3_anchors.txt'
             dataset_limit_size = None
             learning_rate = 0.001
             epochs = 50
             mode = "eager_tf"
+            debug_annotations_path = 'datasets/shapes/debug_dataset_sample/annotations.json'
 
     tfrecords_dir = args.tfrecords_dir
     image_size = args.image_size
@@ -111,8 +116,9 @@ def get_config():
     epochs = args.epochs
     mode = args.mode
     render_dataset_example = args.render_dataset_example
+    debug_annotations_path = args.debug_annotations_path
 
-    return tfrecords_dir, classes_name_fle, batch_size, image_size, anchors_file, max_bboxes, epochs, mode, learning_rate, render_dataset_example, use_debug_dataset
+    return tfrecords_dir, classes_name_fle, batch_size, image_size, anchors_file, max_bboxes, epochs, mode, learning_rate, render_dataset_example, use_debug_dataset, debug_annotations_path
 
 
 def get_anchors(anchors_file):
@@ -125,8 +131,7 @@ def get_anchors(anchors_file):
     return anchors_table
 
 
-def load_dataset(tfrecords_dir, use_debug_dataset, image_size, max_bboxes, classes_name_fle):
-    debug_annotations_path = 'datasets/shapes/debug_dataset_sample/annotations.json'
+def load_dataset(tfrecords_dir, use_debug_dataset, image_size, max_bboxes, classes_name_fle, debug_annotations_path=None):
     if use_debug_dataset:
         dataset = load_sample_dataset(debug_annotations_path, classes_name_fle, max_bboxes)
         dataset = dataset.repeat()
@@ -146,7 +151,7 @@ def main():
 
     physical_devices = tf.config.experimental.list_physical_devices('GPU')
 
-    tfrecords_dir, classes_name_fle, batch_size, image_size, anchors_file, max_bboxes, epochs, mode, learning_rate, render_dataset_example, use_debug_dataset = get_config()
+    tfrecords_dir, classes_name_fle, batch_size, image_size, anchors_file, max_bboxes, epochs, mode, learning_rate, render_dataset_example, use_debug_dataset, debug_annotations_path = get_config()
 
     lr_init = 1e-3
     lr_end = 1e-6
@@ -154,7 +159,7 @@ def main():
     total_steps = epochs * steps_per_epoch
     warmup_epochs = 2
 
-    dataset, nclasses = load_dataset(tfrecords_dir, use_debug_dataset, image_size, max_bboxes, classes_name_fle)
+    dataset, nclasses = load_dataset(tfrecords_dir, use_debug_dataset, image_size, max_bboxes, classes_name_fle, debug_annotations_path)
     if render_dataset_example:
         x_train, bboxes = next(iter(dataset))
         render_bboxes(x_train, bboxes)

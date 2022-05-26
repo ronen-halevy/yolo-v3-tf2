@@ -14,10 +14,10 @@ import train
 import preprocess_dataset
 import numpy as np
 
-tfrecords_dir, classes_name_fle, batch_size, image_size, anchors_file, max_bboxes, epochs, mode, learning_rate, render_dataset_example, use_debug_dataset = train.get_config()
+tfrecords_dir, classes_name_fle, batch_size, image_size, anchors_file, max_bboxes, epochs, mode, learning_rate, render_dataset_example, use_debug_dataset, debug_annotations_path = train.get_config()
 
 unprocessed_dataset, nclasses = train.load_dataset(tfrecords_dir, use_debug_dataset, image_size, max_bboxes,
-                                                   classes_name_fle)
+                                                   classes_name_fle, debug_annotations_path)
 unprocessed_dataset = unprocessed_dataset.repeat(1)
 
 downsize_stride = 32

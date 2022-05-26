@@ -88,6 +88,8 @@ def load_sample_dataset(annotations_path, class_names_path, max_bboxes):
     with open(annotations_path) as f:
         annotations = json.load(f)
 
+    annotations = annotations['annotations'][0]
+
     image_file = annotations['image_filename']
     head, tail = os.path.split(annotations_path)
     image_path = f'{head}/{image_file}'
