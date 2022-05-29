@@ -20,7 +20,7 @@ import logging
 
 from utils import render_bboxes
 from utils import generate_random_dataset, load_fake_dataset, load_sample_dataset
-from preprocess_dataset import preprocess_dataset
+from preprocess_dataset import preprocess_dataset, arrange_in_grid
 from loss_func import get_loss_func
 from models import yolov3_model
 
@@ -46,9 +46,11 @@ def get_config():
     if 'COLAB_GPU' not in os.environ:  # colab does not support argparse
         parser = argparse.ArgumentParser()
 
-        parser.add_argument('--use_debug_dataset', default=True, action='store_true')
+        parser.add_argument('--use_debug_dataset',
+                            default=True, action='store_true')
 
-        parser.add_argument('--render_dataset_example', default=False, action='store_true')
+        parser.add_argument('--render_dataset_example',
+                            default=False, action='store_true')
 
         parser.add_argument("--tfrecords_dir", type=str,
                             default='/home/ronen/PycharmProjects/create-tfrecords/dataset/tfrecords',
@@ -84,8 +86,8 @@ def get_config():
         parser.add_argument("--mode", type=str, default="eager_tf",
                             help="model's execution mode")
 
-        parser.add_argument("--debug_annotations_path", type=str, default='datasets/shapes/debug_dataset_sample/annotations.json',
-                            help="model's execution mode")
+        parser.add_argument("--debug_annotations_path", type=str, default=None  # 'datasets/shapes/debug_dataset_sample/annotations.json'
+                            , help="model's execution mode")
 
         args = parser.parse_args()
     else:
@@ -101,9 +103,9 @@ def get_config():
             anchors_file = 'datasets/shapes/shapes_yolov3_anchors.txt'
             dataset_limit_size = None
             learning_rate = 0.001
-            epochs = 50
+            epochs = 10
             mode = "eager_tf"
-            debug_annotations_path = 'datasets/shapes/debug_dataset_sample/annotations.json'
+            debug_annotations_path = None # 'datasets/shapes/debug_dataset_sample/annotations.json'
 
     tfrecords_dir = args.tfrecords_dir
     image_size = args.image_size
@@ -126,28 +128,38 @@ def get_anchors(anchors_file):
     anchors_per_scale_grid = 3
     anchor_entry_size = 2
     anchors_table = loadtxt(anchors_file, dtype=np.float, delimiter=',')
-    anchors_table = anchors_table.reshape(number_of_scale_grids, anchors_per_scale_grid, anchor_entry_size)
+    anchors_table = anchors_table.reshape(
+        number_of_scale_grids, anchors_per_scale_grid, anchor_entry_size)
     anchors_table = np.flip(np.sort(anchors_table, axis=- 1))
     return anchors_table
 
 
-def load_dataset(tfrecords_dir, use_debug_dataset, image_size, max_bboxes, classes_name_fle, debug_annotations_path=None):
+def load_dataset(tfrecords_dir, use_debug_dataset, image_size, max_bboxes, anchors_file, classes_name_fle, debug_annotations_path=None):
     if use_debug_dataset:
         if debug_annotations_path is not None:
-            dataset = load_sample_dataset(debug_annotations_path, classes_name_fle, max_bboxes)
+            dataset = load_sample_dataset(
+                debug_annotations_path, classes_name_fle, max_bboxes)
+
         else:
             dataset = load_fake_dataset()
-            nclasses = 80
     else:
-        dataset = parse_tfrecords(tfrecords_dir, image_size, max_bboxes, classes_name_fle)
+        dataset = parse_tfrecords(
+            tfrecords_dir, image_size, max_bboxes, classes_name_fle)
 
-    if not use_debug_dataset or  debug_annotations_path:
+    if not use_debug_dataset or debug_annotations_path:
         dataset_names = loadtxt(classes_name_fle, dtype=str)
         nclasses = dataset_names.shape[0]
+        anchors_table = get_anchors(anchors_file)
+    else:
+        anchors_table = np.array([[(10, 13), (16, 30), (33, 23)], [(30, 61), (62, 45),
+                                 (59, 119)], [(116, 90), (156, 198), (373, 326)]],
+                                 np.float32) / 416
+        anchors_table = np.flip(np.sort(anchors_table, axis=- 1))
+        nclasses = 80
 
     dataset = dataset.repeat()
 
-    return dataset, nclasses
+    return dataset, nclasses, anchors_table
 
 
 def main():
@@ -166,11 +178,11 @@ def main():
     total_steps = epochs * steps_per_epoch
     warmup_epochs = 2
 
-    dataset, nclasses = load_dataset(tfrecords_dir, use_debug_dataset, image_size, max_bboxes, classes_name_fle, debug_annotations_path)
+    dataset, nclasses, anchors_table = load_dataset(
+        tfrecords_dir, use_debug_dataset, image_size, max_bboxes, classes_name_fle, debug_annotations_path)
     if render_dataset_example:
         x_train, bboxes = next(iter(dataset))
         render_bboxes(x_train, bboxes)
-    anchors_table = get_anchors(anchors_file)
 
     model = yolov3_model(anchors_table, image_size, nclasses=nclasses)
 
@@ -183,6 +195,17 @@ def main():
                   run_eagerly=(mode == 'eager_fit'))
 
     grid_sizes_table = np.array([13, 26, 52])
+    ###
+    image, y = next(iter(dataset.as_numpy_iterator()))
+    y = tf.expand_dims(y, axis=0)
+
+    arrange_in_grid(y, tf.convert_to_tensor(anchors_table[0]),  # ronen TODO was 3,6 check shape
+                    # +1 is a patch - todo add the obj in dataset already...
+                    [batch_size, 13, 13,
+                     anchors_table.shape[0], tf.shape(y)[-1]], max_bboxes
+                    )
+
+    ####
 
     train_dataset = preprocess_dataset(dataset, batch_size, image_size, anchors_table, grid_sizes_table,
                                        max_bboxes)
@@ -202,10 +225,13 @@ def main():
                     for output, label, loss_fn in zip(outputs, labels, loss):
                         pred_loss.append(loss_fn(label, output))
                     pred_loss_stack_all = tf.stack(pred_loss, axis=1)
-                    pred_loss_per_grid = tf.reduce_sum(pred_loss_stack_all, axis=0)
-                    pred_loss_per_source = tf.reduce_sum(pred_loss_stack_all, axis=1)
+                    pred_loss_per_grid = tf.reduce_sum(
+                        pred_loss_stack_all, axis=0)
+                    pred_loss_per_source = tf.reduce_sum(
+                        pred_loss_stack_all, axis=1)
 
-                    total_loss = tf.reduce_sum(pred_loss_per_source) + regularization_loss
+                    total_loss = tf.reduce_sum(
+                        pred_loss_per_source) + regularization_loss
 
                     # total_loss = tf.reduce_sum(pred_loss) + regularization_loss
 
@@ -214,8 +240,10 @@ def main():
                     lr = global_steps / warmup_steps * lr_init
                 else:
                     lr = lr_end + 0.5 * (lr_init - lr_end) * (
-                        (1 + tf.cos((global_steps - warmup_steps) / (total_steps - warmup_steps) * np.pi))
+                        (1 + tf.cos((global_steps - warmup_steps) /
+                         (total_steps - warmup_steps) * np.pi))
                     )
+                    lr = .001
                 optimizer.lr.assign(lr.numpy())
 
                 grads = tape.gradient(total_loss, model.trainable_variables)
