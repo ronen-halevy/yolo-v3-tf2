@@ -16,13 +16,13 @@ import numpy as np
 
 tfrecords_dir, classes_name_fle, batch_size, image_size, anchors_file, max_bboxes, epochs, mode, learning_rate, render_dataset_example, use_debug_dataset, debug_annotations_path = train.get_config()
 
-unprocessed_dataset, nclasses = train.load_dataset(tfrecords_dir, use_debug_dataset, image_size, max_bboxes,
+unprocessed_dataset, nclasses, anchors_table = train.load_dataset(tfrecords_dir, use_debug_dataset, image_size, max_bboxes,
                                                    classes_name_fle, debug_annotations_path)
 unprocessed_dataset = unprocessed_dataset.repeat(1)
 
 downsize_stride = 32
 output_shape = [32, 13, 13, 3, 5]
-anchors_table = train.get_anchors(anchors_file)
+# anchors_table = train.get_anchors(anchors_file)
 
 grid_sizes_table = np.array([13, 26, 52])
 
@@ -33,25 +33,24 @@ dataset = preprocess_dataset.preprocess_dataset(unprocessed_dataset, batch_size,
                                                 grid_sizes_table,
                                                 max_bboxes)
 image, all_grids_scattered_bboxes = next(iter(dataset.as_numpy_iterator()))
-grid_scattered_bboxes = all_grids_scattered_bboxes[0]
+for grid_index, grid_scattered_bboxes in enumerate(all_grids_scattered_bboxes):
+# grid_scattered_bboxes = all_grids_scattered_bboxes[0]
 
-grid_scattered_bbox = tf.convert_to_tensor(grid_scattered_bboxes[0])
-mask = grid_scattered_bbox[..., 2] != 0
-bboxes_extracted = tf.boolean_mask(grid_scattered_bbox, mask)
+    grid_scattered_bbox = tf.convert_to_tensor(grid_scattered_bboxes[grid_index])
+    mask = grid_scattered_bbox[..., 2] != 0
+    bboxes_extracted = tf.boolean_mask(grid_scattered_bbox, mask)
 
-# Use sort to arrange tensors in same order - for comparison
-args = tf.argsort(bboxes_extracted[...,0])
-bboxes_extracted_sorted = tf.gather(bboxes_extracted, args)
+    # Use sort to arrange tensors in same order - for comparison
+    args = tf.argsort(bboxes_extracted[...,0])
+    bboxes_extracted_sorted = tf.gather(bboxes_extracted, args)
 
-args = tf.argsort(bboxes_orig[...,0])
-bboxes_orig_sorted = tf.gather(bboxes_orig, args)
+    args = tf.argsort(bboxes_orig[...,0])
+    bboxes_orig_sorted = tf.gather(bboxes_orig, args)
 
-is_boxes_equal = tf.math.equal(bboxes_orig_sorted, bboxes_extracted_sorted)
-is_identical = tf.reduce_all(is_boxes_equal)
+    is_boxes_equal = tf.math.equal(bboxes_orig_sorted, bboxes_extracted_sorted)
+    is_identical = tf.reduce_all(is_boxes_equal)
 
-if is_identical:
-    print('PASSED')
-else:
-    print('Failed')
-
-pass
+    if is_identical:
+        print(f'Grid {grid_index} Test Data PASSED')
+    else:
+        print(f'Grid {grid_index} Test Data Failed')
