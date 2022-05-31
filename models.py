@@ -45,7 +45,7 @@ def conv_block(input, nfilters, kernel_size, strides=1, activation=True, batch_n
                   use_bias=not batch_norm, kernel_regularizer=l2(0.0005))(input)
     if batch_norm:
         conv = BatchNormalization()(conv)
-    if activation:
+    # if activation:
         conv = LeakyReLU(alpha=0.1)(conv) # TODO: consider constants assignments
     return conv
 
