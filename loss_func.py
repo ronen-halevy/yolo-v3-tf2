@@ -4,7 +4,7 @@
 #   Copyright (C) 2022 . All rights reserved.
 #
 #   File name   : loss_func.py
-#   Author      : ronen halevy 
+#   Author      : ronen halevy
 #   Created date:  5/11/22
 #   Description :
 #
@@ -67,7 +67,16 @@ def bbox_iou_broadcast(boxes1, boxes2):
     iou = bbox_iou(boxes1, boxes2)
     return iou
 
+#ronen TODO - cancel exp. using log instead
+def decode_predictions2(pred_xy_center, pred_wh, pred_obj, pred_class, anchors):
+    pred_xy_center_offset = tf.sigmoid(pred_xy_center)
+    pred_wh_decoded = pred_wh
 
+    pred_obj_decoded = tf.sigmoid(pred_obj)
+    pred_class_decoded = tf.sigmoid(pred_class)
+    return pred_xy_center_offset, pred_wh_decoded, pred_obj_decoded, pred_class_decoded
+
+#ronen todo - old no tf.log
 def decode_predictions(pred_xy_center, pred_wh, pred_obj, pred_class, anchors):
     pred_xy_center_offset = tf.sigmoid(pred_xy_center)
     pred_wh_decoded = tf.exp(pred_wh) * anchors
@@ -110,16 +119,21 @@ def calc_xy_loss(pred_xy_center_offset, true_xy_center, grid_size, true_obj, box
     true_xy_center_offset = (true_xy_center * grid_size - grid)
 
     xy_loss = true_obj * box_loss_scale * \
-              tf.reduce_sum(tf.square(true_xy_center_offset - pred_xy_center_offset), axis=-1)
+        tf.reduce_sum(tf.square(true_xy_center_offset -
+                      pred_xy_center_offset), axis=-1)
 
     xy_loss = tf.reduce_sum(xy_loss, axis=(1, 2, 3))
 
     return xy_loss
 
-
+# ronen todo this is using log instead of exp
 def calc_wh_loss(pred_wh, true_wh, true_obj, box_loss_scale, grid_size, anchors):
+    true_wh = tf.math.log(true_wh / anchors)
+    true_wh = tf.where(tf.math.is_inf(true_wh),
+                       tf.zeros_like(true_wh), true_wh)
+
     squared_wh_loss = true_obj * box_loss_scale * \
-                      tf.reduce_sum(tf.square(true_wh - pred_wh), axis=-1)
+        tf.reduce_sum(tf.square(true_wh - pred_wh), axis=-1)
 
     sum_squared_wh_loss = tf.reduce_sum(squared_wh_loss, axis=(1, 2, 3))
 
@@ -137,7 +151,7 @@ def calc_class_loss(pred_class, true_class_idx, obj_mask):
 def calc_obj_loss(true_obj, decoded_pred_obj, obj_mask, ignore_mask):
     obj_loss = binary_crossentropy(true_obj, decoded_pred_obj)
     obj_loss = obj_mask * obj_loss + \
-               (1 - obj_mask) * ignore_mask * obj_loss
+        (1 - obj_mask) * ignore_mask * obj_loss
     obj_loss = tf.reduce_sum(obj_loss, axis=(1, 2, 3))
     return obj_loss
 
@@ -150,25 +164,31 @@ def get_loss_func(anchors, nclasses=80, iou_ignore_thresh=0.5):
         pred_xy_center, pred_wh, pred_obj, pred_class = tf.split(
             y_pred, (2, 2, 1, nclasses), axis=-1)
 
-        decoded_pred_xy_center_offset, decoded_pred_wh, decoded_pred_obj, decoded_pred_class = decode_predictions(
+        decoded_pred_xy_center_offset, decoded_pred_wh, decoded_pred_obj, decoded_pred_class = decode_predictions2(
             pred_xy_center, pred_wh, pred_obj, pred_class, anchors)
 
         grid_size = tf.cast(tf.shape(y_pred)[1], tf.float32)
 
-        pred_bbox = arrange_pred_bbox(decoded_pred_xy_center_offset, decoded_pred_wh, grid_size)
+        pred_bbox = arrange_pred_bbox(
+            decoded_pred_xy_center_offset, decoded_pred_wh, grid_size)
 
         true_bbox = arrange_true_bbox(true_xy_min, true_xy_max, grid_size)
         true_obj_mask = tf.squeeze(true_obj, axis=-1)
-        iou_ignore_mask = calc_iou_ignore_mask(true_bbox, pred_bbox, true_obj_mask, iou_ignore_thresh)
+        iou_ignore_mask = calc_iou_ignore_mask(
+            true_bbox, pred_bbox, true_obj_mask, iou_ignore_thresh)
 
-        obj_loss = calc_obj_loss(true_obj, decoded_pred_obj, true_obj_mask, iou_ignore_mask)
+        obj_loss = calc_obj_loss(
+            true_obj, decoded_pred_obj, true_obj_mask, iou_ignore_mask)
         true_wh = true_xy_max - true_xy_min
         box_loss_scale = 2 - true_wh[..., 0] * true_wh[..., 1]
         true_xy_center = (true_xy_min + true_xy_max) / 2
 
-        xy_loss = calc_xy_loss(decoded_pred_xy_center_offset, true_xy_center, grid_size, true_obj_mask, box_loss_scale)
-        wh_loss = calc_wh_loss(decoded_pred_wh, true_wh, true_obj_mask, box_loss_scale, grid_size, anchors)
-        class_loss = calc_class_loss(decoded_pred_class, true_class_idx, true_obj_mask)
+        xy_loss = calc_xy_loss(decoded_pred_xy_center_offset,
+                               true_xy_center, grid_size, true_obj_mask, box_loss_scale)
+        wh_loss = calc_wh_loss(decoded_pred_wh, true_wh,
+                               true_obj_mask, box_loss_scale, grid_size, anchors)
+        class_loss = calc_class_loss(
+            decoded_pred_class, true_class_idx, true_obj_mask)
         return tf.stack([tf.math.reduce_sum(xy_loss), tf.math.reduce_sum(wh_loss), tf.math.reduce_sum(obj_loss),
                          tf.math.reduce_sum(class_loss)])
 

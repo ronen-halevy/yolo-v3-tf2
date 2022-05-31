@@ -154,7 +154,7 @@ def load_dataset(tfrecords_dir, use_debug_dataset, image_size, max_bboxes, ancho
         anchors_table = np.array([[(10, 13), (16, 30), (33, 23)], [(30, 61), (62, 45),
                                  (59, 119)], [(116, 90), (156, 198), (373, 326)]],
                                  np.float32) / 416
-        anchors_table = np.flip(np.sort(anchors_table, axis=- 1))
+        # anchors_table = np.flip(np.sort(anchors_table, axis=- 1))
         nclasses = 80
 
     dataset = dataset.repeat()
@@ -163,7 +163,7 @@ def load_dataset(tfrecords_dir, use_debug_dataset, image_size, max_bboxes, ancho
 
 
 def main():
-    tf.random.set_seed(seed=42)
+    # tf.random.set_seed(seed=42)
     logging.basicConfig(level=logging.INFO,
                         format='%(levelname)s %(message)s',
                         )
@@ -195,15 +195,15 @@ def main():
                   run_eagerly=(mode == 'eager_fit'))
 
     grid_sizes_table = np.array([13, 26, 52])
-    ###
-    image, y = next(iter(dataset.as_numpy_iterator()))
-    y = tf.expand_dims(y, axis=0)
-
-    arrange_in_grid(y, tf.convert_to_tensor(anchors_table[0]),  # ronen TODO was 3,6 check shape
-                    # +1 is a patch - todo add the obj in dataset already...
-                    [batch_size, 13, 13,
-                     anchors_table.shape[0], tf.shape(y)[-1]], max_bboxes
-                    )
+    # ###
+    # image, y = next(iter(dataset.as_numpy_iterator()))
+    # y = tf.expand_dims(y, axis=0)
+    # for grid_index in [0,1,2]:
+    #     arrange_in_grid(y, tf.convert_to_tensor(anchors_table),  grid_index,# ronen TODO was 3,6 check shape
+    #                     # +1 is a patch - todo add the obj in dataset already...
+    #                     [batch_size, grid_sizes_table[grid_index], grid_sizes_table[grid_index],
+    #                      anchors_table.shape[grid_index], tf.shape(y)[-1]], max_bboxes
+    #                     )
 
     ####
 
@@ -243,7 +243,7 @@ def main():
                         (1 + tf.cos((global_steps - warmup_steps) /
                          (total_steps - warmup_steps) * np.pi))
                     )
-                    lr = .001
+                lr = tf.Variable(.001)
                 optimizer.lr.assign(lr.numpy())
 
                 grads = tape.gradient(total_loss, model.trainable_variables)
