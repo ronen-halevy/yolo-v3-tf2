@@ -103,7 +103,7 @@ def get_config():
             anchors_file = 'datasets/shapes/shapes_yolov3_anchors.txt'
             dataset_limit_size = None
             learning_rate = 0.001
-            epochs = 10
+            epochs = 20
             mode = "eager_tf"
             debug_annotations_path = None # 'datasets/shapes/debug_dataset_sample/annotations.json'
 
@@ -157,7 +157,7 @@ def load_dataset(tfrecords_dir, use_debug_dataset, image_size, max_bboxes, ancho
         # anchors_table = np.flip(np.sort(anchors_table, axis=- 1))
         nclasses = 80
 
-    dataset = dataset.repeat()
+    dataset = dataset.repeat(100)
 
     return dataset, nclasses, anchors_table
 
@@ -216,7 +216,7 @@ def main():
         avg_val_loss = tf.keras.metrics.Mean('val_loss', dtype=tf.float32)
 
         global_steps = tf.Variable(1, trainable=False, dtype=tf.int64)
-        for epoch in range(1, epochs + 1 + 1000):
+        for epoch in range(1, epochs+1):
             for batch_count, (images, labels) in enumerate(train_dataset):
                 with tf.GradientTape() as tape:
                     outputs = model(images, training=True)
