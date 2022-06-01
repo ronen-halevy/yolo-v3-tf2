@@ -33,6 +33,7 @@ def resize_image(image, t_w, t_h):
 
 def extract_boxes_indices_on_grid(boxes, grid_shape, best_anchor_indices, max_bboxes):
     box_center_xy = (boxes[..., 0:2] + boxes[..., 2:4]) / 2
+    box_center_xy = tf.reverse(box_center_xy, axis=[-1])
     box_center_xy_grid_indices = tf.cast(
         box_center_xy * grid_shape[1:3], tf.int32)
 
