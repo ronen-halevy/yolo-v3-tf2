@@ -18,7 +18,7 @@ import os
 
 def load_fake_dataset():
     x_train = tf.image.decode_jpeg(
-        open('./girl.png', 'rb').read(), channels=3)
+        open('datasets/girl.png', 'rb').read(), channels=3)
     x_train = tf.cast(tf.expand_dims(x_train, axis=0), tf.float32) / 255
 
     labels = [
@@ -69,16 +69,19 @@ def generate_random_dataset(dataset_size=300, image_h=416, image_w=416, max_bbox
 
 def render_bboxes(image, bboxes):
     bboxes = tf.cast(bboxes, tf.float32)[tf.newaxis, :,:]
-    bboxes, _ = tf.split(bboxes, [4, 1], axis=-1 )
+
     indices = [1, 0, 3, 2]
     bboxes = tf.gather(bboxes, indices, axis=-1)
     colors = [[1, 255, 0]]
     # expand dims only if needed:
     image = tf.squeeze(image)[tf.newaxis, ...]
+    bboxes = tf.squeeze(bboxes)[tf.newaxis, ...]
+
     image = tf.image.draw_bounding_boxes(
         image, bboxes, colors, name=None
     )
-    plt.imshow(image[0])
+    print(tf.reduce_max(image[0]))
+    plt.imshow(image[0]/255)
     plt.show()
 
 
