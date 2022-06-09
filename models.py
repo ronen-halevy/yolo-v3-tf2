@@ -34,15 +34,18 @@ XY_FEILD = 2
 WH_FEILD = 2
 OBJ_FIELD = 1
 
-def conv_block(input, nfilters, kernel_size, strides=1, activation=True, batch_norm=True):
+class FLAGS:
+    yolo_max_boxes = 100
+
+def conv_block(Input, nfilters, kernel_size, strides=1, activation=True, batch_norm=True):
     if strides == 1:
         padding = 'same'
     else:
-        input = ZeroPadding2D(((1, 0), (1, 0)))(input)  # top left half-padding
+        Input = ZeroPadding2D(((1, 0), (1, 0)))(Input)  # top left half-padding
         padding = 'valid'
     conv = Conv2D(filters=nfilters, kernel_size=kernel_size,
                   strides=strides, padding=padding, # TODO: consider constants assignments
-                  use_bias=not batch_norm, kernel_regularizer=l2(0.0005))(input)
+                  use_bias=not batch_norm, kernel_regularizer=l2(0.0005))(Input)
     if batch_norm:
         conv = BatchNormalization()(conv)
     # if activation:
@@ -50,9 +53,9 @@ def conv_block(input, nfilters, kernel_size, strides=1, activation=True, batch_n
     return conv
 
 
-def residual_block(input, nfilters_1, nfilters_2):
-    skip = input
-    conv = conv_block(input, nfilters_1, kernel_size=1)
+def residual_block(Input, nfilters_1, nfilters_2):
+    skip = Input
+    conv = conv_block(Input, nfilters_1, kernel_size=1)
     conv = conv_block(conv, nfilters_2, kernel_size=3)
     output = Add()([skip, conv])
     return output
@@ -189,6 +192,55 @@ def yolo_boxes(pred, anchors, classes):
     bbox = tf.concat([box_x1y1, box_x2y2], axis=-1)
 
     return bbox, objectness, class_probs, pred_box
+
+
+def yolo_nmss(outputs, classes):
+    # boxes, conf, type
+    b, c, t = [], [], []
+
+    for o in outputs:
+        b.append(tf.reshape(o[0], (tf.shape(o[0])[0], -1, tf.shape(o[0])[-1])))
+        c.append(tf.reshape(o[1], (tf.shape(o[1])[0], -1, tf.shape(o[1])[-1])))
+        t.append(tf.reshape(o[2], (tf.shape(o[2])[0], -1, tf.shape(o[2])[-1])))
+
+    bbox = tf.concat(b, axis=1)
+    confidence = tf.concat(c, axis=1)
+    class_probs = tf.concat(t, axis=1)
+
+    # If we only have one class, do not multiply by class_prob (always 0.5)
+    if classes == 1:
+        scores = confidence
+    else:
+        scores = confidence * class_probs
+
+    dscores = tf.squeeze(scores, axis=0)
+    scores = tf.reduce_max(dscores, [1])
+    bbox = tf.reshape(bbox, (-1, 4))
+    classes = tf.argmax(dscores, 1)
+    selected_indices, selected_scores = tf.image.non_max_suppression_with_scores(
+        boxes=bbox,
+        scores=scores,
+        max_output_size=100,# FLAGS.yolo_max_boxes,
+        iou_threshold=0.5,# FLAGS.yolo_iou_threshold,
+        score_threshold=0.5,# FLAGS.yolo_score_threshold,
+        soft_nms_sigma=0.5
+    )
+
+    num_valid_nms_boxes = tf.shape(selected_indices)[0]
+
+    selected_indices = tf.concat([selected_indices, tf.zeros(FLAGS.yolo_max_boxes - num_valid_nms_boxes, tf.int32)], 0)
+    selected_scores = tf.concat([selected_scores, tf.zeros(FLAGS.yolo_max_boxes - num_valid_nms_boxes, tf.float32)], -1)
+
+    boxes = tf.gather(bbox, selected_indices)
+    boxes = tf.expand_dims(boxes, axis=0)
+    scores = selected_scores
+    scores = tf.expand_dims(scores, axis=0)
+    classes = tf.gather(classes, selected_indices)
+    classes = tf.expand_dims(classes, axis=0)
+    valid_detections = num_valid_nms_boxes
+    valid_detections = tf.expand_dims(valid_detections, axis=0)
+
+    return boxes, scores, classes, valid_detections
 
 
 def yolo_nms(outputs, classes, yolo_max_boxes, yolo_iou_threshold, yolo_score_threshold):
@@ -340,11 +392,15 @@ def yolov3_model_new(anchors_table, image_size=None, nclasses=80, training=True,
     boxes_2 = Lambda(lambda x: yolo_boxes(x, anchors_table[0], nclasses),
                      name='yolo_boxes_2')(output_2)
 
-    outputs = Lambda(lambda x: yolo_nms(x, nclasses, yolo_max_boxes, yolo_iou_threshold, yolo_score_threshold),
+    outputs = Lambda(lambda x: yolo_nmss(x, nclasses),
                      name='yolo_nms')((boxes_0[:3], boxes_1[:3], boxes_2[:3]))
+
+    # outputs = Lambda(lambda x: yolo_nms(x, nclasses, yolo_max_boxes, yolo_iou_threshold, yolo_score_threshold),
+    #                  name='yolo_nms')((boxes_0[:3], boxes_1[:3], boxes_2[:3]))
 
     return Model(inputs, outputs, name='yolov3')
 
+import numpy as np
 yolo_anchors = np.array([(10, 13), (16, 30), (33, 23), (30, 61), (62, 45),
                          (59, 119), (116, 90), (156, 198), (373, 326)],
                         np.float32) / 416
@@ -376,9 +432,10 @@ def YoloV3mm(size=None, channels=3, anchors=yolo_anchors,
         boxes_2 = Lambda(lambda x: yolo_boxes(x, anchors[masks[2]], classes),
                          name='yolo_boxes_2')(output_2)
 
-        outputs = Lambda(lambda x: yolo_nms(x, anchors, masks, classes),
+        # outputs = Lambda(lambda x: yolo_nms(x, anchors, masks, classes),
+        #                  name='yolo_nms')((boxes_0[:3], boxes_1[:3], boxes_2[:3]))
+        outputs = Lambda(lambda x: yolo_nmss(x, classes),
                          name='yolo_nms')((boxes_0[:3], boxes_1[:3], boxes_2[:3]))
-
         return Model(inputs, outputs, name='yolov3')
 
 
