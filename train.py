@@ -22,7 +22,7 @@ from utils import render_bboxes
 from utils import generate_random_dataset, load_fake_dataset, load_sample_dataset
 from preprocess_dataset import preprocess_dataset, arrange_in_grid
 from loss_func import get_loss_func
-from models import yolov3_model, yolov3_model_new
+from models import yolov3_model, yolov3_model_new, YoloV3mm
 
 
 def split_dataset(dataset, dataset_size):
@@ -185,7 +185,15 @@ def main():
         render_bboxes(x_train, bboxes)
 
     # model = yolov3_model(anchors_table, image_size, nclasses=nclasses)
-    model = yolov3_model_new(anchors_table, image_size, nclasses=nclasses)
+    # model = yolov3_model_new(anchors_table, image_size, nclasses=nclasses)
+
+    yolo_anchors = np.array([(10, 13), (16, 30), (33, 23), (30, 61), (62, 45),
+                             (59, 119), (116, 90), (156, 198), (373, 326)],
+                            np.float32) / 416
+    yolo_anchor_masks = np.array([[6, 7, 8], [3, 4, 5], [0, 1, 2]])
+
+    model = YoloV3mm(size=None, channels=3, anchors=yolo_anchors,
+                 masks=yolo_anchor_masks, classes=80, training=False)
 
     print(model.summary())
     with open("model_mine.txt", "w") as file1:
