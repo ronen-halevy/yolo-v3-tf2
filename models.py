@@ -58,8 +58,10 @@ def residual_block(input, nfilters_1, nfilters_2):
     return output
 
 
-def darknet53(input_data, name=None):
-    conv = conv_block(input_data, nfilters=32, kernel_size=3)
+def darknet53(name=None):
+    inputs = Input([None, None, 3], name='darknet53 in')
+
+    conv = conv_block(inputs, nfilters=32, kernel_size=3)
     conv = conv_block(conv, nfilters=64, kernel_size=3, strides=2)
 
     for i in range(1):
@@ -87,7 +89,7 @@ def darknet53(input_data, name=None):
     for i in range(4):
         conv = residual_block(conv, nfilters_1=512, nfilters_2=1024)
 
-    out = tf.keras.Model(input_data, (out1, out2, conv), name=name)
+    out = tf.keras.Model(inputs, (out1, out2, conv), name=name)
 
     return out
 
@@ -117,6 +119,11 @@ def get_concat_block(nfilters, name=None):
 
     return concat_block
 
+
+def tt(input, nfilters):
+    conv = conv_block(input, nfilters, kernel_size=3)
+
+    return conv
 
 def get_grid_output(nfilters, nanchors, nclasses, name=None):
     def grid_output(input_data):
@@ -232,11 +239,121 @@ def yolo_nms(outputs, classes, yolo_max_boxes, yolo_iou_threshold, yolo_score_th
 
     return boxes, scores, classes, valid_detections
 
+def DarknetConv(x, filters, size, strides=1, batch_norm=True):
+    if strides == 1:
+        padding = 'same'
+    else:
+        x = ZeroPadding2D(((1, 0), (1, 0)))(x)  # top left half-padding
+        padding = 'valid'
+    x = Conv2D(filters=filters, kernel_size=size,
+               strides=strides, padding=padding,
+               use_bias=not batch_norm, kernel_regularizer=l2(0.0005))(x)
+    if batch_norm:
+        x = BatchNormalization()(x)
+        x = LeakyReLU(alpha=0.1)(x)
+    return x
+
+def YoloConv(filters, name=None):
+    def yolo_conv(x_in):
+        if isinstance(x_in, tuple):
+            inputs = Input(x_in[0].shape[1:]), Input(x_in[1].shape[1:])
+            x, x_skip = inputs
+
+            # concat with skip connection
+            x = DarknetConv(x, filters, 1)
+            x = UpSampling2D(2)(x)
+            x = Concatenate()([x, x_skip])
+        else:
+            x = inputs = Input(x_in.shape[1:])
+
+        x = DarknetConv(x, filters, 1)
+        x = DarknetConv(x, filters * 2, 3)
+        x = DarknetConv(x, filters, 1)
+        x = DarknetConv(x, filters * 2, 3)
+        x = DarknetConv(x, filters, 1)
+        return Model(inputs, x, name=name)(x_in)
+    return yolo_conv
+
+def YoloOutput(filters, anchors, classes, name=None):
+    def yolo_output(x_in):
+        x = inputs = Input(x_in.shape[1:])
+        x = DarknetConv(x, filters * 2, 3)
+        x = DarknetConv(x, anchors * (classes + 5), 1, batch_norm=False)
+        x = Lambda(lambda x: tf.reshape(x, (-1, tf.shape(x)[1], tf.shape(x)[2],
+                                            anchors, classes + 5)))(x)
+        return tf.keras.Model(inputs, x, name=name)(x_in)
+    return yolo_output
+
+
+def yolov3_model_new(anchors_table, image_size=None, nclasses=80, training=True, yolo_max_boxes=None, yolo_iou_threshold=None, yolo_score_threshold=None):
+    inputs = Input([image_size, image_size, 3], name='darknet53 input')
+    nanchors = anchors_table.shape[0]
+    out1, out2, darknet_out = darknet53(name='darknet53')(inputs)
+
+    x = YoloConv(512, name='yolo_conv_0')(darknet_out)
+    # output_0 = YoloOutput(512, len(masks[0]), nclasses, name='yolo_output_0')(x)
+    output_0 = YoloOutput(512, 3, nclasses, name='yolo_output_0')(x)
+
+    x = YoloConv(256, name='yolo_conv_1')((x, out2))
+    output_1 = YoloOutput(256, 3, nclasses, name='yolo_output_1')(x)
+
+    x = YoloConv(128, name='yolo_conv_2')((x, out1))
+    output_2 = YoloOutput(128, 3, nclasses, name='yolo_output_2')(x)
+
+    if training:
+        return Model(inputs, (output_0, output_1, output_2), name='yolov3')
+
+
+
+    # coarse_intermediate_out = get_grids_common_block(filters=512, name='coarse_grid_path')(darknet_out)
+    # coarse_grid_pred = get_grid_output(nfilters=1024, nanchors=nanchors, nclasses=nclasses, name='coarse_output')(
+    #     coarse_intermediate_out)
+    #
+    # med_concat_out = get_concat_block(nfilters=256)(coarse_intermediate_out, out2)
+    # med_intermediate_out = get_grids_common_block(filters=256, name='med_grid_path')(med_concat_out)
+    # med_grid_pred = get_grid_output(512, nanchors=nanchors, nclasses=nclasses, name='med_output')(med_intermediate_out)
+    #
+    # fine_concat_out = get_concat_block(nfilters=128)(med_intermediate_out, out1)
+    # fine_intermediate_out = get_grids_common_block(filters=128, name='fine_grid_path')(fine_concat_out)
+    # fine_grid_pred = get_grid_output(256, nanchors=nanchors, nclasses=nclasses, name='fine_output')(
+    #     fine_intermediate_out)
+    #
+    # coarse_grid_out = Lambda(lambda x: grid_pred_decode(x, anchors_table[0], nclasses),
+    #                          name='coarse_grid_pred_decode')(coarse_grid_pred)
+    # med_grid_out = Lambda(lambda x: grid_pred_decode(x, anchors_table[0], nclasses),
+    #                       name='med_grid_pred_decode')(med_grid_pred)
+    # fine_grid_out = Lambda(lambda x: grid_pred_decode(x, anchors_table[0], nclasses),
+    #                        name='fine_grid_pred_decode')(fine_grid_pred)
+
+    # outputs = Lambda(lambda x: yolo_nms(x, anchors, masks, classes),
+    #                  name='yolo_nms')((boxes_0[:3], boxes_1[:3], boxes_2[:3]))
+
+    # return Model(inputs, (coarse_intermediate_out, med_intermediate_out, fine_intermediate_out), name='yolov3')
+    # if training:
+    #     return Model(inputs, (coarse_grid_pred, med_grid_pred, fine_grid_pred), name='yolov3')
+
+
+
+    boxes_0 = Lambda(lambda x: yolo_boxes(x, anchors_table[2], nclasses),
+                     name='yolo_boxes_0')(output_0)
+    boxes_1 = Lambda(lambda x: yolo_boxes(x, anchors_table[1], nclasses),
+                     name='yolo_boxes_1')(output_1)
+    boxes_2 = Lambda(lambda x: yolo_boxes(x, anchors_table[0], nclasses),
+                     name='yolo_boxes_2')(output_2)
+
+    outputs = Lambda(lambda x: yolo_nms(x, nclasses, yolo_max_boxes, yolo_iou_threshold, yolo_score_threshold),
+                     name='yolo_nms')((boxes_0[:3], boxes_1[:3], boxes_2[:3]))
+
+    return Model(inputs, outputs, name='yolov3')
+
+
 
 def yolov3_model(anchors_table, image_size=None, nclasses=80, training=True, yolo_max_boxes=None, yolo_iou_threshold=None, yolo_score_threshold=None):
     inputs = Input([image_size, image_size, 3], name='darknet53 input')
     nanchors = anchors_table.shape[0]
-    out1, out2, darknet_out = darknet53(inputs, name='darknet53')(inputs)
+    # out1, out2, darknet_out = darknet53(inputs, name='darknet53')(inputs)
+    out1, out2, darknet_out = darknet53(name='darknet53__')(inputs)
+
     coarse_intermediate_out = get_grids_common_block(filters=512, name='coarse_grid_path')(darknet_out)
     coarse_grid_pred = get_grid_output(nfilters=1024, nanchors=nanchors, nclasses=nclasses, name='coarse_output')(
         coarse_intermediate_out)

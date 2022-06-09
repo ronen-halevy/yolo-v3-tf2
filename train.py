@@ -22,7 +22,7 @@ from utils import render_bboxes
 from utils import generate_random_dataset, load_fake_dataset, load_sample_dataset
 from preprocess_dataset import preprocess_dataset, arrange_in_grid
 from loss_func import get_loss_func
-from models import yolov3_model
+from models import yolov3_model, yolov3_model_new
 
 
 def split_dataset(dataset, dataset_size):
@@ -103,7 +103,7 @@ def get_config():
             anchors_file = 'datasets/shapes/shapes_yolov3_anchors.txt'
             dataset_limit_size = None
             learning_rate = 0.001
-            epochs = 20
+            epochs = 10
             mode = "eager_tf"
             debug_annotations_path = None # 'datasets/shapes/debug_dataset_sample/annotations.json'
 
@@ -184,7 +184,12 @@ def main():
         x_train, bboxes = next(iter(dataset))
         render_bboxes(x_train, bboxes)
 
-    model = yolov3_model(anchors_table, image_size, nclasses=nclasses)
+    # model = yolov3_model(anchors_table, image_size, nclasses=nclasses)
+    model = yolov3_model_new(anchors_table, image_size, nclasses=nclasses)
+
+    print(model.summary())
+    with open("model_mine.txt", "w") as file1:
+        model.summary(print_fn=lambda x: file1.write(x + '\n'))
 
     optimizer = tf.keras.optimizers.Adam()
 
@@ -257,7 +262,9 @@ def main():
                 avg_loss.update_state(total_loss)
 
                 global_steps.assign_add(1)
-
+            # if(epoch and epoch % 10 == 0):
+            model.save_weights(
+                'checkpoints/yolov3_train_{}.tf'.format(epoch))
 
 if __name__ == '__main__':
     # train()
