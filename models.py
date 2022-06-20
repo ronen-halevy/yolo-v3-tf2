@@ -96,9 +96,8 @@ def darknet53(name=None):
 
     return out
 
-
-def get_grids_common_block(filters, name=None):
-    def grids_common_block(input_data):
+def get_grids_common_blockn(filters, name=None):
+    def grids_common_blockn(input_data):
         input = Input(input_data.shape[1:], name=f'{name} input')
         conv = conv_block(input, filters, 1)
         conv = conv_block(conv, filters * 2, 3)
@@ -106,6 +105,29 @@ def get_grids_common_block(filters, name=None):
         conv = conv_block(conv, filters * 2, 3)
         conv = conv_block(conv, filters, 1)
         return Model(input, conv, name=name)(input_data)
+
+    return grids_common_blockn
+
+def get_grids_common_block(nfilters, name=None):
+    def grids_common_block(x_in):
+        if isinstance(x_in, tuple):
+
+            inputs = Input(x_in[0].shape[1:], name=f'{name} input1'), Input(x_in[1].shape[1:], name=f'{name} input2')
+            # inputs = Input(x_in[0].shape[1:]), Input(x_in[1].shape[1:])
+            input, skip = inputs
+            conv = conv_block(input, nfilters, kernel_size=1)
+            conv = UpSampling2D(2)(conv)
+            conv = Concatenate()([conv, skip])
+        # return Model(inputs, conv, name=name)((prev_grid_intermediate, darknet_intermediate_out))
+        else:
+            conv = inputs = Input(x_in.shape[1:])
+
+        conv = conv_block(conv, nfilters, 1)
+        conv = conv_block(conv, nfilters * 2, 3)
+        conv = conv_block(conv, nfilters, 1)
+        conv = conv_block(conv, nfilters * 2, 3)
+        conv = conv_block(conv, nfilters, 1)
+        return Model(inputs, conv, name=name)(x_in)
 
     return grids_common_block
 
@@ -407,37 +429,6 @@ yolo_anchors = np.array([(10, 13), (16, 30), (33, 23), (30, 61), (62, 45),
 yolo_anchor_masks = np.array([[6, 7, 8], [3, 4, 5], [0, 1, 2]])
 
 
-def YoloV3mm(size=None, channels=3, anchors=yolo_anchors,
-               masks=yolo_anchor_masks, classes=80, training=False):
-        x = inputs = Input([size, size, channels], name='input')
-
-        x_36, x_61, x = darknet53(name='yolo_darknet')(x)
-
-        x = YoloConv(512, name='yolo_conv_0')(x)
-        output_0 = YoloOutput(512, len(masks[0]), classes, name='yolo_output_0')(x)
-
-        x = YoloConv(256, name='yolo_conv_1')((x, x_61))
-        output_1 = YoloOutput(256, len(masks[1]), classes, name='yolo_output_1')(x)
-
-        x = YoloConv(128, name='yolo_conv_2')((x, x_36))
-        output_2 = YoloOutput(128, len(masks[2]), classes, name='yolo_output_2')(x)
-
-        if training:
-            return Model(inputs, (output_0, output_1, output_2), name='yolov3')
-
-        boxes_0 = Lambda(lambda x: yolo_boxes(x, anchors[masks[0]], classes),
-                         name='yolo_boxes_0')(output_0)
-        boxes_1 = Lambda(lambda x: yolo_boxes(x, anchors[masks[1]], classes),
-                         name='yolo_boxes_1')(output_1)
-        boxes_2 = Lambda(lambda x: yolo_boxes(x, anchors[masks[2]], classes),
-                         name='yolo_boxes_2')(output_2)
-
-        # outputs = Lambda(lambda x: yolo_nms(x, anchors, masks, classes),
-        #                  name='yolo_nms')((boxes_0[:3], boxes_1[:3], boxes_2[:3]))
-        outputs = Lambda(lambda x: yolo_nmss(x, classes),
-                         name='yolo_nms')((boxes_0[:3], boxes_1[:3], boxes_2[:3]))
-        return Model(inputs, outputs, name='yolov3')
-
 
 def yolov3_model(anchors_table, image_size=None, nclasses=80, training=True, yolo_max_boxes=None, yolo_iou_threshold=None, yolo_score_threshold=None):
     inputs = Input([image_size, image_size, 3], name='darknet53 input')
@@ -445,25 +436,28 @@ def yolov3_model(anchors_table, image_size=None, nclasses=80, training=True, yol
     # out1, out2, darknet_out = darknet53(inputs, name='darknet53')(inputs)
     out1, out2, darknet_out = darknet53(name='darknet53__')(inputs)
 
-    coarse_intermediate_out = get_grids_common_block(filters=512, name='coarse_grid_path')(darknet_out)
+    coarse_intermediate_out = get_grids_common_block(nfilters=512, name='coarse_grid_path')(darknet_out)
     coarse_grid_pred = get_grid_output(nfilters=1024, nanchors=nanchors, nclasses=nclasses, name='coarse_output')(
         coarse_intermediate_out)
 
-    med_concat_out = get_concat_block(nfilters=256)(coarse_intermediate_out, out2)
-    med_intermediate_out = get_grids_common_block(filters=256, name='med_grid_path')(med_concat_out)
+    # med_concat_out = get_concat_block(nfilters=256)(coarse_intermediate_out, out2)
+    # med_intermediate_out = get_grids_common_block(nfilters=256, name='med_grid_path')(med_concat_out)
+    med_intermediate_out = get_grids_common_block(nfilters=256, name='med_grid_path')((coarse_intermediate_out, out2))
     med_grid_pred = get_grid_output(512, nanchors=nanchors, nclasses=nclasses, name='med_output')(med_intermediate_out)
 
-    fine_concat_out = get_concat_block(nfilters=128)(med_intermediate_out, out1)
-    fine_intermediate_out = get_grids_common_block(filters=128, name='fine_grid_path')(fine_concat_out)
+    # fine_concat_out = get_concat_block(nfilters=128)(med_intermediate_out, out1)
+    # fine_intermediate_out = get_grids_common_block(nfilters=128, name='fine_grid_path')(fine_concat_out)
+    fine_intermediate_out = get_grids_common_block(nfilters=128, name='fine_grid_path')((med_intermediate_out, out1))
+
     fine_grid_pred = get_grid_output(256, nanchors=nanchors, nclasses=nclasses, name='fine_output')(
         fine_intermediate_out)
 
-    coarse_grid_out = Lambda(lambda x: grid_pred_decode(x, anchors_table[0], nclasses),
-                             name='coarse_grid_pred_decode')(coarse_grid_pred)
-    med_grid_out = Lambda(lambda x: grid_pred_decode(x, anchors_table[0], nclasses),
-                          name='med_grid_pred_decode')(med_grid_pred)
-    fine_grid_out = Lambda(lambda x: grid_pred_decode(x, anchors_table[0], nclasses),
-                           name='fine_grid_pred_decode')(fine_grid_pred)
+    # coarse_grid_out = Lambda(lambda x: grid_pred_decode(x, anchors_table[0], nclasses),
+    #                          name='coarse_grid_pred_decode')(coarse_grid_pred)
+    # med_grid_out = Lambda(lambda x: grid_pred_decode(x, anchors_table[0], nclasses),
+    #                       name='med_grid_pred_decode')(med_grid_pred)
+    # fine_grid_out = Lambda(lambda x: grid_pred_decode(x, anchors_table[0], nclasses),
+    #                        name='fine_grid_pred_decode')(fine_grid_pred)
 
     # outputs = Lambda(lambda x: yolo_nms(x, anchors, masks, classes),
     #                  name='yolo_nms')((boxes_0[:3], boxes_1[:3], boxes_2[:3]))

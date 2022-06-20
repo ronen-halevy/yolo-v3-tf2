@@ -12,7 +12,7 @@
 
 import tensorflow as tf
 
-
+import matplotlib.pyplot as plt
 def resize_image(image, t_w, t_h):
     _, s_h, s_w, _ = image.shape
 
@@ -28,6 +28,7 @@ def resize_image(image, t_w, t_h):
     scaled_image = tf.image.pad_to_bounding_box(
         image, (t_h - n_h) // 2, (t_w - n_w) // 2, t_h, t_w
     )
+    plt.imshow(scaled_image[0])
     return scaled_image
 
 
@@ -45,7 +46,7 @@ def extract_boxes_indices_on_grid(boxes, grid_shape, best_anchor_indices, max_bb
     return grid_indices
 
 
-def calc_best_anchor_per_box(bboxes, anchors):
+def calc_best_iou_anchor_per_box(bboxes, anchors):
     anchors = tf.reshape(anchors, [-1, 2])
     grid_anchors = tf.cast(anchors, tf.float32)
     anchor_area = grid_anchors[..., 0] * grid_anchors[..., 1]
@@ -60,7 +61,7 @@ def calc_best_anchor_per_box(bboxes, anchors):
         iou, axis=-1, output_type=tf.int32), axis=-1)
     return best_anchor_indices
 
-
+# @tf.function
 def arrange_in_grid(y_train, anchors, grid_index, output_shape, max_bboxes):
     """
     :param y_train:
@@ -77,36 +78,42 @@ def arrange_in_grid(y_train, anchors, grid_index, output_shape, max_bboxes):
     :rtype:
     """
 
-    best_anchor_indices = calc_best_anchor_per_box(y_train, anchors)
+    best_anchor_indices = calc_best_iou_anchor_per_box(y_train, anchors)
     print(best_anchor_indices)
 
     grid_indices = extract_boxes_indices_on_grid(
-        y_train, output_shape, best_anchor_indices % 3, max_bboxes)
+        y_train, output_shape, best_anchor_indices % anchors.shape[1], max_bboxes)
 
     # Ignore zero boxes:
-    mask_valid_bbox = y_train[..., 2] != 0
     best_anchor_indices = tf.squeeze(best_anchor_indices, axis=-1)
-    mask_selected_anchor_index_above_min = tf.greater(best_anchor_indices, tf.constant((2-grid_index)*anchors.shape[0]))
-    mask_selected_anchor_index_below_max = tf.less(best_anchor_indices, tf.constant(((2-grid_index)+1)*anchors.shape[0]))
+    mask_selected_anchor_index_above_grid_sclae_min = tf.greater(best_anchor_indices, tf.constant((2-grid_index)*anchors.shape[0]))
+    mask_selected_anchor_index_below_grid_sclae_max = tf.less(best_anchor_indices, tf.constant(((2-grid_index)+1)*anchors.shape[0]))
 
-    mask = tf.math.logical_and(mask_valid_bbox, mask_selected_anchor_index_above_min)
-    mask = tf.math.logical_and(mask, mask_selected_anchor_index_below_max)
+    mask_valid_bbox = y_train[..., 4] != 0 #todo maybe check obj val?
+    mask = tf.math.logical_and(mask_valid_bbox, mask_selected_anchor_index_above_grid_sclae_min)
+    mask = tf.math.logical_and(mask, mask_selected_anchor_index_below_grid_sclae_max)
 
     y_train = y_train[mask]
     grid_indices = grid_indices[mask]
-
     dataset_in_grid = tf.zeros(output_shape)
+    # tf.print(grid_index, dataset_in_grid)
+    # tf.print(grid_index, y_train)
+
     # to ensure uniqueness in grid entries, taking the max:TODO - prefers bigger if on same grid box
 
-    dataset_in_grid = tf.tensor_scatter_nd_max(
-        dataset_in_grid, grid_indices, y_train
-    )
+    # dataset_in_grid = tf.tensor_scatter_nd_max(
+    #     dataset_in_grid, grid_indices, y_train
+    # )
+    dataset_in_grid = tf.tensor_scatter_nd_update(
+        dataset_in_grid, grid_indices, y_train)
+
     return dataset_in_grid
 
 
 def preprocess_dataset(dataset, batch_size, image_size, anchors_table, grid_sizes, max_bboxes):
     # TODO check that again!!
     dataset = dataset.batch(batch_size, drop_remainder=True)
+    # dataset = dataset.batch(batch_size)
 
     downsize_strides = image_size / grid_sizes
     # dataset = dataset.map(lambda x, y: (
@@ -120,9 +127,11 @@ def preprocess_dataset(dataset, batch_size, image_size, anchors_table, grid_size
     #            enumerate(zip(anchors_table, downsize_strides, grid_sizes))]
     #           )
     # ))
-
     dataset = dataset.map(lambda x, y: (
-        resize_image(x, image_size, image_size),
+        # resize_image(x, image_size, image_size), # Todo - check it back
+        tf.image.resize(x, (image_size, image_size)),
+
+
         tuple([arrange_in_grid(y, tf.convert_to_tensor(anchors_table), grid_index,  # ronen TODO was 3,6 check shape
             # +1 is a patch - todo add the obj in dataset already...
         [batch_size, grid_size, grid_size,

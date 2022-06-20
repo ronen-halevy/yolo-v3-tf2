@@ -16,6 +16,8 @@ from tensorflow.keras.losses import (
     CategoricalCrossentropy
 )
 
+f = open("newloss.txt", "w")
+
 
 def bbox_iou(boxes1, boxes2):
     boxes1_area = boxes1[..., 2] * boxes1[..., 3]
@@ -158,6 +160,27 @@ def calc_obj_loss(true_obj, decoded_pred_obj, obj_mask, ignore_mask):
 
 def get_loss_func(anchors, nclasses=80, iou_ignore_thresh=0.5):
     def new_lose(y_true, y_pred):
+        shape1 = y_true.shape[1]
+
+        # y_pred = tf.experimental.numpy.arange(shape1 * shape1 * 3 * 85)/(shape1 * shape1 * 3 * 85+1)
+        # y_pred = tf.cast(y_pred, tf.float32)
+        # y_pred = tf.reshape(y_pred, [1, shape1, shape1, 3, 85])
+        #
+        # y_true = tf.experimental.numpy.arange(shape1 * shape1 * 3 * 6)/(shape1 * shape1 * 3 * 6+1)
+        # y_true = tf.cast(y_true, tf.float32)
+        # y_true = tf.reshape(y_true, [1, shape1, shape1, 3, 6])
+        # pred_box1, pred_obj1, pred_class1, pred_xywh1 = yolo_boxes(
+        #     y_pred, anchors, nclasses)
+        # pred_xy1 = pred_xywh1[..., 0:2]
+        # pred_wh1 = pred_xywh1[..., 2:4]
+        # true_box1, true_obj1, true_class_idx1 = tf.split(
+        #     y_true, (4, 1, 1), axis=-1)
+        # true_xy1 = (true_box1[..., 0:2] + true_box1[..., 2:4]) / 2
+        # true_wh1 = true_box1[..., 2:4] - true_box1[..., 0:2]
+
+        #
+
+
         true_xy_min, true_xy_max, true_obj, true_class_idx = tf.split(
             y_true, (2, 2, 1, 1), axis=-1)
 
@@ -189,7 +212,62 @@ def get_loss_func(anchors, nclasses=80, iou_ignore_thresh=0.5):
                                true_obj_mask, box_loss_scale, grid_size, anchors)
         class_loss = calc_class_loss(
             decoded_pred_class, true_class_idx, true_obj_mask)
-        return tf.stack([tf.math.reduce_sum(xy_loss), tf.math.reduce_sum(wh_loss), tf.math.reduce_sum(obj_loss),
-                         tf.math.reduce_sum(class_loss)])
+        # return tf.stack([tf.math.reduce_sum(xy_loss), tf.math.reduce_sum(wh_loss), tf.math.reduce_sum(obj_loss),
+        #                  tf.math.reduce_sum(class_loss)])
+
+        # f.write(f'{xy_loss} {wh_loss} {obj_loss}, {class_loss}\n')
+        # f.flush()
+        return xy_loss + wh_loss + obj_loss + class_loss
 
     return new_lose
+
+def get_loss_func_new(anchors, nclasses=80, iou_ignore_thresh=0.5):
+    def new_lose(y_true, y_pred):
+        true_xy_min, true_xy_max, true_obj, true_class_idx = tf.split(
+            y_true, (2, 2, 1, 1), axis=-1)
+
+        pred_xy_center, pred_wh, pred_obj, pred_class = tf.split(
+            y_pred, (2, 2, 1, nclasses), axis=-1)
+
+        decoded_pred_xy_center_offset, decoded_pred_wh, decoded_pred_obj, decoded_pred_class = decode_predictions2(
+            pred_xy_center, pred_wh, pred_obj, pred_class, anchors)
+
+        ##decode_predictions2:
+        pred_xy_center_offset = tf.sigmoid(pred_xy_center)
+        pred_wh_decoded = pred_wh
+
+        pred_obj_decoded = tf.sigmoid(pred_obj)
+        pred_class_decoded = tf.sigmoid(pred_class)
+        return pred_xy_center_offset, pred_wh_decoded, pred_obj_decoded, pred_class_decoded
+        ##
+
+
+        grid_size = tf.cast(tf.shape(y_pred)[1], tf.float32)
+
+        pred_bbox = arrange_pred_bbox(
+            decoded_pred_xy_center_offset, decoded_pred_wh, grid_size)
+
+        true_bbox = arrange_true_bbox(true_xy_min, true_xy_max, grid_size)
+        true_obj_mask = tf.squeeze(true_obj, axis=-1)
+        iou_ignore_mask = calc_iou_ignore_mask(
+            true_bbox, pred_bbox, true_obj_mask, iou_ignore_thresh)
+
+        obj_loss = calc_obj_loss(
+            true_obj, decoded_pred_obj, true_obj_mask, iou_ignore_mask)
+        true_wh = true_xy_max - true_xy_min
+        box_loss_scale = 2 - true_wh[..., 0] * true_wh[..., 1]
+        true_xy_center = (true_xy_min + true_xy_max) / 2
+
+        xy_loss = calc_xy_loss(decoded_pred_xy_center_offset,
+                               true_xy_center, grid_size, true_obj_mask, box_loss_scale)
+        wh_loss = calc_wh_loss(decoded_pred_wh, true_wh,
+                               true_obj_mask, box_loss_scale, grid_size, anchors)
+        class_loss = calc_class_loss(
+            decoded_pred_class, true_class_idx, true_obj_mask)
+        # return tf.stack([tf.math.reduce_sum(xy_loss), tf.math.reduce_sum(wh_loss), tf.math.reduce_sum(obj_loss),
+        #                  tf.math.reduce_sum(class_loss)])
+
+        return xy_loss + wh_loss + obj_loss + class_loss
+
+    return new_lose
+

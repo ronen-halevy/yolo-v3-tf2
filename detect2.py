@@ -7,8 +7,8 @@ import tensorflow as tf
 # from yolov3_tf2.models2 import (
 #     YoloV3, YoloV3Tiny
 # )
-
-from models import yolov3_model, yolo_boxes, yolov3_model_new, YoloV3mm
+import my_load_weights
+from models import yolov3_model, yolo_boxes, yolov3_model_new
 from preprocess_dataset import resize_image
 from utils import render_bboxes
 # from yolov3_tf2.dataset import transform_images, load_tfrecord_dataset
@@ -28,8 +28,10 @@ from utils import render_bboxes
 class FLAGS:
     classes= './datasets/coco.names'
     weights=  'checkpoints/yolov3_train_13.tf'
-    # weights=  'checkpoints/yolov3_train_30.tf'
-    # weights=  'checkpoints/yolov3_train_375.tf'
+    weights=  'checkpoints/yolov3_train_30.tf'
+    weights=  'checkpoints/yolov3_train_1000.tf'
+    weights=  'checkpoints/yolov3_train_5.tf'
+
     tiny=  False
     size=  416
     image = './datasets/girl.png'
@@ -48,17 +50,34 @@ def main():
     yolo_max_boxes = 100
     yolo_iou_threshold = 0.8
     yolo_score_threshold = 0.5
-    # yolo = yolov3_model_new(anchors_table, FLAGS.size, nclasses=FLAGS.num_classes, training=False, yolo_max_boxes=yolo_max_boxes, yolo_iou_threshold=yolo_iou_threshold, yolo_score_threshold=yolo_score_threshold)
+    yolo1 = yolov3_model_new(anchors_table, FLAGS.size, nclasses=FLAGS.num_classes, training=False, yolo_max_boxes=yolo_max_boxes, yolo_iou_threshold=yolo_iou_threshold, yolo_score_threshold=yolo_score_threshold)
+    weights1 = yolo1.get_weights()  # returs a numpy list of weights
+    yolo1.load_weights(FLAGS.weights).expect_partial()
+
+    yolo = yolov3_model(anchors_table, FLAGS.size, nclasses=FLAGS.num_classes, training=False, yolo_max_boxes=yolo_max_boxes, yolo_iou_threshold=yolo_iou_threshold, yolo_score_threshold=yolo_score_threshold)
+    weights = yolo.get_weights()
+
+    yolo.set_weights(yolo1.get_weights())
+    yolo.load_weights(FLAGS.weights).expect_partial()
+
+    # returs a numpy list of weights
+    for idx, (weight1, weight) in enumerate(zip(weights1, weights)):
+        if weight1.shape != weight.shape:
+            print(idx)
+        pass
 
     yolo_anchors = np.array([(10, 13), (16, 30), (33, 23), (30, 61), (62, 45),
                              (59, 119), (116, 90), (156, 198), (373, 326)],
                             np.float32) / 416
     yolo_anchor_masks = np.array([[6, 7, 8], [3, 4, 5], [0, 1, 2]])
 
-    yolo = YoloV3mm(size=None, channels=3, anchors=yolo_anchors,
-                 masks=yolo_anchor_masks, classes=80, training=False)
+    # yolo = YoloV3mm(size=None, channels=3, anchors=yolo_anchors,
+    #              masks=yolo_anchor_masks, classes=80, training=False)
 
-    yolo.load_weights(FLAGS.weights).expect_partial()
+
+    # my_load_weights.load_weights(yolo, 'checkpoints/yolov3_train_1000.tf.index')
+
+    # yolo.load_weights(FLAGS.weights).expect_partial()
 
     print('weights loaded')
 
@@ -76,11 +95,10 @@ def main():
             open(FLAGS.image, 'rb').read(), channels=3)
 
     img = tf.expand_dims(img_raw, 0)
-    img = resize_image(img, FLAGS.size, FLAGS.size)
-
-
+    # img = resize_image(img, FLAGS.size, FLAGS.size)
+    img = tf.image.resize(img, (FLAGS.size, FLAGS.size))
     t1 = time.time()
-    boxes, scores, classes, nums = yolo(img)
+    boxes, scores, classes, nums = yolo(img, training=True)
     # boxes, scores, classes = yolo(img)
 
     t2 = time.time()
@@ -88,7 +106,7 @@ def main():
 
     print('detections:')
 
-    render_bboxes(img, boxes)
+    render_bboxes( tf.cast(img_raw, tf.float32)/255, boxes)
 
     for i in range(nums[0]):
         print('\t{}, {}, {}'.format(class_names[int(classes[0][i])],
