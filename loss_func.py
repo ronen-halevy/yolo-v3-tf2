@@ -215,12 +215,12 @@ def get_loss_func(anchors, nclasses=80, iou_ignore_thresh=0.5):
                                true_obj_mask, box_loss_scale, grid_size, anchors)
         class_loss = calc_class_loss(
             decoded_pred_class, true_class_idx, true_obj_mask)
-        # return tf.stack([tf.math.reduce_sum(xy_loss), tf.math.reduce_sum(wh_loss), tf.math.reduce_sum(obj_loss),
-        #                  tf.math.reduce_sum(class_loss)])
+        return tf.stack([tf.math.reduce_sum(xy_loss), tf.math.reduce_sum(wh_loss), tf.math.reduce_sum(obj_loss),
+                         tf.math.reduce_sum(class_loss)])
 
         # f.write(f'{xy_loss} {wh_loss} {obj_loss}, {class_loss}\n')
         # f.flush()
-        return xy_loss + wh_loss + obj_loss + class_loss
+        # return xy_loss + wh_loss + obj_loss + class_loss
 
     return new_lose
 
