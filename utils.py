@@ -27,7 +27,7 @@ def load_fake_dataset():
                  [0.09158827, 0.48252046, 0.26967454, 0.6403017, 1, 67]
              ] + [[0, 0, 0, 0, 0, 0]] * 97
     # if render_dataset_example:
-    #     render_bboxes(x_train, labels)
+    # render_bboxes(x_train, labels)
 
     y_train = tf.convert_to_tensor(labels, tf.float32)[tf.newaxis,...]
 
@@ -81,7 +81,7 @@ def render_bboxes(image, bboxes):
         image, bboxes, colors, name=None
     )
     print(tf.reduce_max(image[0]))
-    plt.imshow(image[0]/255)
+    plt.imshow(image[0])
     plt.show()
 
 
