@@ -18,7 +18,7 @@ from tensorflow.keras.losses import (
 
 f = open("newloss.txt", "w")
 
-
+@tf.function
 def bbox_iou(boxes1, boxes2):
     boxes1_area = boxes1[..., 2] * boxes1[..., 3]
     boxes2_area = boxes2[..., 2] * boxes2[..., 3]
@@ -37,7 +37,7 @@ def bbox_iou(boxes1, boxes2):
 
     return 1.0 * inter_area / union_area
 
-
+@tf.function
 def broadcast_iou(box_1, box_2):
     box_1 = tf.expand_dims(box_1, -2)
     box_2 = tf.expand_dims(box_2, 0)
@@ -57,7 +57,7 @@ def broadcast_iou(box_1, box_2):
                  (box_2[..., 3] - box_2[..., 1])
     return int_area / (box_1_area + box_2_area - int_area)
 
-
+@tf.function
 def bbox_iou_broadcast(boxes1, boxes2):
     boxes1 = tf.expand_dims(boxes1, -2)
 
@@ -70,6 +70,7 @@ def bbox_iou_broadcast(boxes1, boxes2):
     return iou
 
 #ronen TODO - cancel exp. using log instead
+@tf.function
 def decode_predictions2(pred_xy_center, pred_wh, pred_obj, pred_class, anchors):
     pred_xy_center_offset = tf.sigmoid(pred_xy_center)
     pred_wh_decoded = pred_wh
@@ -79,6 +80,7 @@ def decode_predictions2(pred_xy_center, pred_wh, pred_obj, pred_class, anchors):
     return pred_xy_center_offset, pred_wh_decoded, pred_obj_decoded, pred_class_decoded
 
 #ronen todo - old no tf.log
+@tf.function
 def decode_predictions(pred_xy_center, pred_wh, pred_obj, pred_class, anchors):
     pred_xy_center_offset = tf.sigmoid(pred_xy_center)
     pred_wh_decoded = tf.exp(pred_wh) * anchors
@@ -87,7 +89,7 @@ def decode_predictions(pred_xy_center, pred_wh, pred_obj, pred_class, anchors):
     pred_class_decoded = tf.sigmoid(pred_class)
     return pred_xy_center_offset, pred_wh_decoded, pred_obj_decoded, pred_class_decoded
 
-
+@tf.function
 def arrange_pred_bbox(xy_center_offset, wh, grid_size):
     grid = tf.meshgrid(tf.range(grid_size), tf.range(grid_size))
     grid = tf.expand_dims(tf.stack(grid, axis=-1), axis=2)
@@ -103,7 +105,7 @@ def arrange_true_bbox(true_xy_min, true_xy_max, grid_size):
     bbox = tf.concat([true_xy_min, true_xy_max], axis=-1)
     return bbox
 
-
+@tf.function
 def calc_iou_ignore_mask(true_box, pred_bbox, true_obj, iou_ignore_thresh):
     best_iou = tf.map_fn(
         lambda x: tf.reduce_max(broadcast_iou(x[0], tf.boolean_mask(
@@ -114,7 +116,7 @@ def calc_iou_ignore_mask(true_box, pred_bbox, true_obj, iou_ignore_thresh):
     ignore_mask = tf.cast(best_iou < iou_ignore_thresh, tf.float32)
     return ignore_mask
 
-
+@tf.function
 def calc_xy_loss(pred_xy_center_offset, true_xy_center, grid_size, true_obj, box_loss_scale):
     grid = tf.meshgrid(tf.range(grid_size), tf.range(grid_size))
     grid = tf.expand_dims(tf.stack(grid, axis=-1), axis=2)
@@ -129,6 +131,7 @@ def calc_xy_loss(pred_xy_center_offset, true_xy_center, grid_size, true_obj, box
     return xy_loss
 
 # ronen todo this is using log instead of exp
+# @tf.function
 def calc_wh_loss(pred_wh, true_wh, true_obj, box_loss_scale, grid_size, anchors):
     true_wh = tf.math.log(true_wh / anchors)
     true_wh = tf.where(tf.math.is_inf(true_wh),
@@ -141,7 +144,7 @@ def calc_wh_loss(pred_wh, true_wh, true_obj, box_loss_scale, grid_size, anchors)
 
     return sum_squared_wh_loss
 
-
+@tf.function
 def calc_class_loss(pred_class, true_class_idx, obj_mask):
     class_loss = obj_mask * sparse_categorical_crossentropy(
         true_class_idx, pred_class)
@@ -149,7 +152,7 @@ def calc_class_loss(pred_class, true_class_idx, obj_mask):
     class_loss = tf.reduce_sum(class_loss, axis=(1, 2, 3))
     return class_loss
 
-
+@tf.function
 def calc_obj_loss(true_obj, decoded_pred_obj, obj_mask, ignore_mask):
     obj_loss = binary_crossentropy(true_obj, decoded_pred_obj)
     obj_loss = obj_mask * obj_loss + \
