@@ -96,7 +96,7 @@ def get_config():
         parser.add_argument("--mode", type=str, default="eager_tf",
                             help="model's execution mode")
 
-        parser.add_argument("--debug_annotations_path", type=str, default= None# 'datasets/shapes/debug_dataset_sample/annotations.json' #True  #
+        parser.add_argument("--debug_annotations_path", type=str, default= 'datasets/shapes/debug_dataset_sample/annotations.json' #None # True  #
                             , help="model's execution mode")
 
         args = parser.parse_args()
