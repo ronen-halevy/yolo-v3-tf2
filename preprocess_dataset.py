@@ -86,7 +86,7 @@ def arrange_in_grid(y_train, anchors, grid_index, output_shape, max_bboxes):
 
     # Ignore zero boxes:
     best_anchor_indices = tf.squeeze(best_anchor_indices, axis=-1)
-    mask_selected_anchor_index_above_grid_sclae_min = tf.greater(best_anchor_indices, tf.constant((2-grid_index)*anchors.shape[0]))
+    mask_selected_anchor_index_above_grid_sclae_min = tf.greater_equal(best_anchor_indices, tf.constant((2-grid_index)*anchors.shape[0]))
     mask_selected_anchor_index_below_grid_sclae_max = tf.less(best_anchor_indices, tf.constant(((2-grid_index)+1)*anchors.shape[0]))
 
     mask_valid_bbox = y_train[..., 4] != 0 #todo maybe check obj val?
@@ -109,24 +109,50 @@ def arrange_in_grid(y_train, anchors, grid_index, output_shape, max_bboxes):
 
     return dataset_in_grid
 
-
-def preprocess_dataset(dataset, batch_size, image_size, anchors_table, grid_sizes, max_bboxes):
+def preprocess_dataset_debug(dataset, batch_size, image_size, anchors_table, grid_sizes, max_bboxes):
     # TODO check that again!!
+
     dataset = dataset.batch(batch_size, drop_remainder=True)
     # dataset = dataset.batch(batch_size)
 
     downsize_strides = image_size / grid_sizes
-    # dataset = dataset.map(lambda x, y: (
-    #     resize_image(x, image_size, image_size),
-    #     tuple([arrange_in_grid(y, tf.convert_to_tensor(anchors_table), grid_index # ronen TODO was 3,6 check shape
-    #                            # +1 is a patch - todo add the obj in dataset already...
-    #                            [batch_size, grid_size, grid_size,
-    #                                anchors.shape[0], tf.shape(y)[-1]], max_bboxes
-    #                            ) for grid_index, (anchors, grid_stride, grid_size)
-    #            in
-    #            enumerate(zip(anchors_table, downsize_strides, grid_sizes))]
-    #           )
-    # ))
+
+
+
+    for x, y in dataset:
+        # dataset = (
+
+        # resize_image(x, image_size, image_size), # Todo - check it back
+        tf.image.resize(x, (image_size, image_size))
+
+
+        tuple([arrange_in_grid(y, tf.convert_to_tensor(anchors_table), grid_index,  # ronen TODO was 3,6 check shape
+            # +1 is a patch - todo add the obj in dataset already...
+        [batch_size, grid_size, grid_size,
+         anchors.shape[0], tf.shape(y)[-1]], max_bboxes
+                               ) for grid_index, (anchors, grid_stride, grid_size)
+               in
+               enumerate(zip(anchors_table, downsize_strides, grid_sizes))]
+              )
+        # )
+    # )
+
+    # dataset = dataset.prefetch(
+    #     buffer_size=tf.data.experimental.AUTOTUNE)
+
+
+    return dataset
+
+
+def preprocess_dataset(dataset, batch_size, image_size, anchors_table, grid_sizes, max_bboxes):
+    # TODO check that again!!
+
+    dataset = dataset.batch(batch_size, drop_remainder=True)
+    # dataset = dataset.batch(batch_size)
+
+    downsize_strides = image_size / grid_sizes
+
+
     dataset = dataset.map(lambda x, y: (
         # resize_image(x, image_size, image_size), # Todo - check it back
         tf.image.resize(x, (image_size, image_size)),

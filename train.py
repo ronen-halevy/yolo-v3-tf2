@@ -19,7 +19,7 @@ from numpy import loadtxt
 import logging
 
 from utils import render_bboxes
-from utils import generate_random_dataset, load_fake_dataset, load_sample_dataset
+from utils import generate_random_dataset, load_fake_dataset, load_sample_dataset, load_shape_example_dataset
 from preprocess_dataset import preprocess_dataset, arrange_in_grid
 from loss_func import get_loss_func
 from models import yolov3_model, yolov3_model_new
@@ -29,8 +29,6 @@ from tensorflow.keras.losses import (
     binary_crossentropy,
     sparse_categorical_crossentropy
 )
-
-
 
 
 def split_dataset(dataset, dataset_size):
@@ -66,6 +64,10 @@ def get_config():
         parser.add_argument("--limit", type=int, default=None,
                             help='limit on max input examples')
 
+        parser.add_argument("--dataset_repeat", type=int, default=100,
+                            help='repeat dataset')
+
+
         parser.add_argument("--classes_name_fle", type=str,
                             default='datasets/shapes/class.names',
                             help='path to classes names file needed to annotate plotted objects')
@@ -73,7 +75,7 @@ def get_config():
         parser.add_argument("--max_bboxes", type=int, default=100,
                             help='max bounding boxes in an example image')
 
-        parser.add_argument("--batch_size", type=int, default=1,
+        parser.add_argument("--batch_size", type=int, default=8,
                             help='batch_size')
 
         parser.add_argument("--image_size", type=int, default=416,
@@ -94,15 +96,15 @@ def get_config():
         parser.add_argument("--mode", type=str, default="eager_tf",
                             help="model's execution mode")
 
-        parser.add_argument("--debug_annotations_path", type=str, default=None  # 'datasets/shapes/debug_dataset_sample/annotations.json'
+        parser.add_argument("--debug_annotations_path", type=str, default= None# 'datasets/shapes/debug_dataset_sample/annotations.json' #True  #
                             , help="model's execution mode")
 
         args = parser.parse_args()
     else:
         class args:
-            use_debug_dataset = True
+            use_debug_dataset = False
             render_dataset_example = False
-            tfrecords_dir = '/home/ronen/PycharmProjects/create-tfrecords/dataset/tfrecords'
+            tfrecords_dir = '../create-tfrecords/dataset/tfrecords'
             limit = None
             classes_name_fle = 'datasets/shapes/class.names'
             max_bboxes = 100
@@ -113,6 +115,7 @@ def get_config():
             learning_rate = 0.001
             epochs = 1000
             mode = "eager_tf"
+            dataset_repeat = None
             debug_annotations_path = None # 'datasets/shapes/debug_dataset_sample/annotations.json'
 
     tfrecords_dir = args.tfrecords_dir
@@ -126,9 +129,10 @@ def get_config():
     epochs = args.epochs
     mode = args.mode
     render_dataset_example = args.render_dataset_example
+    dataset_repeat = args.dataset_repeat
     debug_annotations_path = args.debug_annotations_path
 
-    return tfrecords_dir, classes_name_fle, batch_size, image_size, anchors_file, max_bboxes, epochs, mode, learning_rate, render_dataset_example, use_debug_dataset, debug_annotations_path
+    return tfrecords_dir, classes_name_fle, batch_size, image_size, anchors_file, max_bboxes, epochs, mode, learning_rate, render_dataset_example, use_debug_dataset, dataset_repeat, debug_annotations_path
 
 
 def get_anchors(anchors_file):
@@ -142,102 +146,53 @@ def get_anchors(anchors_file):
     return anchors_table
 
 
-def load_dataset(tfrecords_dir, use_debug_dataset, image_size, max_bboxes, anchors_file, classes_name_fle, debug_annotations_path=None):
+def load_dataset(tfrecords_dir, use_debug_dataset, image_size, max_bboxes, anchors_file, classes_name_fle, dataset_repeat=None, debug_annotations_path=None):
     if use_debug_dataset:
         if debug_annotations_path is not None:
-            dataset = load_sample_dataset(
-                debug_annotations_path, classes_name_fle, max_bboxes)
+            dataset, anchors_table = load_shape_example_dataset()
+                # debug_annotations_path, classes_name_fle, max_bboxes)
+            nclasses = 7
 
         else:
-            dataset = load_fake_dataset()
+            dataset, anchors_table = load_fake_dataset()
+            nclasses = 80
+        dataset = dataset.repeat(10)
     else:
         dataset = parse_tfrecords(
             tfrecords_dir, image_size, max_bboxes, classes_name_fle)
-
-    if not use_debug_dataset or debug_annotations_path:
+        if dataset_repeat:
+            dataset = dataset.repeat(dataset_repeat)
+        anchors_table = get_anchors(anchors_file)
         dataset_names = loadtxt(classes_name_fle, dtype=str)
         nclasses = dataset_names.shape[0]
-        anchors_table = get_anchors(anchors_file)
-    else:
-        anchors_table = np.array([[(116, 90), (156, 198), (373, 326)], [(30, 61), (62, 45),
-                                 (59, 119)],  [(10, 13), (16, 30), (33, 23)]],
-                                 np.float32) / 416
 
-        # anchors_table = np.flip(np.sort(anchors_table, axis=- 1))
-        nclasses = 80
 
-    # dataset = dataset.repeat(100)
 
     return dataset, nclasses, anchors_table
 
-def _meshgrid(n_a, n_b):
 
-    return [
-        tf.reshape(tf.tile(tf.range(n_a), [n_b]), (n_b, n_a)),
-        tf.reshape(tf.repeat(tf.range(n_b), n_a), (n_b, n_a))
-    ]
-
-
-def yolo_boxes(pred, anchors, classes):
-    # pred: (batch_size, grid, grid, anchors, (x, y, w, h, obj, ...classes))
-    grid_size = tf.shape(pred)[1:3]
-    box_xy, box_wh, objectness, class_probs = tf.split(
-        pred, (2, 2, 1, classes), axis=-1)
-
-    box_xy = tf.sigmoid(box_xy)
-    objectness = tf.sigmoid(objectness)
-    class_probs = tf.sigmoid(class_probs)
-    pred_box = tf.concat((box_xy, box_wh), axis=-1)  # original xywh for loss
-
-    # !!! grid[x][y] == (y, x)
-    grid = _meshgrid(grid_size[1],grid_size[0])
-    grid = tf.expand_dims(tf.stack(grid, axis=-1), axis=2)  # [gx, gy, 1, 2]
-
-    box_xy = (box_xy + tf.cast(grid, tf.float32)) / \
-        tf.cast(grid_size, tf.float32)
-    box_wh = tf.exp(box_wh) * anchors
-
-    box_x1y1 = box_xy - box_wh / 2
-    box_x2y2 = box_xy + box_wh / 2
-    bbox = tf.concat([box_x1y1, box_x2y2], axis=-1)
-
-    return bbox, objectness, class_probs, pred_box
-
-num_classes = 80
 def main():
 
-    # tf.random.set
-    # _seed(seed=42)
+    # tf.random.set_seed(seed=42)
     logging.basicConfig(level=logging.INFO,
                         format='%(levelname)s %(message)s',
                         )
     #########
     physical_devices = tf.config.experimental.list_physical_devices('GPU')
 
-    tfrecords_dir, classes_name_fle, batch_size, image_size, anchors_file, max_bboxes, epochs, mode, learning_rate, render_dataset_example, use_debug_dataset, debug_annotations_path = get_config()
+    tfrecords_dir, classes_name_fle, batch_size, image_size, anchors_file, max_bboxes, epochs, mode, learning_rate, render_dataset_example, use_debug_dataset, dataset_repeat, debug_annotations_path = get_config()
 
-    lr_init = 1e-3
-    lr_end = 1e-6
-    steps_per_epoch = int(10000 / batch_size)
-    total_steps = epochs * steps_per_epoch
-    warmup_epochs = 2
 
     dataset, nclasses, anchors_table = load_dataset(
-        tfrecords_dir, use_debug_dataset, image_size, max_bboxes, classes_name_fle, debug_annotations_path)
+        tfrecords_dir, use_debug_dataset, image_size, max_bboxes, anchors_file, classes_name_fle, dataset_repeat, debug_annotations_path)
     if render_dataset_example:
         x_train, bboxes = next(iter(dataset))
         render_bboxes(x_train, bboxes)
 
     # model = yolov3_model(anchors_table, image_size, nclasses=nclasses)
     model = yolov3_model(anchors_table, image_size, nclasses=nclasses)
-    model.summary()
+    # model.summary()
 
-
-
-    # model = YoloV3mm(size=None, channels=3, anchors=yolo_anchors,
-    #              masks=yolo_anchor_masks, classes=80, training=True)
-
-    # print(model.summary())
     with open("model_mine.txt", "w") as file1:
         model.summary(print_fn=lambda x: file1.write(x + '\n'))
 
@@ -246,32 +201,17 @@ def main():
     loss = [get_loss_func(anchors, nclasses=nclasses)
             for anchors in anchors_table]
 
-    # loss = [YoloLoss(yolo_anchors[mask], classes=num_classes)
-    #         for mask in yolo_anchor_masks]
 
     model.compile(optimizer=optimizer, loss=loss,
                   run_eagerly=(mode == 'eager_fit'))
 
     grid_sizes_table = np.array([13, 26, 52])
-    # ###
-    # image, y = next(iter(dataset.as_numpy_iterator()))
-    # y = tf.expand_dims(y, axis=0)
-    # for grid_index in [0,1,2]:
-    #     arrange_in_grid(y, tf.convert_to_tensor(anchors_table),  grid_index,# ronen TODO was 3,6 check shape
-    #                     # +1 is a patch - todo add the obj in dataset already...
-    #                     [batch_size, grid_sizes_table[grid_index], grid_sizes_table[grid_index],
-    #                      anchors_table.shape[grid_index], tf.shape(y)[-1]], max_bboxes
-    #                     )
 
-    ####
-
-    dataset = dataset.repeat(100)
     train_dataset = preprocess_dataset(dataset, batch_size, image_size, anchors_table, grid_sizes_table,
                                            max_bboxes)
 
     if mode == 'eager_tf':
-        # Eager mode is great for debugging
-        # Non eager graph mode is recommended for real training
+
         avg_loss = tf.keras.metrics.Mean('loss', dtype=tf.float32)
         avg_val_loss = tf.keras.metrics.Mean('val_loss', dtype=tf.float32)
 
@@ -297,16 +237,6 @@ def main():
 
                     # total_loss = tf.reduce_sum(pred_loss) + regularization_loss
 
-                # warmup_steps = warmup_epochs * steps_per_epoch
-                # if global_steps < warmup_steps:
-                #     lr = global_steps / warmup_steps * lr_init
-                # else:
-                #     lr = lr_end + 0.5 * (lr_init - lr_end) * (
-                #         (1 + tf.cos((global_steps - warmup_steps) /
-                #          (total_steps - warmup_steps) * np.pi))
-                #     )
-                # lr = tf.Variable(.001)
-                # optimizer.lr.assign(lr.numpy())
 
                 grads = tape.gradient(total_loss, model.trainable_variables)
                 optimizer.apply_gradients(
@@ -320,8 +250,8 @@ def main():
                 avg_loss.update_state(total_loss)
 
                 global_steps.assign_add(1)
-            if(epoch and epoch % 5 == 0):
-                model.save_weights(
+            # if(epoch and epoch % 5 == 0):
+            model.save_weights(
                 'checkpoints/yolov3_train_{}.tf'.format(epoch))
 
 if __name__ == '__main__':

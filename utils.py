@@ -15,14 +15,22 @@ import json
 import os
 import numpy as np
 
+
 def load_shape_example_dataset():
     x_train = tf.image.decode_jpeg(
         open('datasets/shapes/debug_dataset_sample/000001.jpg', 'rb').read(), channels=3)
-    x_train = tf.cast(tf.expand_dims(x_train, axis=0), tf.float32) / 255
-    labels = [ [0.53125, 0.49759615384615385, 0.8197115384615384, 0.7860576923076923, 1., 0.]] + [[0., 0., 0., 0., 0., 0.]] * 99
+    x_train = tf.cast(tf.expand_dims(x_train, axis=0), tf.float32)  # / 255
+    labels = [[0.53125, 0.49759615384615385, 0.8197115384615384, 0.7860576923076923, 1., 0.]] + [
+        [0., 0., 0., 0., 0., 0.]] * 99
 
-    y_train = tf.convert_to_tensor(labels, tf.float32)[tf.newaxis,...]
+    labels = [[  # triangle
+        0.5913461538461539,
+        0.4735576923076923,
+        0.7836538461538461,
+        0.6658653846153846, 1, 0
+    ]]   + [[0, 0, 0, 0, 0, 0]] * 99
 
+    y_train = tf.convert_to_tensor(labels, tf.float32)[tf.newaxis, ...]
 
     anchors_table = np.array([[
         (0.08173, 0.04567),
@@ -35,6 +43,14 @@ def load_shape_example_dataset():
          (0.25000, 0.25000),
          (0.25000, 0.49038)]])
 
+    x_train = tf.image.decode_jpeg(
+        open('datasets/shapes/debug_dataset_sample/triangle_000001.jpg', 'rb').read(), channels=3)
+    x_train = tf.cast(tf.expand_dims(x_train, axis=0), tf.float32) / 255
+
+    # render_bboxes(x_train, y_train)
+    anchors_table = np.array([[(116, 90), (156, 198), (373, 326)], [(30, 61), (62, 45),
+                                                                    (59, 119)], [(10, 13), (16, 30), (33, 23)]],
+                             np.float32) / 416
     return tf.data.Dataset.from_tensor_slices((x_train, y_train)), anchors_table
 
 
@@ -49,7 +65,7 @@ def load_fake_dataset():
                  [0.09158827, 0.48252046, 0.26967454, 0.6403017, 1, 67]
              ] + [[0, 0, 0, 0, 0, 0]] * 97
 
-    y_train = tf.convert_to_tensor(labels, tf.float32)[tf.newaxis,...]
+    y_train = tf.convert_to_tensor(labels, tf.float32)[tf.newaxis, ...]
 
     anchors_table = np.array([[(116, 90), (156, 198), (373, 326)], [(30, 61), (62, 45),
                                                                     (59, 119)], [(10, 13), (16, 30), (33, 23)]],
@@ -91,7 +107,7 @@ def generate_random_dataset(dataset_size=300, image_h=416, image_w=416, max_bbox
 
 
 def render_bboxes(image, bboxes):
-    bboxes = tf.cast(bboxes, tf.float32)[tf.newaxis, :,:]
+    bboxes = tf.cast(bboxes, tf.float32)[tf.newaxis, :, :]
 
     indices = [1, 0, 3, 2]
     bboxes = tf.gather(bboxes, indices, axis=-1)
@@ -108,9 +124,7 @@ def render_bboxes(image, bboxes):
     plt.show()
 
 
-
 def load_sample_dataset(annotations_path, class_names_path, max_bboxes):
-
     with open(annotations_path) as f:
         annotations = json.load(f)
 
@@ -125,7 +139,6 @@ def load_sample_dataset(annotations_path, class_names_path, max_bboxes):
     bboxes = annotations['bboxes']
     labels = [annotation['label'] for annotation in annotations['objects']]
 
-
     class_table = tf.lookup.StaticHashTable(tf.lookup.TextFileInitializer(
         filename=class_names_path, key_dtype=tf.string, key_index=0, value_dtype=tf.int64,
         value_index=tf.lookup.TextFileIndex.LINE_NUMBER, delimiter="\n"), default_value=-1)
@@ -139,11 +152,9 @@ def load_sample_dataset(annotations_path, class_names_path, max_bboxes):
     nbboxes = bboxes.shape[0]
     npad_boxes = max(max_bboxes - nbboxes, 0)
     pad_boxes = tf.convert_to_tensor([[0., 0., 0., 0., 0., 0.]] * npad_boxes)
-    bboxes = tf.concat([bboxes, pad_boxes], axis = 0)
+    bboxes = tf.concat([bboxes, pad_boxes], axis=0)
 
     # y_train = tf.convert_to_tensor(bboxes, tf.float32)
     y_train = tf.expand_dims(bboxes, axis=0)
-
-
 
     return tf.data.Dataset.from_tensor_slices((x_train, y_train))
