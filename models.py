@@ -468,11 +468,11 @@ def yolov3_model(anchors_table, image_size=None, nclasses=80, training=True, yol
 
 
 
-    boxes_0 = Lambda(lambda x: yolo_boxes(x, anchors_table[2], nclasses),
+    boxes_0 = Lambda(lambda x: yolo_boxes(x, anchors_table[0], nclasses),
                      name='yolo_boxes_0')(coarse_grid_pred)
     boxes_1 = Lambda(lambda x: yolo_boxes(x, anchors_table[1], nclasses),
                      name='yolo_boxes_1')(med_grid_pred)
-    boxes_2 = Lambda(lambda x: yolo_boxes(x, anchors_table[0], nclasses),
+    boxes_2 = Lambda(lambda x: yolo_boxes(x, anchors_table[2], nclasses),
                      name='yolo_boxes_2')(fine_grid_pred)
 
     outputs = Lambda(lambda x: yolo_nms(x, nclasses, yolo_max_boxes, yolo_iou_threshold, yolo_score_threshold),
