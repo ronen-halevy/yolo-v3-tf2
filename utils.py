@@ -23,6 +23,11 @@ def load_shape_example_dataset():
     labels = [[0.53125, 0.49759615384615385, 0.8197115384615384, 0.7860576923076923, 1., 0.]] + [
         [0., 0., 0., 0., 0., 0.]] * 99
 
+    x_train = tf.image.decode_jpeg(
+        open('./datasets/triangle_000001.jpg', 'rb').read(), channels=3)
+    x_train = tf.cast(tf.expand_dims(x_train, axis=0), tf.float32) / 255
+
+
     labels = [[  # triangle
         0.5913461538461539,
         0.4735576923076923,
@@ -42,10 +47,6 @@ def load_shape_example_dataset():
         [(0.15385, 0.29808),
          (0.25000, 0.25000),
          (0.25000, 0.49038)]])
-
-    x_train = tf.image.decode_jpeg(
-        open('datasets/shapes/debug_dataset_sample/triangle_000001.jpg', 'rb').read(), channels=3)
-    x_train = tf.cast(tf.expand_dims(x_train, axis=0), tf.float32) / 255
 
     # render_bboxes(x_train, y_train)
     anchors_table = np.array([[(116, 90), (156, 198), (373, 326)], [(30, 61), (62, 45),
