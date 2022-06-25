@@ -24,7 +24,7 @@ def load_shape_example_dataset():
         [0., 0., 0., 0., 0., 0.]] * 99
 
     x_train = tf.image.decode_jpeg(
-        open('./datasets/triangle_000001.jpg', 'rb').read(), channels=3)
+        open('datasets/shapes/debug_dataset_sample/000001_triangle.jpg', 'rb').read(), channels=3)
     x_train = tf.cast(tf.expand_dims(x_train, axis=0), tf.float32) / 255
 
 
