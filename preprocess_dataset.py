@@ -86,8 +86,8 @@ def arrange_in_grid(y_train, anchors, grid_index, output_shape, max_bboxes):
 
     # Ignore zero boxes:
     best_anchor_indices = tf.squeeze(best_anchor_indices, axis=-1)
-    mask_selected_anchor_index_above_grid_sclae_min = tf.greater_equal(best_anchor_indices, tf.constant((2-grid_index)*anchors.shape[0]))
-    mask_selected_anchor_index_below_grid_sclae_max = tf.less(best_anchor_indices, tf.constant(((2-grid_index)+1)*anchors.shape[0]))
+    mask_selected_anchor_index_above_grid_sclae_min = tf.greater_equal(best_anchor_indices, tf.constant((grid_index)*anchors.shape[0]))
+    mask_selected_anchor_index_below_grid_sclae_max = tf.less(best_anchor_indices, tf.constant(((grid_index)+1)*anchors.shape[0]))
 
     mask_valid_bbox = y_train[..., 4] != 0 #todo maybe check obj val?
     mask = tf.math.logical_and(mask_valid_bbox, mask_selected_anchor_index_above_grid_sclae_min)

@@ -52,6 +52,10 @@ def load_shape_example_dataset():
     anchors_table = np.array([[(116, 90), (156, 198), (373, 326)], [(30, 61), (62, 45),
                                                                     (59, 119)], [(10, 13), (16, 30), (33, 23)]],
                              np.float32) / 416
+
+
+    # anchors_table = np.array([[(30, 61), (62, 45), (59, 119)], [(10, 13), (16, 30), (33, 23)],[(116, 90), (156, 198), (373, 326)]],
+    #                          np.float32) / 416
     return tf.data.Dataset.from_tensor_slices((x_train, y_train)), anchors_table
 
 
