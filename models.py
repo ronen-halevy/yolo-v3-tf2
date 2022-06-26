@@ -299,9 +299,6 @@ def yolo_nms(outputs, classes, yolo_max_boxes, yolo_iou_threshold, yolo_score_th
 
     num_valid_nms_boxes = tf.shape(selected_indices)[0]
 
-    selected_indices = tf.concat([selected_indices, tf.zeros(yolo_max_boxes - num_valid_nms_boxes, tf.int32)], 0)
-    selected_scores = tf.concat([selected_scores, tf.zeros(yolo_max_boxes - num_valid_nms_boxes, tf.float32)], -1)
-
     boxes = tf.gather(bbox, selected_indices)
     boxes = tf.expand_dims(boxes, axis=0)
     scores = selected_scores
