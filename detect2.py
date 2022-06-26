@@ -118,7 +118,7 @@ def main():
 
     print('detections:')
 
-    render_bboxes( tf.cast(img_raw, tf.float32)/255, boxes)
+    render_bboxes( tf.cast(img_raw[tf.newaxis,...], tf.float32)/255, boxes)
 
     for i in range(nums[0]):
         print('\t{}, {}, {}'.format(class_names[int(classes[0][i])],

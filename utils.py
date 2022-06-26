@@ -112,14 +112,19 @@ def generate_random_dataset(dataset_size=300, image_h=416, image_w=416, max_bbox
 
 
 def render_bboxes(image, bboxes):
-    bboxes = tf.cast(bboxes, tf.float32)[tf.newaxis, :, :]
+    """
+    :param image: target image
+    :type image:  tf.float32, rank-4
+    :param bboxes: bboxes tf boxes. Assumed xmin,ymin,xmax,ymax
+    :type bboxes: tf.float32, rank-3
+    :return:
+    :rtype:
+    """
+    # bboxes = tf.cast(bboxes, tf.float32)[tf.newaxis, :, :]
 
     indices = [1, 0, 3, 2]
     bboxes = tf.gather(bboxes, indices, axis=-1)
     colors = [[1, 255, 0]]
-    # expand dims only if needed:
-    image = tf.squeeze(image)[tf.newaxis, ...]
-    bboxes = tf.squeeze(bboxes)[tf.newaxis, ...]
 
     image = tf.image.draw_bounding_boxes(
         image, bboxes, colors, name=None

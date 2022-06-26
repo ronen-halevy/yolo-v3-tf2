@@ -187,7 +187,7 @@ def main():
         tfrecords_dir, use_debug_dataset, image_size, max_bboxes, anchors_file, classes_name_fle, dataset_repeat, debug_annotations_path)
     if render_dataset_example:
         x_train, bboxes = next(iter(dataset))
-        render_bboxes(x_train, bboxes)
+        render_bboxes(x_train[tf.newaxis,...], bboxes[tf.newaxis,...])
 
     # model = yolov3_model(anchors_table, image_size, nclasses=nclasses)
     model = yolov3_model(anchors_table, image_size, nclasses=nclasses)
