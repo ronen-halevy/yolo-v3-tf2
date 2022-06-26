@@ -22,7 +22,7 @@ from utils import render_bboxes
 from utils import generate_random_dataset, load_fake_dataset, load_sample_dataset, load_shape_example_dataset
 from preprocess_dataset import preprocess_dataset, arrange_in_grid
 from loss_func import get_loss_func
-from models import yolov3_model, yolov3_model_new
+from models import yolov3_model
 
 
 from tensorflow.keras.losses import (
@@ -102,13 +102,13 @@ def get_config():
         args = parser.parse_args()
     else:
         class args:
-            use_debug_dataset = False
+            use_debug_dataset = True
             render_dataset_example = False
             tfrecords_dir = '../create-tfrecords/dataset/tfrecords'
             limit = None
             classes_name_fle = 'datasets/shapes/class.names'
             max_bboxes = 100
-            batch_size = 1
+            batch_size = 8
             image_size = 416
             anchors_file = 'datasets/shapes/shapes_yolov3_anchors.txt'
             dataset_limit_size = None
@@ -116,7 +116,7 @@ def get_config():
             epochs = 1000
             mode = "eager_tf"
             dataset_repeat = None
-            debug_annotations_path = None # 'datasets/shapes/debug_dataset_sample/annotations.json'
+            debug_annotations_path = 'datasets/shapes/debug_dataset_sample/annotations.json'
 
     tfrecords_dir = args.tfrecords_dir
     image_size = args.image_size
@@ -250,8 +250,8 @@ def main():
                 avg_loss.update_state(total_loss)
 
                 global_steps.assign_add(1)
-            # if(epoch and epoch % 5 == 0):
-            model.save_weights(
+            if(epoch and epoch % 20 == 0):
+                model.save_weights(
                 'checkpoints/yolov3_train_{}.tf'.format(epoch))
 
 if __name__ == '__main__':

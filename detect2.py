@@ -7,7 +7,7 @@ import tensorflow as tf
 # from yolov3_tf2.models2 import (
 #     YoloV3, YoloV3Tiny
 # )
-from models import yolov3_model, yolo_boxes, yolov3_model_new
+from models import yolov3_model, yolo_boxes
 from preprocess_dataset import resize_image
 from utils import render_bboxes
 # from yolov3_tf2.dataset import transform_images, load_tfrecord_dataset
@@ -26,7 +26,7 @@ from utils import render_bboxes
 
 class FLAGS:
     classes= './datasets/coco.names'
-    classes= '/home/ronen/PycharmProjects/yolo-v3-tf2/datasets/shapes/class.names'
+    classes= './datasets/shapes/class.names'
     weights=  'checkpoints/yolov3_train_13.tf'
     weights=  'checkpoints/yolov3_train_30.tf'
     weights=  'checkpoints/yolov3_train_1000.tf'
@@ -34,13 +34,13 @@ class FLAGS:
     # weights=  '/home/ronen/Downloads/yolov3_train_2.tf'
     # weights=  'checkpoints/yolov3_train_2.tf'
     # weights=  'checkpoints/yolov3_train_1.tf'
-    weights=  'checkpoints/yolov3_train_180.tf'
+    weights=  'checkpoints/yolov3_train_120.tf'
 
     # weights = '/home/ronen/PycharmProjects/yolov3-tf2/checkpoints/yolov3_train_2.tf'
 
     tiny=  False
     size=  416
-    image = '/home/ronen/PycharmProjects/shapes-dataset/dataset/images/000001.jpg' #'./datasets/girl.png'
+    image = './datasets/shapes/debug_dataset_sample/000001_triangle.jpg' #'./datasets/girl.png'
     tfrecord =  None
     output = './output.jpg', 'path to output image'
     num_classes = 7 # 80
@@ -63,6 +63,13 @@ def main():
          (0.25000, 0.25000),
          (0.25000, 0.49038)]])
 
+    anchors_table = np.array([[(116, 90), (156, 198), (373, 326)], [(30, 61), (62, 45),
+                                                                    (59, 119)], [(10, 13), (16, 30), (33, 23)]],
+                             np.float32) / 416
+
+    # anchors_table = np.array([[(10, 13), (16, 30), (33, 23)], [(30, 61), (62, 45),
+    #                                                            (59, 119)], [(116, 90), (156, 198), (373, 326)]],
+    #                          np.float32) / 416
     yolo_max_boxes = 100
     yolo_iou_threshold = 0.8
     yolo_score_threshold = 0.5
@@ -72,10 +79,10 @@ def main():
     yolo.load_weights(FLAGS.weights).expect_partial()
 
 
-    yolo_anchors = np.array([(10, 13), (16, 30), (33, 23), (30, 61), (62, 45),
-                             (59, 119), (116, 90), (156, 198), (373, 326)],
-                            np.float32) / 416
-    yolo_anchor_masks = np.array([[6, 7, 8], [3, 4, 5], [0, 1, 2]])
+    # yolo_anchors = np.array([(10, 13), (16, 30), (33, 23), (30, 61), (62, 45),
+    #                          (59, 119), (116, 90), (156, 198), (373, 326)],
+    #                         np.float32) / 416
+    # yolo_anchor_masks = np.array([[6, 7, 8], [3, 4, 5], [0, 1, 2]])
 
     # yolo = YoloV3mm(size=None, channels=3, anchors=yolo_anchors,
     #              masks=yolo_anchor_masks, classes=80, training=False)
@@ -105,7 +112,6 @@ def main():
     img = tf.image.resize(img, (FLAGS.size, FLAGS.size))
     t1 = time.time()
     boxes, scores, classes, nums = yolo(img, training=True)
-    # boxes, scores, classes = yolo(img)
 
     t2 = time.time()
     print('time: {}'.format(t2 - t1))
@@ -119,10 +125,6 @@ def main():
                                            np.array(scores[0][i]),
                                            np.array(boxes[0][i])))
 
-    # img = cv2.cvtColor(img_raw.numpy(), cv2.COLOR_RGB2BGR)
-    # img = draw_outputs(img, (boxes, scores, classes, nums), class_names)
-    # cv2.imwrite(FLAGS.output, img)
-    # print('output saved to: {}'.format(FLAGS.output))
 
 
 main()
