@@ -1,0 +1,36 @@
+#! /usr/bin/env python
+# coding=utf-8
+# ================================================================
+#   Copyright (C) 2022 . All rights reserved.
+#
+#   File name   : train_config.yaml
+#   Author      : ronen halevy 
+#   Created date:  7/19/22
+#   Description :
+#
+# ================================================================
+---
+input_data_source: debug_data # [tfrecords, images_dir_annot_file, debug_data]
+debug_mode: False # Debug step-by-step trace graph mode functions
+render_dataset_example: False
+dataset_repeats: 11
+max_bboxes: 100
+batch_size: 8
+epochs: 1000
+image_size: 416
+dataset_cuttof_size: null # null or size limit value
+learning_rate: 0.001
+early_stopping: False # enables early_stopping callback
+early_stop_patience: 13 # an early_stopping callback parameter
+load_weights: False #whether to load pretrained weights
+mode: fit # 'model execution mode. choices=[eager_tf, fit]'
+tfrecords_base_dir:  datasets/shapes/two_colors/input/tfrecords
+classes_name_file: datasets/coco2012/coco.names
+anchors_file: datasets/coco2012/anchors.txt
+annotations_path: datasets/coco2012/annotations.json
+images_dir: datasets/coco2012/images
+save_checkpoits_path_prefix: 'checkpoints/yolov3_train_' # prefix of path checkpoints save
+load_checkpoints_path: weights/coco/girl/yolov3_train_girl.tf #'checkpoints/yolov3_train_newclass5.tf' #path to pretrained weights file
+
+
+

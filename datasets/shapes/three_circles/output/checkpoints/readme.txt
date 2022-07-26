@@ -1,0 +1,4 @@
+-3 shapes: circle, rect, triangle
+- one size
+- one color
+-8 epochs, 1000 images
