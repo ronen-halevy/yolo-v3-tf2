@@ -14,26 +14,22 @@ import numpy as np
 import tensorflow as tf
 from keras.callbacks import Callback
 from keras.callbacks import (
-    ReduceLROnPlateau,
-    EarlyStopping,
-    ModelCheckpoint,
-    TensorBoard
+    EarlyStopping
 )
-from numpy import loadtxt
 import logging
 import yaml
 import argparse
 import matplotlib.pyplot as plt
 
-from utils import get_anchors
-from render_utils import render_bboxes
+from core.utils import get_anchors
+from core.render_utils import render_bboxes
 
-from preprocess_dataset import PreprocessDataset
-from loss_func import get_loss_func
-from models import YoloV3Model
+from core.preprocess_dataset import PreprocessDataset
+from core.loss_func import get_loss_func
+from core.models import YoloV3Model
 
-from load_tfrecords import parse_tfrecords
-from load_dataset import load_dataset, load_debug_dataset
+from core.load_tfrecords import parse_tfrecords
+from core.load_dataset import load_dataset, load_debug_dataset
 
 
 class Train:

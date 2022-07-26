@@ -12,8 +12,7 @@
 from matplotlib import pyplot as plt
 
 import train
-import preprocess_dataset
-import utils
+from core import preprocess_dataset, utils
 
 import numpy as np
 

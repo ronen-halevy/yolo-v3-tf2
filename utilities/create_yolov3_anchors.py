@@ -16,7 +16,7 @@ import argparse
 import pathlib
 import os
 
-from load_tfrecords import parse_tfrecords
+from core.load_tfrecords import parse_tfrecords
 
 
 # def plot_scatter_graph(w_h, kmeans):

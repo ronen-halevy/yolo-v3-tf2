@@ -5,10 +5,10 @@ import yaml
 import argparse
 import matplotlib.pyplot as plt
 
-from models import YoloV3Model
-from utils import get_anchors, resize_image
-from render_utils import annotate_detections
-from load_tfrecords import parse_tfrecords
+from core.models import YoloV3Model
+from core.utils import get_anchors, resize_image
+from core.render_utils import annotate_detections
+from core.load_tfrecords import parse_tfrecords
 
 
 class Inference:

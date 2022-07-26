@@ -9,7 +9,7 @@
 #   Description :
 #
 # ================================================================
-from utils import resize_image
+from .utils import resize_image
 
 import tensorflow as tf
 
