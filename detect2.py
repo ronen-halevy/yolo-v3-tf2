@@ -81,7 +81,7 @@ def detect(
     class_names = [c.strip() for c in open(classes).readlines()]
     nclasses = len(class_names)
 
-    yolo = yolov3_model(anchors_table, size, nclasses=nclasses, training=False,
+    yolo = yolov3_model(size, nclasses, training=False, anchors_table=anchors_table,
                         yolo_max_boxes=yolo_max_boxes, nms_iou_threshold=nms_iou_threshold,
                         nms_score_threshold=nms_score_threshold)
 

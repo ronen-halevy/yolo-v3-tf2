@@ -128,15 +128,15 @@ def get_grids_common_block(nfilters, name=None):
     return grids_common_block
 
 
-def get_grid_output(nfilters, nanchors, nclasses, name=None):
+def get_grid_output(nfilters, ngrids, nclasses, name=None):
     def grid_output(input_data):
         input = Input(input_data.shape[1:], name=f'{name} input')
         conv = conv_block(input, nfilters, kernel_size=3)
-        conv = conv_block(conv, nfilters=nanchors * (nclasses + (XY_FEILD + WH_FEILD + OBJ_FIELD)), kernel_size=1,
+        conv = conv_block(conv, nfilters=ngrids * (nclasses + (XY_FEILD + WH_FEILD + OBJ_FIELD)), kernel_size=1,
                           batch_norm=False)
 
         conv = Lambda(lambda x: tf.reshape(x, (-1, input_data.shape[1], input_data.shape[2],
-                                               nanchors, nclasses + (XY_FEILD + WH_FEILD + OBJ_FIELD))))(conv)
+                                               ngrids, nclasses + (XY_FEILD + WH_FEILD + OBJ_FIELD))))(conv)
 
         return Model(input, conv, name=name)(input_data)
 
@@ -195,29 +195,23 @@ def arrange_output(grid_pred, nclasses):
     return pred_xy, pred_wh, pred_obj, class_probs
 
 
-def yolov3_model(anchors_table, image_size=None, nclasses=80, training=True, yolo_max_boxes=None,
+def yolov3_model(image_size=None, nclasses=80, training=True, yolo_max_boxes=None, anchors_table=None,
                  nms_iou_threshold=None, nms_score_threshold=None):
     inputs = Input([image_size, image_size, 3], name='darknet53 input')
-    nanchors = anchors_table.shape[0]
+    ngrids = 3
     out1, out2, darknet_out = darknet53(name='darknet53')(inputs)
 
     intermediate_out0 = get_grids_common_block(nfilters=512, name='intermediate_out0')(darknet_out)
     intermediate_out1 = get_grids_common_block(nfilters=256, name='intermediate_out1')((intermediate_out0, out2))
     intermediate_out2 = get_grids_common_block(nfilters=128, name='intermediate_out2')((intermediate_out1, out1))
 
-    grid_pred0 = get_grid_output(1024, nanchors=nanchors, nclasses=nclasses, name='grid_pred0')(intermediate_out0)
-    grid_pred1 = get_grid_output(512, nanchors=nanchors, nclasses=nclasses, name='grid_pred1')(intermediate_out1)
-    grid_pred2 = get_grid_output(256, nanchors=nanchors, nclasses=nclasses, name='grid_pred2')(intermediate_out2)
+    grid_pred0 = get_grid_output(1024, ngrids=ngrids, nclasses=nclasses, name='grid_pred0')(intermediate_out0)
+    grid_pred1 = get_grid_output(512, ngrids=ngrids, nclasses=nclasses, name='grid_pred1')(intermediate_out1)
+    grid_pred2 = get_grid_output(256, ngrids=ngrids, nclasses=nclasses, name='grid_pred2')(intermediate_out2)
 
     pred_xy0, pred_wh0, pred_obj0, class_probs0 = arrange_output(grid_pred0, nclasses)
-    # pred_wh0 = Lambda(lambda x: tf.exp(x) * anchors_table[0])(pred_wh0)
-
     pred_xy1, pred_wh1, pred_obj1, class_probs1 = arrange_output(grid_pred1, nclasses)
-    # pred_wh1 = Lambda(lambda x: tf.exp(x) * anchors_table[1])(pred_wh1)
-
     pred_xy2, pred_wh2, pred_obj2, class_probs2 = arrange_output(grid_pred2, nclasses)
-    # pred_wh2 = Lambda(lambda x: tf.exp(x) * anchors_table[2])(pred_wh2)
-
 
     out_grid0 = Lambda(lambda x: tf.concat([x[0], x[1], x[2], x[3]], axis=-1))(
         (pred_xy0, pred_wh0, pred_obj0, class_probs0))

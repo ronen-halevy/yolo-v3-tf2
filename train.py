@@ -177,7 +177,7 @@ def train(input_data_source,
         plt.imshow(image)
         plt.show()
 
-    model = yolov3_model(anchors_table, image_size, nclasses=nclasses)
+    model = yolov3_model(image_size, nclasses=nclasses)
 
     with open("model_summary.txt", "w") as file1:
         model.summary(print_fn=lambda x: file1.write(x + '\n'))
