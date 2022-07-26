@@ -1,130 +1,145 @@
-import time
-# from absl import app, flags, logging
-# from absl.flags import FLAGS
-# import cv2
 import numpy as np
+import os
 import tensorflow as tf
-# from yolov3_tf2.models2 import (
-#     YoloV3, YoloV3Tiny
-# )
-from models import yolov3_model, yolo_boxes
-from preprocess_dataset import resize_image
-from utils import render_bboxes
-# from yolov3_tf2.dataset import transform_images, load_tfrecord_dataset
-# from yolov3_tf2.utils import draw_outputs, render_bboxes
+import yaml
+import argparse
+import matplotlib.pyplot as plt
+
+from models import yolov3_model
+from utils import get_anchors, resize_image
+from render_utils import annotate_detections
+from load_tfrecords import parse_tfrecords
 
 
-# flags.DEFINE_string('classes', './data/coco.names', 'path to classes file')
-# flags.DEFINE_string('weights', './checkpoints/yolov3.tf',
-#                     'path to weights file')
-# flags.DEFINE_boolean('tiny', False, 'yolov3 or yolov3-tiny')
-# flags.DEFINE_integer('size', 416, 'resize images to')
-# flags.DEFINE_string('image', './data/girl.png', 'path to input image')
-# flags.DEFINE_string('tfrecord', None, 'tfrecord instead of image')
-# flags.DEFINE_string('output', './output.jpg', 'path to output image')
-# flags.DEFINE_integer('num_classes', 80, 'number of classes in the model')
+class Inference:
+    def __init__(self, output_dir, print_detections, save_result_images, display_result_images):
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
+        try:
+            self.detections_outfile = f'{output_dir}/detect.txt'
+            os.remove(self.detections_outfile)
+        except OSError:
+            pass
+        self.detections_list_outfile = open(self.detections_outfile, 'a')
+        self.output_dir = output_dir
+        self.print_detections = print_detections
+        self.save_result_images = save_result_images
+        self.display_result_images = display_result_images
 
-class FLAGS:
-    classes= './datasets/coco.names'
-    classes= './datasets/shapes/class.names'
-    weights=  'checkpoints/yolov3_train_13.tf'
-    weights=  'checkpoints/yolov3_train_30.tf'
-    weights=  'checkpoints/yolov3_train_1000.tf'
-    weights=  'checkpoints/yolov3_train_5.tf'
-    # weights=  '/home/ronen/Downloads/yolov3_train_2.tf'
-    # weights=  'checkpoints/yolov3_train_2.tf'
-    # weights=  'checkpoints/yolov3_train_1.tf'
-    weights=  'checkpoints/yolov3_train_120.tf'
+    @staticmethod
+    def do_inference(yolo, img_raw, size, class_names, yolo_max_boxes, bbox_color, font_size, index):
+        img = tf.expand_dims(img_raw, 0)
+        img = resize_image(img, size, size)
+        boxes, scores, classes, nums = yolo(img, training=False)
+        detected_classes = [class_names[idx] for idx in classes[0]]
 
-    # weights = '/home/ronen/PycharmProjects/yolov3-tf2/checkpoints/yolov3_train_2.tf'
+        image_pil, num_annotated, num_score_skips = annotate_detections(img_raw, detected_classes, boxes[0], scores[0],
+                                                                        yolo_max_boxes, bbox_color, font_size)
+        image_detections_result = [f'#{index + 1} detected:{nums[0]}']
+        for i in range(nums[0]):
+            image_detections_result.append(
+                f'{class_names[int(classes[0][i])]}, {np.array(scores[0][i])}, {np.array(boxes[0][i])}')
 
-    tiny=  False
-    size=  416
-    image = './datasets/shapes/debug_dataset_sample/000001_triangle.jpg' #'./datasets/girl.png'
-    tfrecord =  None
-    output = './output.jpg', 'path to output image'
-    num_classes = 7 # 80
+        return image_pil, image_detections_result
 
-def main():
-    # physical_devices = tf.config.experimental.list_physical_devices('GPU')
-    # for physical_device in physical_devices:
-    #     tf.config.experimental.set_memory_growth(physical_device, True)
-    anchors_table = np.array([[(10, 13), (16, 30), (33, 23)], [(30, 61), (62, 45),
-                                                               (59, 119)], [(116, 90), (156, 198), (373, 326)]],
-                             np.float32) / 416
-    anchors_table = np.array([[
-        (0.08173, 0.04567),
-        (0.08173, 0.08173),
-        (0.08173, 0.15385)],
-        [(0.15385, 0.08173),
-         (0.15385, 0.15385),
-         (0.25000, 0.12981)],
-        [(0.15385, 0.29808),
-         (0.25000, 0.25000),
-         (0.25000, 0.49038)]])
+    def output_detections_text(self, image_detections_result):
+        if self.print_detections:
+            print(image_detections_result)
 
-    anchors_table = np.array([[(116, 90), (156, 198), (373, 326)], [(30, 61), (62, 45),
-                                                                    (59, 119)], [(10, 13), (16, 30), (33, 23)]],
-                             np.float32) / 416
+        self.detections_list_outfile.write(f'{image_detections_result}\n')
+        self.detections_list_outfile.flush()
 
-    # anchors_table = np.array([[(10, 13), (16, 30), (33, 23)], [(30, 61), (62, 45),
-    #                                                            (59, 119)], [(116, 90), (156, 198), (373, 326)]],
-    #                          np.float32) / 416
-    yolo_max_boxes = 100
-    yolo_iou_threshold = 0.8
-    yolo_score_threshold = 0.5
-
-    yolo = yolov3_model(anchors_table, FLAGS.size, nclasses=FLAGS.num_classes, training=False, yolo_max_boxes=yolo_max_boxes, yolo_iou_threshold=yolo_iou_threshold, yolo_score_threshold=yolo_score_threshold)
-
-    yolo.load_weights(FLAGS.weights).expect_partial()
+    def output_annotated_image(self, annotated_image, out_filename):
+        outfile_path = f'{self.output_dir}/{out_filename}'
+        if self.save_result_images:
+            annotated_image.save(outfile_path)
+        if self.display_result_images:
+            plt.imshow(annotated_image)
+            plt.show()
 
 
-    # yolo_anchors = np.array([(10, 13), (16, 30), (33, 23), (30, 61), (62, 45),
-    #                          (59, 119), (116, 90), (156, 198), (373, 326)],
-    #                         np.float32) / 416
-    # yolo_anchor_masks = np.array([[6, 7, 8], [3, 4, 5], [0, 1, 2]])
+def detect(
+        classes,
+        anchors_file,
+        weights,
+        size,
+        input_data_source,
+        images_dir,
+        tfrecords_dir,
+        image_file_path,
+        output_dir,
+        yolo_max_boxes,
+        nms_iou_threshold,
+        nms_score_threshold,
+        display_result_images,
+        print_detections,
+        save_result_images,
+        bbox_color,
+        font_size
+):
+    anchors_table = get_anchors(anchors_file)
+    class_names = [c.strip() for c in open(classes).readlines()]
+    nclasses = len(class_names)
 
-    # yolo = YoloV3mm(size=None, channels=3, anchors=yolo_anchors,
-    #              masks=yolo_anchor_masks, classes=80, training=False)
+    yolo = yolov3_model(anchors_table, size, nclasses=nclasses, training=False,
+                        yolo_max_boxes=yolo_max_boxes, nms_iou_threshold=nms_iou_threshold,
+                        nms_score_threshold=nms_score_threshold)
 
-
-    # my_load_weights.load_weights(yolo, 'checkpoints/yolov3_train_1000.tf.index')
-
-    # yolo.load_weights(FLAGS.weights).expect_partial()
-
+    yolo.load_weights(weights).expect_partial()
     print('weights loaded')
 
-    class_names = [c.strip() for c in open(FLAGS.classes).readlines()]
-    print('classes loaded')
+    imagefile_ext = ('.jpg', '.png')
+    inferecnce = Inference(output_dir, print_detections, save_result_images, display_result_images)
 
-    if FLAGS.tfrecord:
-        pass
-        # dataset = load_tfrecord_dataset(
-        #     FLAGS.tfrecord, FLAGS.classes, FLAGS.size)
-        # dataset = dataset.shuffle(512)
-        # img_raw, _label = next(iter(dataset.take(1)))
+    if input_data_source == 'tfrecords':
+        dataset = parse_tfrecords(tfrecords_dir, image_size=size, max_bboxes=yolo_max_boxes, class_file=None)
+        for index, entry in enumerate(dataset):
+            annotated_image, image_detections_result = inferecnce.do_inference(yolo, entry[0], size, class_names,
+                                                                               yolo_max_boxes, font_size,
+                                                                               index)
+            inferecnce.output_detections_text(image_detections_result)
+            inferecnce.output_annotated_image(annotated_image, out_filename=f'detect_{index}.jpg')
+
     else:
-        img_raw = tf.image.decode_image(
-            open(FLAGS.image, 'rb').read(), channels=3)
+        if input_data_source == 'image_file':
+            filenames = [image_file_path]
+        elif input_data_source == 'images_dir':
+            # dirname = images_dir
 
-    img = tf.expand_dims(img_raw, 0)
-    # img = resize_image(img, FLAGS.size, FLAGS.size)
-    img = tf.image.resize(img, (FLAGS.size, FLAGS.size))
-    t1 = time.time()
-    boxes, scores, classes, nums = yolo(img, training=True)
+            import glob
+            types = ('*.jpeg', '*.jpg', '*.png', '*.bmp')  # the tuple of file types
+            filenames = []
+            for files in types:
+                filenames.extend(glob.glob(files))
 
-    t2 = time.time()
-    print('time: {}'.format(t2 - t1))
+            from os.path import join
+            from glob import glob
 
-    print('detections:')
-
-    render_bboxes( tf.cast(img_raw[tf.newaxis,...], tf.float32)/255, boxes)
-
-    for i in range(nums[0]):
-        print('\t{}, {}, {}'.format(class_names[int(classes[0][i])],
-                                           np.array(scores[0][i]),
-                                           np.array(boxes[0][i])))
+            files = []
+            for ext in ('*.jpeg', '*.jpg', '*.png', '*.bmp'
+                        ):
+                filenames.extend(glob(join(images_dir, ext)))
 
 
+        else:
+            raise Exception(f'input_data_source {input_data_source} not valid')
 
-main()
+        for index, file in enumerate(filenames):
+            img_raw = tf.image.decode_image(open(file, 'rb').read(), channels=3)
+            annotated_image, image_detections_result = inferecnce.do_inference(yolo, img_raw / 255, size, class_names,
+                                                                               yolo_max_boxes, bbox_color, font_size,
+                                                                               index)
+            inferecnce.output_detections_text(image_detections_result)
+            inferecnce.output_annotated_image(annotated_image, out_filename=f'detect_{index}.jpg')
+
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--config", type=str, default='config/detect_config_coco.yaml',
+                    help='yaml config file')
+
+args = parser.parse_args()
+config_file = args.config
+with open(config_file, 'r') as stream:
+    detect_config = yaml.safe_load(stream)
+
+detect(**detect_config)

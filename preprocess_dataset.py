@@ -9,29 +9,12 @@
 #   Description :
 #
 # ================================================================
+from utils import resize_image
 
 import tensorflow as tf
 
-import matplotlib.pyplot as plt
-def resize_image(image, t_w, t_h):
-    _, s_h, s_w, _ = image.shape
 
-    scale = min(t_w / s_w, t_h / s_h)
-
-    n_w, n_h = int(scale * s_w), int(scale * s_h)
-
-    image = tf.image.resize(
-        image,
-        [n_h, n_w],
-    )
-
-    scaled_image = tf.image.pad_to_bounding_box(
-        image, (t_h - n_h) // 2, (t_w - n_w) // 2, t_h, t_w
-    )
-    plt.imshow(scaled_image[0])
-    return scaled_image
-
-
+@tf.function
 def extract_boxes_indices_on_grid(boxes, grid_shape, best_anchor_indices, max_bboxes):
     box_center_xy = (boxes[..., 0:2] + boxes[..., 2:4]) / 2
     box_center_xy = tf.reverse(box_center_xy, axis=[-1])
@@ -45,7 +28,7 @@ def extract_boxes_indices_on_grid(boxes, grid_shape, best_anchor_indices, max_bb
         [batch_indices, box_center_xy_grid_indices, best_anchor_indices], axis=-1)
     return grid_indices
 
-
+@tf.function
 def calc_best_iou_anchor_per_box(bboxes, anchors):
     anchors = tf.reshape(anchors, [-1, 2])
     grid_anchors = tf.cast(anchors, tf.float32)
@@ -61,7 +44,7 @@ def calc_best_iou_anchor_per_box(bboxes, anchors):
         iou, axis=-1, output_type=tf.int32), axis=-1)
     return best_anchor_indices
 
-# @tf.function
+@tf.function
 def arrange_in_grid(y_train, anchors, grid_index, output_shape, max_bboxes):
     """
     :param y_train:
@@ -79,31 +62,22 @@ def arrange_in_grid(y_train, anchors, grid_index, output_shape, max_bboxes):
     """
 
     best_anchor_indices = calc_best_iou_anchor_per_box(y_train, anchors)
-    print(best_anchor_indices)
-
     grid_indices = extract_boxes_indices_on_grid(
-        y_train, output_shape, best_anchor_indices % anchors.shape[1], max_bboxes)
+        y_train, output_shape, tf.cast(best_anchor_indices / anchors.shape[1], tf.int32), max_bboxes)
 
     # Ignore zero boxes:
     best_anchor_indices = tf.squeeze(best_anchor_indices, axis=-1)
     mask_selected_anchor_index_above_grid_sclae_min = tf.greater_equal(best_anchor_indices, tf.constant((grid_index)*anchors.shape[0]))
     mask_selected_anchor_index_below_grid_sclae_max = tf.less(best_anchor_indices, tf.constant(((grid_index)+1)*anchors.shape[0]))
 
-    mask_valid_bbox = y_train[..., 4] != 0 #todo maybe check obj val?
+    mask_valid_bbox = y_train[..., 4] != 0 # obj val
     mask = tf.math.logical_and(mask_valid_bbox, mask_selected_anchor_index_above_grid_sclae_min)
     mask = tf.math.logical_and(mask, mask_selected_anchor_index_below_grid_sclae_max)
 
     y_train = y_train[mask]
     grid_indices = grid_indices[mask]
     dataset_in_grid = tf.zeros(output_shape)
-    # tf.print(grid_index, dataset_in_grid)
-    # tf.print(grid_index, y_train)
 
-    # to ensure uniqueness in grid entries, taking the max:TODO - prefers bigger if on same grid box
-
-    # dataset_in_grid = tf.tensor_scatter_nd_max(
-    #     dataset_in_grid, grid_indices, y_train
-    # )
     dataset_in_grid = tf.tensor_scatter_nd_update(
         dataset_in_grid, grid_indices, y_train)
 
@@ -111,55 +85,42 @@ def arrange_in_grid(y_train, anchors, grid_index, output_shape, max_bboxes):
 
 def preprocess_dataset_debug(dataset, batch_size, image_size, anchors_table, grid_sizes, max_bboxes):
     # TODO check that again!!
+    # Important note: Since drop_remainder=True is set, dataset size must be at least batch_size, otherwise, dataset will be empty.
+    # Reason for setting drop_remainder=True: This preprocess scatters data on a batch_size*grid_size*grid_size cube.
+    # Implementation is vectorized oriented, so the batch dimennsion indices valuess are taken as [0:batch_size], assuming
+    # batch_size entries in a batch. If drop_remainder was not true, last batch in an epoch might have less examples. In this
+    # case, since number of examples would be less than batc_size indices, the program will fail.
 
     dataset = dataset.batch(batch_size, drop_remainder=True)
-    # dataset = dataset.batch(batch_size)
-
     downsize_strides = image_size / grid_sizes
 
-
-
     for x, y in dataset:
-        # dataset = (
-
-        # resize_image(x, image_size, image_size), # Todo - check it back
-        tf.image.resize(x, (image_size, image_size))
-
-
+        resize_image(x, image_size, image_size), # Todo - check it back !!!!
+        # tf.image.resize(x, (image_size, image_size))
         tuple([arrange_in_grid(y, tf.convert_to_tensor(anchors_table), grid_index,  # ronen TODO was 3,6 check shape
-            # +1 is a patch - todo add the obj in dataset already...
         [batch_size, grid_size, grid_size,
          anchors.shape[0], tf.shape(y)[-1]], max_bboxes
                                ) for grid_index, (anchors, grid_stride, grid_size)
                in
                enumerate(zip(anchors_table, downsize_strides, grid_sizes))]
               )
-        # )
-    # )
-
-    # dataset = dataset.prefetch(
-    #     buffer_size=tf.data.experimental.AUTOTUNE)
-
-
     return dataset
 
 
 def preprocess_dataset(dataset, batch_size, image_size, anchors_table, grid_sizes, max_bboxes):
-    # TODO check that again!!
+
+    # Important note: Since drop_remainder=True is set, dataset size must be at least batch_size, otherwise, dataset will be empty.
+    # Reason for setting drop_remainder=True: This preprocess scatters data on a batch_size*grid_size*grid_size cube.
+    # Implementation is vectorized oriented, so the batch dimennsion indices valuess are taken as [0:batch_size], assuming
+    # batch_size entries in a batch. If drop_remainder was not true, last batch in an epoch might have less examples. In this
+    # case, since number of examples would be less than batc_size indices, the program will fail.
 
     dataset = dataset.batch(batch_size, drop_remainder=True)
-    # dataset = dataset.batch(batch_size)
 
     downsize_strides = image_size / grid_sizes
-
-
     dataset = dataset.map(lambda x, y: (
-        # resize_image(x, image_size, image_size), # Todo - check it back
-        tf.image.resize(x, (image_size, image_size)),
-
-
-        tuple([arrange_in_grid(y, tf.convert_to_tensor(anchors_table), grid_index,  # ronen TODO was 3,6 check shape
-            # +1 is a patch - todo add the obj in dataset already...
+        resize_image(x, image_size, image_size), # Todo - check it back
+        tuple([arrange_in_grid(y, tf.convert_to_tensor(anchors_table), grid_index,
         [batch_size, grid_size, grid_size,
          anchors.shape[0], tf.shape(y)[-1]], max_bboxes
                                ) for grid_index, (anchors, grid_stride, grid_size)
@@ -167,7 +128,6 @@ def preprocess_dataset(dataset, batch_size, image_size, anchors_table, grid_size
                enumerate(zip(anchors_table, downsize_strides, grid_sizes))]
               )
     ))
-
-    # dataset = dataset.prefetch(
-    #     buffer_size=tf.data.experimental.AUTOTUNE)
+    dataset = dataset.prefetch(
+        buffer_size=tf.data.experimental.AUTOTUNE)
     return dataset
