@@ -11,7 +11,7 @@
 # ================================================================
 import tensorflow as tf
 import train
-import preprocess_dataset
+from core import preprocess_dataset
 import numpy as np
 
 def get_preprocessed_dataset_entry(unprocessed_dataset, batch_size, image_size, anchors_table, grid_sizes_table, max_bboxes):
