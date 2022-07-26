@@ -5,7 +5,7 @@ import yaml
 import argparse
 import matplotlib.pyplot as plt
 
-from models import yolov3_model
+from models import YoloV3Model
 from utils import get_anchors, resize_image
 from render_utils import annotate_detections
 from load_tfrecords import parse_tfrecords
@@ -81,20 +81,21 @@ def detect(
     class_names = [c.strip() for c in open(classes).readlines()]
     nclasses = len(class_names)
 
-    yolo = yolov3_model(size, nclasses, training=False, anchors_table=anchors_table,
+    yolov3_model = YoloV3Model()
+
+    model = yolov3_model(size, nclasses, training=False, anchors_table=anchors_table,
                         yolo_max_boxes=yolo_max_boxes, nms_iou_threshold=nms_iou_threshold,
                         nms_score_threshold=nms_score_threshold)
 
-    yolo.load_weights(weights).expect_partial()
+    model.load_weights(weights).expect_partial()
     print('weights loaded')
 
-    imagefile_ext = ('.jpg', '.png')
     inferecnce = Inference(output_dir, print_detections, save_result_images, display_result_images)
 
     if input_data_source == 'tfrecords':
         dataset = parse_tfrecords(tfrecords_dir, image_size=size, max_bboxes=yolo_max_boxes, class_file=None)
         for index, entry in enumerate(dataset):
-            annotated_image, image_detections_result = inferecnce.do_inference(yolo, entry[0], size, class_names,
+            annotated_image, image_detections_result = inferecnce.do_inference(model, entry[0], size, class_names,
                                                                                yolo_max_boxes, font_size,
                                                                                index)
             inferecnce.output_detections_text(image_detections_result)
@@ -126,7 +127,7 @@ def detect(
 
         for index, file in enumerate(filenames):
             img_raw = tf.image.decode_image(open(file, 'rb').read(), channels=3)
-            annotated_image, image_detections_result = inferecnce.do_inference(yolo, img_raw / 255, size, class_names,
+            annotated_image, image_detections_result = inferecnce.do_inference(model, img_raw / 255, size, class_names,
                                                                                yolo_max_boxes, bbox_color, font_size,
                                                                                index)
             inferecnce.output_detections_text(image_detections_result)

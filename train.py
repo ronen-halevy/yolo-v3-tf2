@@ -31,7 +31,7 @@ from render_utils import render_bboxes
 
 from preprocess_dataset import preprocess_dataset, preprocess_dataset_debug
 from loss_func import get_loss_func
-from models import yolov3_model
+from models import YoloV3Model
 
 from load_tfrecords import parse_tfrecords
 from load_dataset import load_dataset, load_debug_dataset
@@ -177,6 +177,7 @@ def train(input_data_source,
         plt.imshow(image)
         plt.show()
 
+    yolov3_model = YoloV3Model()
     model = yolov3_model(image_size, nclasses=nclasses)
 
     with open("model_summary.txt", "w") as file1:
