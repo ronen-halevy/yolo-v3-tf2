@@ -35,10 +35,6 @@ WH_FEILD = 2
 OBJ_FIELD = 1
 
 
-class FLAGS:
-    yolo_max_boxes = 100
-
-
 def conv_block(Input, nfilters, kernel_size, strides=1, batch_norm=True):
     if strides == 1:
         padding = 'same'
