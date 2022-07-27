@@ -17,20 +17,21 @@ dataset_repeats: 0
 max_bboxes: 100
 batch_size: 8
 epochs: 1000
+weights_save_peroid: 4
 image_size: 416
 dataset_cuttof_size: null # null or size limit value
 learning_rate: 0.001
 early_stopping: False # enables early_stopping callback
 early_stop_patience: 13 # an early_stopping callback parameter
-load_weights: False #whether to load pretrained weights
-mode: fit # 'model execution mode. choices=[eager_tf, fit]'
+load_weights: True #whether to load pretrained weights
+mode: eager_tf # fit # 'model execution mode. choices=[eager_tf, fit]'
 tfrecords_base_dir:  datasets/shapes/two_colors/input/tfrecords #'./datasets/shapes/three_mixed_shapes/blue/input/tfrecords'
 classes_name_file: datasets/shapes/two_colors/class.names # 'datasets/shapes/class.names'
 anchors_file: datasets/shapes/anchors/shapes_yolov3_anchors.txt
 annotations_path: datasets/shapes/three_mixed_shapes/red/input/images_and_annotations/annotations/annotations.yaml
 images_dir: datasets/shapes/three_mixed_shapes/red/input/images_and_annotations/images # directory location of input images used in non-tfrecords mode
-save_checkpoits_path_prefix: 'checkpoints/yolov3_train_' # prefix of path checkpoints save
-load_checkpoints_path: checkpoints/yolov3_train_rb_circles.tf #'checkpoints/yolov3_train_newclass5.tf' #path to pretrained weights file
+output_checkpoints_path: checkpoints/yolov3_train.tf # prefix of path checkpoints save
+load_checkpoints_path: checkpoints/yolov3_train1.tf # checkpoints/yolov3_train_rb_circles.tf #'checkpoints/yolov3_train_newclass5.tf' #path to pretrained weights file
 
 
 
