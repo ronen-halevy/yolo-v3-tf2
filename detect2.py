@@ -72,8 +72,7 @@ class Inference:
         try:
             os.remove(detections_outfile)
         except OSError as e:
-            print(e)
-            exit(1)
+            pass
 
         detections_list_outfile = open(detections_outfile, 'a')
 
@@ -133,7 +132,7 @@ class Inference:
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--config", type=str, default='config/detect_config_coco.yaml',
+parser.add_argument("--config", type=str, default='config/detect_config.yaml',
                     help='yaml config file')
 
 args = parser.parse_args()

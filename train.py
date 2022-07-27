@@ -52,7 +52,7 @@ class Train:
         return total_loss, pred_loss, pred_loss_per_grid, pred_loss_per_source
 
     def _train_eager_mode(self, model, ds_train, ds_val, loss_fn_list, optimizer, batch_size, epochs,
-                          checkpoits_path_prefix):
+                          checkpoits_path_prefix, weights_save_peroid):
         global_steps = tf.Variable(1, trainable=False, dtype=tf.int64)
         for epoch in range(1, epochs + 1):
             for batch, (images, labels) in enumerate(ds_train):
@@ -72,10 +72,10 @@ class Train:
                     f'perGrid{list(pred_loss_per_grid.numpy())}, '
                     f'perSource[xy,wh,obj,class]:{pred_loss_per_source.numpy()}, '
                     f'perGridPerSource:{[list(x.numpy()) for idx, x in enumerate(pred_loss)]}')
-
                 global_steps.assign_add(1)
-            model.save_weights(
-                f'{checkpoits_path_prefix}{epoch}.tf')
+            if epoch % weights_save_peroid == 0:
+                model.save_weights(
+                checkpoits_path_prefix)
 
             for batch, (images, labels) in enumerate(ds_val):
                 total_loss, pred_loss, pred_loss_per_grid, pred_loss_per_source = self._calc_loss(model, images,
@@ -97,15 +97,16 @@ class Train:
         return nlines
 
     class WeightsSaver(Callback):
-        def __init__(self, n):
+        def __init__(self, output_checkpoints_path, weights_save_peroid):
             super(Callback, self).__init__()
-            self.n = n
+            self.weights_save_peroid = weights_save_peroid
+            self.weights_filename = output_checkpoints_path
             self.epoch = 0
 
         def on_epoch_end(self, epoch, logs={}):
-            if self.epoch % self.n == 0:
-                name = 'checkpoints/yolov3_train.tf'
-                self.model.save_weights(name)
+            if self.epoch % self.weights_save_peroid == 0:
+                # name = 'checkpoints/yolov3_train.tf'
+                self.model.save_weights(self.output_checkpoints_path)
                 self.epoch += 1
 
     def __call__(self, input_data_source,
@@ -126,9 +127,10 @@ class Train:
                  images_dir,
                  tfrecords_base_dir,
                  classes_name_file,
-                 save_checkpoits_path_prefix,
+                 output_checkpoints_path,
                  load_checkpoints_path,
-                 early_stopping
+                 early_stopping,
+                 weights_save_peroid
                  ):
         grid_sizes_table = np.array([13, 26, 52])
 
@@ -206,7 +208,7 @@ class Train:
 
         if mode == 'eager_tf':
             self._train_eager_mode(model, ds_train, ds_val, loss_fn_list, optimizer, batch_size, epochs,
-                                   save_checkpoits_path_prefix)
+                                   output_checkpoints_path, weights_save_peroid)
         else:
 
             callbacks = [
@@ -214,7 +216,7 @@ class Train:
                 # ModelCheckpoint('checkpoints/yolov3_train.tf',
                 #                 verbose=1, save_weights_only=True),
                 # TensorBoard(log_dir='logs')
-                self.WeightsSaver(2)
+                self.WeightsSaver(output_checkpoints_path, weights_save_peroid)
             ]
             from keras.callbacks import Callback
 
