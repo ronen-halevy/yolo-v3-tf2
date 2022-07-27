@@ -23,8 +23,8 @@ dataset_cuttof_size: null # null or size limit value
 learning_rate: 0.001
 early_stopping: False # enables early_stopping callback
 early_stop_patience: 13 # an early_stopping callback parameter
-load_weights: True #whether to load pretrained weights
-mode: eager_tf # fit # 'model execution mode. choices=[eager_tf, fit]'
+load_weights: False #whether to load pretrained weights
+mode: fit # fit # 'model execution mode. choices=[eager_tf, fit]'
 tfrecords_base_dir:  datasets/shapes/two_colors/input/tfrecords #'./datasets/shapes/three_mixed_shapes/blue/input/tfrecords'
 classes_name_file: datasets/shapes/two_colors/class.names # 'datasets/shapes/class.names'
 anchors_file: datasets/shapes/anchors/shapes_yolov3_anchors.txt

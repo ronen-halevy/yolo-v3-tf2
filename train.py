@@ -100,7 +100,7 @@ class Train:
         def __init__(self, output_checkpoints_path, weights_save_peroid):
             super(Callback, self).__init__()
             self.weights_save_peroid = weights_save_peroid
-            self.weights_filename = output_checkpoints_path
+            self.output_checkpoints_path = output_checkpoints_path
             self.epoch = 0
 
         def on_epoch_end(self, epoch, logs={}):
