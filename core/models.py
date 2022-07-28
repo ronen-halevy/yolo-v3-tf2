@@ -94,9 +94,8 @@ class YoloV3Model:
 
         return out
 
-
-    def _get_grids_common_block(self, nfilters, name=None):
-        def grids_common_block(x_in):
+    def get_network_head(self, nfilters, ngrids, nclasses, name=None):
+        def network_head(x_in):
             if isinstance(x_in, tuple):
                 inputs = Input(x_in[0].shape[1:], name=f'{name} input1'), Input(x_in[1].shape[1:],
                                                                                 name=f'{name} input2')
@@ -111,15 +110,8 @@ class YoloV3Model:
             conv = self._conv_block(conv, nfilters * 2, 3)
             conv = self._conv_block(conv, nfilters, 1)
             conv = self._conv_block(conv, nfilters * 2, 3)
-            conv = self._conv_block(conv, nfilters, 1)
-            return Model(inputs, conv, name=name)(x_in)
-
-        return grids_common_block
-
-    def _get_grid_output(self, nfilters, ngrids, nclasses, name=None):
-        def grid_output(input_data):
-            inputs = Input(input_data.shape[1:], name=f'{name} input')
-            conv = self._conv_block(inputs, nfilters, 3)
+            intermidiate_output = conv = self._conv_block(conv, nfilters, 1)
+            conv = self._conv_block(conv, nfilters * 2, 3)
             conv = self._conv_block(conv,
                                     nfilters=ngrids * (nclasses + (self.XY_FEILD + self.WH_FEILD + self.OBJ_FIELD)),
                                     kernel_size=1,
@@ -127,11 +119,12 @@ class YoloV3Model:
 
             conv = Lambda(lambda x: tf.reshape(x, (-1, tf.shape(x)[1], tf.shape(x)[2],
                                                    ngrids,
-                                                   nclasses + (self.XY_FEILD + self.WH_FEILD + self.OBJ_FIELD))))(conv)
+                                                   nclasses + (self.XY_FEILD + self.WH_FEILD + self.OBJ_FIELD))))(
+                conv)
 
-            return Model(inputs, conv, name=name)(input_data)
+            return Model(inputs, (intermidiate_output, conv), name=name)(x_in)
 
-        return grid_output
+        return network_head
 
     @staticmethod
     def _yolo_nms(outputs, classes, yolo_max_boxes, nms_iou_threshold, nms_score_threshold):
@@ -185,44 +178,37 @@ class YoloV3Model:
     def __call__(self, image_size=None, nclasses=80, training=True, yolo_max_boxes=None, anchors_table=None,
                  nms_iou_threshold=None, nms_score_threshold=None):
         inputs = Input([image_size, image_size, 3], name='darknet53 input')
-        ngrids = 3
         out1, out2, darknet_out = self._darknet53(name='darknet53')(inputs)
 
-        intermediate_out0 = self._get_grids_common_block(nfilters=512, name='intermediate_out0')(darknet_out)
-        grid_pred0 = self._get_grid_output(1024, ngrids=ngrids, nclasses=nclasses, name='grid_pred0')(intermediate_out0)
+        nanchors = 3
+        inter_out0, head_out0 = self.get_network_head(512, nanchors, nclasses, name='head0')(darknet_out)
+        inter_out1, head_out1 = self.get_network_head(256, nanchors, nclasses, name='head1')((inter_out0, out2))
+        _, head_out2 = self.get_network_head(128, 3, nclasses, name='head2')((inter_out1, out1))
 
-        intermediate_out1 = self._get_grids_common_block(nfilters=256, name='intermediate_out1')(
-            (intermediate_out0, out2))
-        grid_pred1 = self._get_grid_output(512, ngrids=ngrids, nclasses=nclasses, name='grid_pred1')(intermediate_out1)
+        pred_xy0, pred_wh0, pred_obj0, class_probs0 = self._arrange_output(head_out0, nclasses)
+        pred_xy1, pred_wh1, pred_obj1, class_probs1 = self._arrange_output(head_out1, nclasses)
+        pred_xy2, pred_wh2, pred_obj2, class_probs2 = self._arrange_output(head_out2, nclasses)
+        # note: wh is not decoded. Instead, an inverse operator (i.e. log, is set on label value)
 
-        intermediate_out2 = self._get_grids_common_block(nfilters=128, name='intermediate_out2')(
-            (intermediate_out1, out1))
-        grid_pred2 = self._get_grid_output(256, ngrids=ngrids, nclasses=nclasses, name='grid_pred2')(intermediate_out2)
-
-        pred_xy0, pred_wh0, pred_obj0, class_probs0 = self._arrange_output(grid_pred0, nclasses)
-        pred_xy1, pred_wh1, pred_obj1, class_probs1 = self._arrange_output(grid_pred1, nclasses)
-        pred_xy2, pred_wh2, pred_obj2, class_probs2 = self._arrange_output(grid_pred2, nclasses)
-
-        out_grid0 = Lambda(lambda x: tf.concat([x[0], x[1], x[2], x[3]], axis=-1))(
-            (pred_xy0, pred_wh0, pred_obj0, class_probs0))
-        out_grid1 = Lambda(lambda x: tf.concat([x[0], x[1], x[2], x[3]], axis=-1))(
-            (pred_xy1, pred_wh1, pred_obj1, class_probs1))
-        out_grid2 = Lambda(lambda x: tf.concat([x[0], x[1], x[2], x[3]], axis=-1))(
-            (pred_xy2, pred_wh2, pred_obj2, class_probs2))
+        concat_out0 = Lambda(lambda x: tf.concat([x[0], x[1], x[2], x[3]], axis=-1))((pred_xy0, pred_wh0, pred_obj0,
+                                                                                      class_probs0))
+        concat_out1 = Lambda(lambda x: tf.concat([x[0], x[1], x[2], x[3]], axis=-1))((pred_xy1, pred_wh1, pred_obj1,
+                                                                                      class_probs1))
+        concat_out2 = Lambda(lambda x: tf.concat([x[0], x[1], x[2], x[3]], axis=-1))((pred_xy2, pred_wh2, pred_obj2,
+                                                                                      class_probs2))
 
         if training:
-            return Model(inputs, (out_grid0, out_grid1, out_grid2
-                                  ), name='yolov3')
+            return Model(inputs, (concat_out0, concat_out1, concat_out2), name='yolov3')
 
         bbox0 = Lambda(lambda x: self._arrange_bbox(x[0], tf.exp(x[1]) * anchors_table[0]))((pred_xy0, pred_wh0))
         bbox1 = Lambda(lambda x: self._arrange_bbox(x[0], tf.exp(x[1]) * anchors_table[1]))((pred_xy1, pred_wh1))
         bbox2 = Lambda(lambda x: self._arrange_bbox(x[0], tf.exp(x[1]) * anchors_table[2]))((pred_xy2, pred_wh2))
 
-        merge_grid_outputs_op = Lambda(
-            lambda x: tf.concat([tf.reshape(y, [tf.shape(y)[0], -1, tf.shape(y)[-1]]) for y in x], axis=1))
-        bbox = merge_grid_outputs_op((bbox0, bbox1, bbox2))
-        confidence = merge_grid_outputs_op((pred_obj0, pred_obj1, pred_obj2))
-        class_probs = merge_grid_outputs_op((class_probs0, class_probs1, class_probs2))
+        concat_op = Lambda(lambda x: tf.concat([tf.reshape(y, [tf.shape(y)[0], -1, tf.shape(y)[-1]]) for y in x],
+                                               axis=1))
+        bbox = concat_op((bbox0, bbox1, bbox2))
+        confidence = concat_op((pred_obj0, pred_obj1, pred_obj2))
+        class_probs = concat_op((class_probs0, class_probs1, class_probs2))
 
         outputs = Lambda(lambda x: self._yolo_nms(x, nclasses, yolo_max_boxes, nms_iou_threshold, nms_score_threshold),
                          name='yolo_nms')((bbox, confidence, class_probs))
