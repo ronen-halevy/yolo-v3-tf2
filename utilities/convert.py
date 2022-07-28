@@ -80,9 +80,8 @@ def convert(image_size, nclasses, input_weights_file, output_weights_file):
 
 
     yolov3_model = YoloV3Model()
-    model = yolov3_model(image_size, nclasses=nclasses)
+    model = yolov3_model(nclasses=nclasses)
     model.summary()
-
 
     load_darknet_weights(model, input_weights_file)
     logging.info('weights loaded')

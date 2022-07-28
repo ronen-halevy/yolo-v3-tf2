@@ -94,17 +94,6 @@ class YoloV3Model:
 
         return out
 
-    def _get_grids_common_blockn(self, filters, name=None):
-        def grids_common_blockn(input_data):
-            in_data = Input(input_data.shape[1:], name=f'{name} input')
-            conv = self._conv_block(in_data, filters, 1)
-            conv = self._conv_block(conv, filters * 2, 3)
-            conv = self._conv_block(conv, filters, 1)
-            conv = self._conv_block(conv, filters * 2, 3)
-            conv = self._conv_block(conv, filters, 1)
-            return Model(in_data, conv, name=name)(input_data)
-
-        return grids_common_blockn
 
     def _get_grids_common_block(self, nfilters, name=None):
         def grids_common_block(x_in):
@@ -130,13 +119,13 @@ class YoloV3Model:
     def _get_grid_output(self, nfilters, ngrids, nclasses, name=None):
         def grid_output(input_data):
             inputs = Input(input_data.shape[1:], name=f'{name} input')
-            conv = self._conv_block(inputs, nfilters, kernel_size=3)
+            conv = self._conv_block(inputs, nfilters, 3)
             conv = self._conv_block(conv,
                                     nfilters=ngrids * (nclasses + (self.XY_FEILD + self.WH_FEILD + self.OBJ_FIELD)),
                                     kernel_size=1,
                                     batch_norm=False)
 
-            conv = Lambda(lambda x: tf.reshape(x, (-1, input_data.shape[1], input_data.shape[2],
+            conv = Lambda(lambda x: tf.reshape(x, (-1, tf.shape(x)[1], tf.shape(x)[2],
                                                    ngrids,
                                                    nclasses + (self.XY_FEILD + self.WH_FEILD + self.OBJ_FIELD))))(conv)
 
@@ -197,16 +186,17 @@ class YoloV3Model:
                  nms_iou_threshold=None, nms_score_threshold=None):
         inputs = Input([image_size, image_size, 3], name='darknet53 input')
         ngrids = 3
-        out1, out2, darknet_out = self._darknet53(name='darknet531')(inputs)
+        out1, out2, darknet_out = self._darknet53(name='darknet53')(inputs)
 
         intermediate_out0 = self._get_grids_common_block(nfilters=512, name='intermediate_out0')(darknet_out)
+        grid_pred0 = self._get_grid_output(1024, ngrids=ngrids, nclasses=nclasses, name='grid_pred0')(intermediate_out0)
+
         intermediate_out1 = self._get_grids_common_block(nfilters=256, name='intermediate_out1')(
             (intermediate_out0, out2))
+        grid_pred1 = self._get_grid_output(512, ngrids=ngrids, nclasses=nclasses, name='grid_pred1')(intermediate_out1)
+
         intermediate_out2 = self._get_grids_common_block(nfilters=128, name='intermediate_out2')(
             (intermediate_out1, out1))
-
-        grid_pred0 = self._get_grid_output(1024, ngrids=ngrids, nclasses=nclasses, name='grid_pred0')(intermediate_out0)
-        grid_pred1 = self._get_grid_output(512, ngrids=ngrids, nclasses=nclasses, name='grid_pred1')(intermediate_out1)
         grid_pred2 = self._get_grid_output(256, ngrids=ngrids, nclasses=nclasses, name='grid_pred2')(intermediate_out2)
 
         pred_xy0, pred_wh0, pred_obj0, class_probs0 = self._arrange_output(grid_pred0, nclasses)
