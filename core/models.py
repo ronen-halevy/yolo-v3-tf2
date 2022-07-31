@@ -173,36 +173,30 @@ class YoloV3Model:
         pred_xy = Lambda(lambda x: tf.sigmoid(x))(pred_xy)
         pred_obj = Lambda(lambda x: tf.sigmoid(x))(pred_obj)
         class_probs = Lambda(lambda x: tf.sigmoid(x))(class_probs)
-        return pred_xy, pred_wh, pred_obj, class_probs
+        concat_output = Lambda(lambda x: tf.concat([x[0], x[1], x[2], x[3]], axis=-1))((pred_xy, pred_wh, pred_obj,
+                                                                           class_probs))
+        return concat_output, pred_xy, pred_wh, pred_obj, class_probs
 
     def __call__(self, image_size=None, nclasses=80, training=True, yolo_max_boxes=None, anchors_table=None,
                  nms_iou_threshold=None, nms_score_threshold=None):
         inputs = Input([image_size, image_size, 3], name='darknet53 input')
         out1, out2, darknet_out = self._darknet53(name='darknet53')(inputs)
 
-        nanchors = 3
+        nanchors = 3 #todo anchors_table[0] size
         inter_out0, head_out0 = self.get_network_head(512, nanchors, nclasses, name='head0')(darknet_out)
         inter_out1, head_out1 = self.get_network_head(256, nanchors, nclasses, name='head1')((inter_out0, out2))
         _, head_out2 = self.get_network_head(128, 3, nclasses, name='head2')((inter_out1, out1))
 
-        pred_xy0, pred_wh0, pred_obj0, class_probs0 = self._arrange_output(head_out0, nclasses)
-        pred_xy1, pred_wh1, pred_obj1, class_probs1 = self._arrange_output(head_out1, nclasses)
-        pred_xy2, pred_wh2, pred_obj2, class_probs2 = self._arrange_output(head_out2, nclasses)
-        # note: wh is not decoded. Instead, an inverse operator (i.e. log, is set on label value)
-
-        concat_out0 = Lambda(lambda x: tf.concat([x[0], x[1], x[2], x[3]], axis=-1))((pred_xy0, pred_wh0, pred_obj0,
-                                                                                      class_probs0))
-        concat_out1 = Lambda(lambda x: tf.concat([x[0], x[1], x[2], x[3]], axis=-1))((pred_xy1, pred_wh1, pred_obj1,
-                                                                                      class_probs1))
-        concat_out2 = Lambda(lambda x: tf.concat([x[0], x[1], x[2], x[3]], axis=-1))((pred_xy2, pred_wh2, pred_obj2,
-                                                                                      class_probs2))
+        concat_output0, pred_xy0, pred_wh0, pred_obj0, class_probs0 = self._arrange_output(head_out0, nclasses)
+        concat_output1, pred_xy1, pred_wh1, pred_obj1, class_probs1 = self._arrange_output(head_out1, nclasses)
+        concat_output2, pred_xy2, pred_wh2, pred_obj2, class_probs2 = self._arrange_output(head_out2, nclasses)
 
         if training:
-            return Model(inputs, (concat_out0, concat_out1, concat_out2), name='yolov3')
+            return Model(inputs, (concat_output0, concat_output1, concat_output2), name='yolov3')
 
-        bbox0 = Lambda(lambda x: self._arrange_bbox(x[0], tf.exp(x[1]) * anchors_table[0]))((pred_xy0, pred_wh0))
+        bbox0 = Lambda(lambda x: self._arrange_bbox(x[0], tf.exp(x[1]) * anchors_table[2]))((pred_xy0, pred_wh0))
         bbox1 = Lambda(lambda x: self._arrange_bbox(x[0], tf.exp(x[1]) * anchors_table[1]))((pred_xy1, pred_wh1))
-        bbox2 = Lambda(lambda x: self._arrange_bbox(x[0], tf.exp(x[1]) * anchors_table[2]))((pred_xy2, pred_wh2))
+        bbox2 = Lambda(lambda x: self._arrange_bbox(x[0], tf.exp(x[1]) * anchors_table[0]))((pred_xy2, pred_wh2))
 
         concat_op = Lambda(lambda x: tf.concat([tf.reshape(y, [tf.shape(y)[0], -1, tf.shape(y)[-1]]) for y in x],
                                                axis=1))

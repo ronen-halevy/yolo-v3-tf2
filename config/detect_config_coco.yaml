@@ -15,7 +15,7 @@ bbox_color:
 font_size: 15
 classes: datasets/coco2012/coco.names # datasets/shapes/two_colors/class.names  #./datasets/shapes/class.names
 anchors_file: datasets/coco2012/anchors.txt #datasets/shapes/anchors/shapes_yolov3_anchors.txt
-weights:   weights/coco/girl/yolov3_train_girl.tf # weights/coco/girl/yolov3_train_coco_25.tf # checkpoints/yolov3_train_rb_circles4.tf
+weights:   checkpoints/keras_coco_yolov3.tf # /home/ronen/PycharmProjects/yolov3-tf2/checkpoints/yolov3.tf # weights/coco/girl/yolov3_train_girl.tf # weights/coco/girl/yolov3_train_coco_25.tf # checkpoints/yolov3_train_rb_circles4.tf
 images_dir: datasets/shapes/three_mixed_shapes/blue/input/images_and_annotations_file/images
 tfrecords_dir:  datasets/shapes/colors_circles_triangles_trapezoid_2sizes/input/tfrecords/test
 image_file_path: datasets/coco2012/images/girl.png # datasets/shapes/three_circles/input/images_and_annotations_file/images/000001.jpg

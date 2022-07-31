@@ -37,7 +37,6 @@ def get_anchors(anchors_file):
     anchors_table = loadtxt(anchors_file, dtype=np.float, delimiter=',')
     anchors_table = anchors_table.reshape(
         number_of_scale_grids, anchors_per_scale_grid, anchor_entry_size)
-    anchors_table = np.flip(np.sort(anchors_table, axis=- 1))
     return anchors_table
 
 

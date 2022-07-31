@@ -5,7 +5,6 @@ import argparse
 
 from core.models import YoloV3Model
 
-
 def load_darknet_weights(model, weights_file):
     wf = open(weights_file, 'rb')
     major, minor, revision, seen, _ = np.fromfile(wf, dtype=np.int32, count=5)
@@ -51,7 +50,6 @@ def load_darknet_weights(model, weights_file):
             else:
                 layer.set_weights([conv_weights])
                 batch_norm.set_weights(bn_weights)
-    # a = len(wf.read())
     assert len(wf.read()) == 0, 'failed to read all data'
     wf.close()
 
@@ -66,13 +64,13 @@ def convert(nclasses, input_weights_file, output_weights_file):
     model.summary()
 
     load_darknet_weights(model, input_weights_file)
-    logging.info('weights loaded')
+    print('weights loaded')
 
     img = np.random.random((1, 320, 320, 3)).astype(np.float32)
     output = model(img)
-    logging.info('sanity check passed')
+    print('sanity check passed')
     model.save_weights(output_weights_file)
-    logging.info('weights saved')
+    print('weights saved')
 
 
 parser = argparse.ArgumentParser()
