@@ -104,16 +104,21 @@ class YoloV3Model:
             return conv
         return network_head
 
+    def get_network_neck(self, nfilters, ngrids, nclasses, name=None):
+        def network_neck(x_in):
+            conv = inputs = Input(x_in.shape[1:])
+            conv = self._conv_block(conv, nfilters, 1)
+            conv = self._conv_block(conv, nfilters * 2, 3)
+            conv = self._conv_block(conv, nfilters, 1)
+            conv = self._conv_block(conv, nfilters * 2, 3)
+            conv = self._conv_block(conv, nfilters, 1)
+            return Model(inputs, conv, name=name)(x_in)
+        return network_neck
+
     def get_network_head(self, nfilters, ngrids, nclasses, name=None):
         def network_head(x_in):
             conv = inputs = Input(x_in.shape[1:])
-
-            conv = self._conv_block(conv, nfilters, 1)
-            conv = self._conv_block(conv, nfilters * 2, 3)
-            conv = self._conv_block(conv, nfilters, 1)
-            conv = self._conv_block(conv, nfilters * 2, 3)
-            intermidiate_output = self._conv_block(conv, nfilters, 1)
-            conv = self._conv_block(intermidiate_output, nfilters * 2, 3)
+            conv = self._conv_block(conv, nfilters, 3)
             conv = self._conv_block(conv,
                                     nfilters=ngrids * (nclasses + (self.XY_FEILD + self.WH_FEILD + self.OBJ_FIELD)),
                                     kernel_size=1,
@@ -124,7 +129,7 @@ class YoloV3Model:
                                                    nclasses + (self.XY_FEILD + self.WH_FEILD + self.OBJ_FIELD))))(
                 conv)
 
-            return Model(inputs, (intermidiate_output, conv), name=name)(x_in)
+            return Model(inputs, conv, name=name)(x_in)
 
         return network_head
 
@@ -185,11 +190,17 @@ class YoloV3Model:
         out1, out2, darknet_out = self._darknet53(name='darknet53')(inputs)
 
         nanchors = 3 #todo anchors_table[0] size
-        inter_out0, head_out0 = self.get_network_head(512, nanchors, nclasses, name='head0')(darknet_out)
-        concat_in1= self.upsample_and_concat(256, name='None1333')((inter_out0, out2))
-        inter_out1, head_out1 = self.get_network_head(256, nanchors, nclasses, name='head1')(concat_in1)
-        concat_in2 = self.upsample_and_concat(128, name='None2')((inter_out1, out1))
-        _, head_out2 = self.get_network_head(128, nanchors, nclasses, name='head2')(concat_in2)
+        neck_out0 = self.get_network_neck(512, nanchors, nclasses, name='neck0')(darknet_out)
+        head_out0 = self.get_network_head(1024, nanchors, nclasses, name='head0')(neck_out0)
+
+        concat_in1 = self.upsample_and_concat(256, name='feed-neck1')((neck_out0, out2))
+        neck_out1 = self.get_network_neck(256, nanchors, nclasses, name='neck1')(concat_in1)
+        head_out1 = self.get_network_head(512, nanchors, nclasses, name='head1')(neck_out1)
+
+        concat_in2 = self.upsample_and_concat(128, name='feed-neck2')((neck_out1, out1))
+        neck_out2 = self.get_network_neck(128, nanchors, nclasses, name='neck2')(concat_in2)
+        head_out2 = self.get_network_head(256, nanchors, nclasses, name='head2')(neck_out2)
+
 
         concat_output0, pred_xy0, pred_wh0, pred_obj0, class_probs0 = self._arrange_output(head_out0, nclasses)
         concat_output1, pred_xy1, pred_wh1, pred_obj1, class_probs1 = self._arrange_output(head_out1, nclasses)
