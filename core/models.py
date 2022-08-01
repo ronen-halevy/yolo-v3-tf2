@@ -94,24 +94,26 @@ class YoloV3Model:
 
         return out
 
+
+    def upsample_and_concat(self, nfilters, name=None):
+        def network_head(x_in):
+            in_data, skip = x_in
+            conv = self._conv_block(in_data, nfilters, kernel_size=1)
+            conv = UpSampling2D(2)(conv)
+            conv = Concatenate()([conv, skip])
+            return conv
+        return network_head
+
     def get_network_head(self, nfilters, ngrids, nclasses, name=None):
         def network_head(x_in):
-            if isinstance(x_in, tuple):
-                inputs = Input(x_in[0].shape[1:], name=f'{name} input1'), Input(x_in[1].shape[1:],
-                                                                                name=f'{name} input2')
-                in_data, skip = inputs
-                conv = self._conv_block(in_data, nfilters, kernel_size=1)
-                conv = UpSampling2D(2)(conv)
-                conv = Concatenate()([conv, skip])
-            else:
-                conv = inputs = Input(x_in.shape[1:])
+            conv = inputs = Input(x_in.shape[1:])
 
             conv = self._conv_block(conv, nfilters, 1)
             conv = self._conv_block(conv, nfilters * 2, 3)
             conv = self._conv_block(conv, nfilters, 1)
             conv = self._conv_block(conv, nfilters * 2, 3)
-            intermidiate_output = conv = self._conv_block(conv, nfilters, 1)
-            conv = self._conv_block(conv, nfilters * 2, 3)
+            intermidiate_output = self._conv_block(conv, nfilters, 1)
+            conv = self._conv_block(intermidiate_output, nfilters * 2, 3)
             conv = self._conv_block(conv,
                                     nfilters=ngrids * (nclasses + (self.XY_FEILD + self.WH_FEILD + self.OBJ_FIELD)),
                                     kernel_size=1,
@@ -184,8 +186,10 @@ class YoloV3Model:
 
         nanchors = 3 #todo anchors_table[0] size
         inter_out0, head_out0 = self.get_network_head(512, nanchors, nclasses, name='head0')(darknet_out)
-        inter_out1, head_out1 = self.get_network_head(256, nanchors, nclasses, name='head1')((inter_out0, out2))
-        _, head_out2 = self.get_network_head(128, 3, nclasses, name='head2')((inter_out1, out1))
+        concat_in1= self.upsample_and_concat(256, name='None1333')((inter_out0, out2))
+        inter_out1, head_out1 = self.get_network_head(256, nanchors, nclasses, name='head1')(concat_in1)
+        concat_in2 = self.upsample_and_concat(128, name='None2')((inter_out1, out1))
+        _, head_out2 = self.get_network_head(128, nanchors, nclasses, name='head2')(concat_in2)
 
         concat_output0, pred_xy0, pred_wh0, pred_obj0, class_probs0 = self._arrange_output(head_out0, nclasses)
         concat_output1, pred_xy1, pred_wh1, pred_obj1, class_probs1 = self._arrange_output(head_out1, nclasses)
