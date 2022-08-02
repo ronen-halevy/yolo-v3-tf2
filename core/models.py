@@ -143,47 +143,6 @@ class YoloV3Model:
         return network_head
 
     @staticmethod
-    def _yolo_nms(outputs, classes, yolo_max_boxes, nms_iou_threshold, nms_score_threshold):
-        bbox, confidence, class_probs = outputs
-        class_probs = tf.squeeze(class_probs, axis=0)
-
-        class_indices = tf.argmax(class_probs, axis=-1)
-        class_probs = tf.reduce_max(class_probs, axis=-1)
-        scores = confidence * class_probs
-        scores = tf.squeeze(scores, axis=0)
-        scores = tf.reduce_max(scores, [1])
-        bbox = tf.reshape(bbox, (-1, 4))
-
-        selected_indices, selected_scores = tf.image.non_max_suppression_with_scores(
-            boxes=bbox,
-            scores=scores,
-            max_output_size=yolo_max_boxes,
-            iou_threshold=nms_iou_threshold,
-            score_threshold=nms_score_threshold,
-            soft_nms_sigma=0.
-        )
-
-        num_of_valid_detections = tf.expand_dims(tf.shape(selected_indices)[0], axis=0)
-        selected_boxes = tf.gather(bbox, selected_indices)
-        selected_boxes = tf.expand_dims(selected_boxes, axis=0)
-        selected_scores = tf.expand_dims(selected_scores, axis=0)
-        selected_classes = tf.gather(class_indices, selected_indices)
-        selected_classes = tf.expand_dims(selected_classes, axis=0)
-
-        return selected_boxes, selected_scores, selected_classes, num_of_valid_detections
-
-    @staticmethod
-    def _arrange_bbox(xy, wh):
-        grid_size = xy.shape[1:3]
-        grid = tf.meshgrid(tf.range(grid_size[1]), tf.range(grid_size[0]))
-        grid = tf.expand_dims(tf.stack(grid, axis=-1), axis=2)  # [gx, gy, 1, 2]
-        xy = (xy + tf.cast(grid, tf.float32)) / tf.cast(grid_size, tf.float32)
-        xy_min = xy - wh / 2
-        xy_max = xy + wh / 2
-        bbox = tf.concat([xy_min, xy_max], axis=-1)
-        return bbox
-
-    @staticmethod
     def _arrange_output(grid_pred, nclasses):
         pred_xy, pred_wh, pred_obj, class_probs = Lambda(lambda x: tf.split(x, (2, 2, 1, nclasses), axis=-1))(grid_pred)
         pred_xy = Lambda(lambda x: tf.sigmoid(x))(pred_xy)
@@ -191,44 +150,24 @@ class YoloV3Model:
         class_probs = Lambda(lambda x: tf.sigmoid(x))(class_probs)
         concat_output = Lambda(lambda x: tf.concat([x[0], x[1], x[2], x[3]], axis=-1))((pred_xy, pred_wh, pred_obj,
                                                                            class_probs))
-        return concat_output, pred_xy, pred_wh, pred_obj, class_probs
+        return concat_output
 
-    def __call__(self, image_size=None, nclasses=80, training=True, yolo_max_boxes=None, anchors_table=None,
-                 nms_iou_threshold=None, nms_score_threshold=None):
+    def __call__(self, image_size=None, nclasses=80, nanchors=3):
         inputs = Input([image_size, image_size, 3], name='darknet53 input')
         out1, out2, darknet_out = self._darknet53(name='darknet53')(inputs)
 
-        nanchors = 3 #todo anchors_table[0] size
         neck_out0 = self.get_network_neck(512, nanchors, nclasses, name='neck0')(darknet_out)
         head_out0 = self.get_network_head(1024, nanchors, nclasses, name='head0')(neck_out0)
 
-        # concat_in1 = self.upsample_and_concat(256, name='feed-neck1')((neck_out0, out2))
         neck_out1 = self.get_network_neck(256, nanchors, nclasses, name='neck1')((neck_out0, out2))
         head_out1 = self.get_network_head(512, nanchors, nclasses, name='head1')(neck_out1)
 
-        # concat_in2 = self.upsample_and_concat(128, name='feed-neck2')((neck_out1, out1))
         neck_out2 = self.get_network_neck(128, nanchors, nclasses, name='neck2')((neck_out1, out1))
         head_out2 = self.get_network_head(256, nanchors, nclasses, name='head2')(neck_out2)
 
 
-        concat_output0, pred_xy0, pred_wh0, pred_obj0, class_probs0 = self._arrange_output(head_out0, nclasses)
-        concat_output1, pred_xy1, pred_wh1, pred_obj1, class_probs1 = self._arrange_output(head_out1, nclasses)
-        concat_output2, pred_xy2, pred_wh2, pred_obj2, class_probs2 = self._arrange_output(head_out2, nclasses)
+        concat_output0 = self._arrange_output(head_out0, nclasses)
+        concat_output1 = self._arrange_output(head_out1, nclasses)
+        concat_output2 = self._arrange_output(head_out2, nclasses)
+        return Model(inputs, (concat_output0, concat_output1, concat_output2), name='yolov3')
 
-        if training:
-            return Model(inputs, (concat_output0, concat_output1, concat_output2), name='yolov3')
-
-        bbox0 = Lambda(lambda x: self._arrange_bbox(x[0], tf.exp(x[1]) * anchors_table[2]))((pred_xy0, pred_wh0))
-        bbox1 = Lambda(lambda x: self._arrange_bbox(x[0], tf.exp(x[1]) * anchors_table[1]))((pred_xy1, pred_wh1))
-        bbox2 = Lambda(lambda x: self._arrange_bbox(x[0], tf.exp(x[1]) * anchors_table[0]))((pred_xy2, pred_wh2))
-
-        concat_op = Lambda(lambda x: tf.concat([tf.reshape(y, [tf.shape(y)[0], -1, tf.shape(y)[-1]]) for y in x],
-                                               axis=1))
-        bbox = concat_op((bbox0, bbox1, bbox2))
-        confidence = concat_op((pred_obj0, pred_obj1, pred_obj2))
-        class_probs = concat_op((class_probs0, class_probs1, class_probs2))
-
-        outputs = Lambda(lambda x: self._yolo_nms(x, nclasses, yolo_max_boxes, nms_iou_threshold, nms_score_threshold),
-                         name='yolo_nms')((bbox, confidence, class_probs))
-
-        return Model(inputs, outputs, name='yolov3')
