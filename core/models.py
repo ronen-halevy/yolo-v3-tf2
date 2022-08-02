@@ -106,7 +106,16 @@ class YoloV3Model:
 
     def get_network_neck(self, nfilters, ngrids, nclasses, name=None):
         def network_neck(x_in):
-            conv = inputs = Input(x_in.shape[1:])
+            if isinstance(x_in, tuple):
+                inputs = Input(x_in[0].shape[1:], name=f'{name} input1'), Input(x_in[1].shape[1:],
+                                                                                name=f'{name} input2')
+                in_data, skip = inputs
+                conv = self._conv_block(in_data, nfilters, kernel_size=1)
+                conv = UpSampling2D(2)(conv)
+                conv = Concatenate()([conv, skip])
+            else:
+                conv = inputs = Input(x_in.shape[1:])
+
             conv = self._conv_block(conv, nfilters, 1)
             conv = self._conv_block(conv, nfilters * 2, 3)
             conv = self._conv_block(conv, nfilters, 1)
@@ -193,12 +202,12 @@ class YoloV3Model:
         neck_out0 = self.get_network_neck(512, nanchors, nclasses, name='neck0')(darknet_out)
         head_out0 = self.get_network_head(1024, nanchors, nclasses, name='head0')(neck_out0)
 
-        concat_in1 = self.upsample_and_concat(256, name='feed-neck1')((neck_out0, out2))
-        neck_out1 = self.get_network_neck(256, nanchors, nclasses, name='neck1')(concat_in1)
+        # concat_in1 = self.upsample_and_concat(256, name='feed-neck1')((neck_out0, out2))
+        neck_out1 = self.get_network_neck(256, nanchors, nclasses, name='neck1')((neck_out0, out2))
         head_out1 = self.get_network_head(512, nanchors, nclasses, name='head1')(neck_out1)
 
-        concat_in2 = self.upsample_and_concat(128, name='feed-neck2')((neck_out1, out1))
-        neck_out2 = self.get_network_neck(128, nanchors, nclasses, name='neck2')(concat_in2)
+        # concat_in2 = self.upsample_and_concat(128, name='feed-neck2')((neck_out1, out1))
+        neck_out2 = self.get_network_neck(128, nanchors, nclasses, name='neck2')((neck_out1, out1))
         head_out2 = self.get_network_head(256, nanchors, nclasses, name='head2')(neck_out2)
 
 
