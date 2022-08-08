@@ -186,7 +186,7 @@ if __name__ == '__main__':
         model_config = yaml.safe_load(stream)
     nclasses = 3
 
-    output_layers, layers, inputs = parse_model_cfg(model_config, nclasses)
+    output_layers, layers, inputs = parse_model_cfg(nclasses, **model_config)
 
     model = Model(inputs, output_layers)
 

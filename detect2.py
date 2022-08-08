@@ -18,14 +18,12 @@ from core.yolo_decode_layer import YoloDecoderLayer
 class Inference:
 
     @staticmethod
-    def _do_detection(yolo, img_raw, size, class_names, bbox_color, font_size, index, yolo_max_boxes, anchors_table, nms_iou_threshold, nms_score_threshold):
+    def _do_detection(model, img_raw, size, class_names, bbox_color, font_size, index, yolo_max_boxes, anchors_table,
+                      nms_iou_threshold, nms_score_threshold):
         img = tf.expand_dims(img_raw, 0)
         img = resize_image(img, size, size)
-        all_grids_output = yolo(img, training=False)
-        nclasses=len(class_names)
+        boxes, scores, classes, nums = model(img, training=False)
 
-        boxes, scores, classes, nums = decode_detections(all_grids_output, nclasses,
-                   yolo_max_boxes, anchors_table, nms_iou_threshold, nms_score_threshold)
 
         detected_classes = [class_names[idx] for idx in classes[0]]
 
@@ -90,29 +88,26 @@ class Inference:
         class_names = [c.strip() for c in open(classes).readlines()]
         nclasses = len(class_names)
 
-
         with open(model_config_file, 'r') as stream:
             model_config = yaml.safe_load(stream)
 
-        output_layers, layers, inputs = parse_model_cfg(model_config, nclasses)
-
-
-
+        output_layers, layers, inputs = parse_model_cfg(nclasses, **model_config)
 
         # selected_boxes, selected_scores, selected_classes, num_of_valid_detections\
-        decoded_output =  YoloDecoderLayer(nclasses, yolo_max_boxes, anchors_table, nms_iou_threshold, nms_score_threshold)(output_layers)
+        decoded_output = YoloDecoderLayer(nclasses, yolo_max_boxes, anchors_table, nms_iou_threshold,
+                                          nms_score_threshold)(output_layers)
 
         model = Model(inputs, decoded_output)
         model.summary()
 
-        model.load_weights(weights).expect_partial()
+        # model.load_weights(weights).expect_partial()
 
         # print('weights loaded')
 
         if input_data_source == 'tfrecords':
             dataset = parse_tfrecords(tfrecords_dir, image_size=size, max_bboxes=yolo_max_boxes, class_file=None)
-            for index, entry in enumerate(dataset):
-                annotated_image, image_detections_result = self._do_detection(model, entry[0], size, class_names,
+            for index, dataset_entry in enumerate(dataset):
+                annotated_image, image_detections_result = self._do_detection(model, dataset_entry[0], size, class_names,
                                                                               yolo_max_boxes, bbox_color, font_size,
                                                                               index)
                 self._dump_detections_text(image_detections_result, print_detections, detections_list_outfile)
@@ -143,10 +138,10 @@ class Inference:
             for index, file in enumerate(filenames):
                 img_raw = tf.image.decode_image(open(file, 'rb').read(), channels=3)
 
-
                 annotated_image, image_detections_result = self._do_detection(model, img_raw / 255, size, class_names,
                                                                               bbox_color, font_size,
-                                                                              index, yolo_max_boxes, anchors_table, nms_iou_threshold, nms_score_threshold)
+                                                                              index, yolo_max_boxes, anchors_table,
+                                                                              nms_iou_threshold, nms_score_threshold)
                 self._dump_detections_text(image_detections_result, print_detections, detections_list_outfile)
                 out_filename = f'detect_{index}.jpg'
                 self._output_annotated_image(annotated_image, output_dir, out_filename, save_result_images,
