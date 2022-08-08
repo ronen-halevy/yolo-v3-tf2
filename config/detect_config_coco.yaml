@@ -1,6 +1,6 @@
 ---
 model_config_file: config/yolov3_model.yaml
-size: 416
+image_size: 416
 #max_detection_images: 25
 input_data_source:  image_file # [tfrecords, images_dir, image_file]
 display_result_images: True

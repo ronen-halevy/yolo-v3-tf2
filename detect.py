@@ -18,10 +18,10 @@ from core.yolo_decode_layer import YoloDecoderLayer
 class Inference:
 
     @staticmethod
-    def _do_detection(model, img_raw, size, class_names, bbox_color, font_size, index, yolo_max_boxes, anchors_table,
+    def _do_detection(model, img_raw, image_size, class_names, bbox_color, font_size, index, yolo_max_boxes, anchors_table,
                       nms_iou_threshold, nms_score_threshold):
         img = tf.expand_dims(img_raw, 0)
-        img = resize_image(img, size, size)
+        img = resize_image(img, image_size, image_size)
         boxes, scores, classes, nums = model(img, training=False)
 
 
@@ -58,7 +58,7 @@ class Inference:
                  classes,
                  anchors_file,
                  weights,
-                 size,
+                 image_size,
                  input_data_source,
                  images_dir,
                  tfrecords_dir,
@@ -105,9 +105,10 @@ class Inference:
         # print('weights loaded')
 
         if input_data_source == 'tfrecords':
-            dataset = parse_tfrecords(tfrecords_dir, image_size=size, max_bboxes=yolo_max_boxes, class_file=None)
+            dataset = parse_tfrecords(tfrecords_dir, image_size=image_size, max_bboxes=yolo_max_boxes, class_file=None)
             for index, dataset_entry in enumerate(dataset):
-                annotated_image, image_detections_result = self._do_detection(model, dataset_entry[0], size, class_names,
+                image = dataset_entry[0]
+                annotated_image, image_detections_result = self._do_detection(model, image, image_size, class_names,
                                                                               yolo_max_boxes, bbox_color, font_size,
                                                                               index)
                 self._dump_detections_text(image_detections_result, print_detections, detections_list_outfile)
@@ -138,7 +139,7 @@ class Inference:
             for index, file in enumerate(filenames):
                 img_raw = tf.image.decode_image(open(file, 'rb').read(), channels=3)
 
-                annotated_image, image_detections_result = self._do_detection(model, img_raw / 255, size, class_names,
+                annotated_image, image_detections_result = self._do_detection(model, img_raw / 255, image_size, class_names,
                                                                               bbox_color, font_size,
                                                                               index, yolo_max_boxes, anchors_table,
                                                                               nms_iou_threshold, nms_score_threshold)
