@@ -192,8 +192,6 @@ class Train:
                  training_mode
                  ):
 
-        with open(model_config_file, 'r') as stream:
-            model_config = yaml.safe_load(stream)
         grid_sizes_table = np.array([13, 26, 52])
 
         logging.basicConfig(level=logging.INFO,
@@ -239,6 +237,9 @@ class Train:
             plt.imshow(image)
             plt.show()
 
+
+        with open(model_config_file, 'r') as stream:
+            model_config = yaml.safe_load(stream)
 
         output_layers, layers, inputs = parse_model_cfg(nclasses, **model_config)
 
