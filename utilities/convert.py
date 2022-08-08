@@ -102,9 +102,6 @@ class Convert:
         wf = open(weights_file, 'rb')
         major, minor, revision, seen, _ = np.fromfile(wf, dtype=np.int32, count=5)
 
-        # if tiny:
-        #     layers = YOLOV3_TINY_LAYER_LIST
-        # else:
         layers = layers_lists
 
         for layer_name in layers:
@@ -128,6 +125,9 @@ class Convert:
                     conv_bias = np.fromfile(wf, dtype=np.float32, count=filters)
                 else:
                     # darknet [beta, gamma, mean, variance]
+                    # Darknet serializes convolutional weights as:
+                    # [beta, gamma, mean, variance, conv_weights]
+
                     bn_weights = np.fromfile(
                         wf, dtype=np.float32, count=4 * filters)
                     # tf [gamma, beta, mean, variance]
