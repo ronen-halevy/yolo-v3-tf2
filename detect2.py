@@ -1,16 +1,18 @@
 import numpy as np
 import os
 import tensorflow as tf
+from tensorflow.keras import Input, Model
+
 import yaml
 import argparse
 import matplotlib.pyplot as plt
 
-from core.models import YoloV3Model
 from core.decode_detections import decode_detections
 from core.utils import get_anchors, resize_image
 from core.render_utils import annotate_detections
 from core.load_tfrecords import parse_tfrecords
-
+from core.parse_model import parse_model_cfg
+from core.yolo_decode_layer import YoloDecoderLayer
 
 
 class Inference:
@@ -54,6 +56,7 @@ class Inference:
             plt.show()
 
     def __call__(self,
+                 model_config_file,
                  classes,
                  anchors_file,
                  weights,
@@ -87,12 +90,24 @@ class Inference:
         class_names = [c.strip() for c in open(classes).readlines()]
         nclasses = len(class_names)
 
-        yolov3_model = YoloV3Model()
 
-        model = yolov3_model(size, nclasses)
+        with open(model_config_file, 'r') as stream:
+            model_config = yaml.safe_load(stream)
+
+        output_layers, layers, inputs = parse_model_cfg(model_config, nclasses)
+
+
+
+
+        # selected_boxes, selected_scores, selected_classes, num_of_valid_detections\
+        decoded_output =  YoloDecoderLayer(nclasses, yolo_max_boxes, anchors_table, nms_iou_threshold, nms_score_threshold)(output_layers)
+
+        model = Model(inputs, decoded_output)
+        model.summary()
 
         model.load_weights(weights).expect_partial()
-        print('weights loaded')
+
+        # print('weights loaded')
 
         if input_data_source == 'tfrecords':
             dataset = parse_tfrecords(tfrecords_dir, image_size=size, max_bboxes=yolo_max_boxes, class_file=None)

@@ -10,8 +10,11 @@
 #
 # ================================================================
 
+# nclasses: 3
+
 import numpy as np
 import tensorflow as tf
+from tensorflow.keras import Input, Model
 from keras.callbacks import Callback
 from keras.callbacks import (
     EarlyStopping
@@ -25,14 +28,67 @@ from core.utils import get_anchors
 from core.render_utils import render_bboxes
 
 from core.preprocess_dataset import PreprocessDataset
+# from core.preprocess_dataset import preprocess_dataset, preprocess_dataset_debug
 from core.loss_func import get_loss_func
 from core.models import YoloV3Model
+from core.parse_model import parse_model_cfg
+
 
 from core.load_tfrecords import parse_tfrecords
 from core.load_dataset import load_dataset, load_debug_dataset
 
 
 class Train:
+
+    def freeze_model(self, model):
+        model.trainable = False
+        if isinstance(model, tf.keras.Model):
+            for layer in model.layers:
+                self.freeze_model(layer)
+
+    def inhibit_bn_updates(self, model):
+        model.training = False
+        if isinstance(model, tf.keras.Model):
+            for layer in model.layers:
+                self.inhibit_bn_updates(layer)
+
+    def load_backbone(self, model, dummy_model):
+        sub_model = model.get_layer('yolo_darknet')
+        sub_model.set_weights(dummy_model.get_layer('yolo_darknet').get_weights())
+
+    def set_transfer_learning(self, model, load_checkpoints_path, load_weights, training_mode, nclasses):
+
+        if load_weights == 'all':
+            model.load_weights(load_checkpoints_path)
+
+        elif load_weights in ['backbone', 'backbone_and_nec']:
+            yolov3_model = YoloV3Model()
+            image_size = 416 # todo not needed ronen
+            dummy_model = yolov3_model(image_size, nclasses, )
+            if load_weights == 'backbone':
+                self.load_backbone(model, dummy_model)
+            elif load_weights == 'backbone_and_neck':
+                self.load_backbone(model, dummy_model)
+                for layer in model.layers:
+                    if 'neck' in layer.name:
+                        layer.set_weight(dummy_model.get_layer(layer.name).get_weights())
+        for key in training_mode:
+            for layer in model.layers:
+                if key in layer.name:
+                    if training_mode[key] == 'freeze':
+                        self.freeze_model(layer)
+                    elif training_mode[key] == 'fine_tune':
+                        self.inhibit_bn_updates(layer)
+
+
+
+        #  model_pretrained = YoloV3(
+        #         FLAGS.size, training=True, classes=FLAGS.weights_num_classes or FLAGS.num_classes)
+        # model_pretrained.load_weights(FLAGS.weights)
+
+
+
+
     @staticmethod
     def _calc_loss(model, images, labels, loss_fn_list, batch_size):
         outputs = model(images, training=True)
@@ -109,7 +165,9 @@ class Train:
                 self.model.save_weights(self.output_checkpoints_path)
                 self.epoch += 1
 
-    def __call__(self, input_data_source,
+    def __call__(self,
+                 model_config_file,
+                 input_data_source,
                  image_size,
                  batch_size,
                  max_bboxes,
@@ -130,8 +188,12 @@ class Train:
                  output_checkpoints_path,
                  load_checkpoints_path,
                  early_stopping,
-                 weights_save_peroid
+                 weights_save_peroid,
+                 training_mode
                  ):
+
+        with open(model_config_file, 'r') as stream:
+            model_config = yaml.safe_load(stream)
         grid_sizes_table = np.array([13, 26, 52])
 
         logging.basicConfig(level=logging.INFO,
@@ -177,8 +239,14 @@ class Train:
             plt.imshow(image)
             plt.show()
 
-        yolov3_model = YoloV3Model()
-        model = yolov3_model(image_size, nclasses=nclasses)
+
+        output_layers, layers, inputs = parse_model_cfg(nclasses, **model_config)
+
+        model = Model(inputs, output_layers)
+
+
+
+
 
         with open("model_summary.txt", "w") as file1:
             model.summary(print_fn=lambda x: file1.write(x + '\n'))

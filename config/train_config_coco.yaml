@@ -10,28 +10,40 @@
 #
 # ================================================================
 ---
+model_config_file: config/yolov3_model.yaml
+# dataset:
 input_data_source: debug_data # [tfrecords, images_dir_annot_file, debug_data]
-debug_mode: False # Debug step-by-step trace graph mode functions
-render_dataset_example: False
-dataset_repeats: 11
+tfrecords_base_dir: datasets/shapes/two_colors/input/tfrecords
+images_dir: datasets/coco2012/images
 max_bboxes: 100
 batch_size: 8
 epochs: 1000
-weights_save_peroid: 4
-image_size: 416
-dataset_cuttof_size: null # null or size limit value
-learning_rate: 0.001
-early_stopping: False # enables early_stopping callback
-early_stop_patience: 13 # an early_stopping callback parameter
-load_weights: False #whether to load pretrained weights
-mode: fit # 'model execution mode. choices=[eager_tf, fit]'
-tfrecords_base_dir:  datasets/shapes/two_colors/input/tfrecords
+dataset_repeats: 11
 classes_name_file: datasets/coco2012/coco.names
 anchors_file: datasets/coco2012/anchors.txt
 annotations_path: datasets/coco2012/annotations.json
-images_dir: datasets/coco2012/images
-output_checkpoints_path: 'checkpoints/yolov3_train.tf' # prefix of path checkpoints save
+image_size: 416
+dataset_cuttof_size: null # null or size limit value
+
+#weights transfer
+load_weights: all # backbone, backbone_and_neck, all, none
+training_mode:
+  - backbone_training: freeze #enable, freeze, fine_tune
+  - neck_training: fine_tune  #enable, freeze, fine_tune
+  - head_training: enable  #enable, freeze, fine_tune
 load_checkpoints_path: weights/coco/girl/yolov3_train_girl.tf #'checkpoints/yolov3_train_newclass5.tf' #path to pretrained weights file
+
+# operation modes
+debug_mode: False # Debug step-by-step trace graph mode functions
+render_dataset_example: False
+learning_rate: 0.001
+early_stopping: False # enables early_stopping callback
+mode: fit # 'model execution mode. choices=[eager_tf, fit]'
+early_stop_patience: 13 # an early_stopping callback parameter
+
+#output setup
+weights_save_peroid: 4
+output_checkpoints_path: 'checkpoints/yolov3_train.tf' # prefix of path checkpoints save
 
 
 

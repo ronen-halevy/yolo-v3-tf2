@@ -1,31 +1,22 @@
 ---
-net:
-# Testing
-# batch: 1
-# subdivisions: 1
-# Training
-- batch: 64
-  ubdivisions: 16
-  width: 416
-  height: 416
-  channels: 3
-  momentum: 0.9
-  decay: 0.0005
-  angle: 0
-  saturation: 1.5
-  exposure: 1.5
-  hue: .1
 
-  learning_rate: 0.001
-  burn_in: 1000
-  max_batches: 500200
-  policy: steps
-  steps: 400000,450000
-  scales: .1,.1
+#net:
+decay: 0.0005
+xy_field: 2
+wh_field: 2
+obj_field: 1
+ngrids: 3
+
+#learning_rate: 0.001
+#burn_in: 1000
+#max_batches: 500200
+#policy: steps
+#steps: 400000,450000
+#scales: .1,.1
 sub_models:
 - name: backbone
-  layers:
-  - layer: convolutional
+  layers_config:
+  - type: convolutional
     batch_normalize: 1
     filters: 32
     size: 3
@@ -33,8 +24,7 @@ sub_models:
     pad: 1
     activation: leaky
 
-# Downsample
-  - layer: convolutional
+  - type: convolutional
     batch_normalize: 1
     filters: 64
     size: 3
@@ -42,8 +32,7 @@ sub_models:
     pad: 1
     activation: leaky
 
-  - layer: convolutional
-    dd: 4
+  - type: convolutional
     batch_normalize: 1
     filters: 32
     size: 1
@@ -51,7 +40,7 @@ sub_models:
     pad: 1
     activation: leaky
 
-  - layer: convolutional
+  - type: convolutional
     batch_normalize: 1
     filters: 64
     size: 3
@@ -59,12 +48,11 @@ sub_models:
     pad: 1
     activation: leaky
 
-  - layer: shortcut
+  - type: shortcut
     from: -3
     activation: linear
-# Downsample
 
-  - layer: convolutional
+  - type: convolutional
     batch_normalize: 1
     filters: 128
     size: 3
@@ -72,7 +60,7 @@ sub_models:
     pad: 1
     activation: leaky
 
-  - layer: convolutional
+  - type: convolutional
     batch_normalize: 1
     filters: 64
     size: 1
@@ -80,7 +68,7 @@ sub_models:
     pad: 1
     activation: leaky
 
-  - layer: convolutional
+  - type: convolutional
     batch_normalize: 1
     filters: 128
     size: 3
@@ -88,11 +76,11 @@ sub_models:
     pad: 1
     activation: leaky
 
-  - layer: shortcut
+  - type: shortcut
     from: -3
     activation: linear
 
-  - layer: convolutional
+  - type: convolutional
     batch_normalize: 1
     filters: 64
     size: 1
@@ -100,7 +88,7 @@ sub_models:
     pad: 1
     activation: leaky
 
-  - layer: convolutional
+  - type: convolutional
     batch_normalize: 1
     filters: 128
     size: 3
@@ -108,13 +96,11 @@ sub_models:
     pad: 1
     activation: leaky
 
-  - layer: shortcut
+  - type: shortcut
     from: -3
     activation: linear
 
-  # Downsample
-
-  - layer: convolutional
+  - type: convolutional
     batch_normalize: 1
     filters: 256
     size: 3
@@ -122,7 +108,7 @@ sub_models:
     pad: 1
     activation: leaky
 
-  - layer: convolutional
+  - type: convolutional
     batch_normalize: 1
     filters: 128
     size: 1
@@ -130,7 +116,7 @@ sub_models:
     pad: 1
     activation: leaky
 
-  - layer: convolutional
+  - type: convolutional
     batch_normalize: 1
     filters: 256
     size: 3
@@ -138,11 +124,11 @@ sub_models:
     pad: 1
     activation: leaky
 
-  - layer: shortcut
+  - type: shortcut
     from: -3
     activation: linear
 
-  - layer: convolutional
+  - type: convolutional
     batch_normalize: 1
     filters: 128
     size: 1
@@ -150,7 +136,7 @@ sub_models:
     pad: 1
     activation: leaky
 
-  - layer: convolutional
+  - type: convolutional
     batch_normalize: 1
     filters: 256
     size: 3
@@ -158,11 +144,11 @@ sub_models:
     pad: 1
     activation: leaky
 
-  - layer: shortcut
+  - type: shortcut
     from: -3
     activation: linear
 
-  - layer: convolutional
+  - type: convolutional
     batch_normalize: 1
     filters: 128
     size: 1
@@ -170,7 +156,7 @@ sub_models:
     pad: 1
     activation: leaky
 
-  - layer: convolutional
+  - type: convolutional
     batch_normalize: 1
     filters: 256
     size: 3
@@ -178,11 +164,11 @@ sub_models:
     pad: 1
     activation: leaky
 
-  - layer: shortcut
+  - type: shortcut
     from: -3
     activation: linear
 
-  - layer: convolutional
+  - type: convolutional
     batch_normalize: 1
     filters: 128
     size: 1
@@ -190,7 +176,7 @@ sub_models:
     pad: 1
     activation: leaky
 
-  - layer: convolutional
+  - type: convolutional
     batch_normalize: 1
     filters: 256
     size: 3
@@ -198,12 +184,12 @@ sub_models:
     pad: 1
     activation: leaky
 
-  - layer: shortcut
+  - type: shortcut
     from: -3
     activation: linear
 
 
-  - layer: convolutional
+  - type: convolutional
     batch_normalize: 1
     filters: 128
     size: 1
@@ -211,7 +197,7 @@ sub_models:
     pad: 1
     activation: leaky
 
-  - layer: convolutional
+  - type: convolutional
     batch_normalize: 1
     filters: 256
     size: 3
@@ -219,11 +205,11 @@ sub_models:
     pad: 1
     activation: leaky
 
-  - layer: shortcut
+  - type: shortcut
     from: -3
     activation: linear
 
-  - layer: convolutional
+  - type: convolutional
     batch_normalize: 1
     filters: 128
     size: 1
@@ -231,7 +217,7 @@ sub_models:
     pad: 1
     activation: leaky
 
-  - layer: convolutional
+  - type: convolutional
     batch_normalize: 1
     filters: 256
     size: 3
@@ -239,11 +225,11 @@ sub_models:
     pad: 1
     activation: leaky
 
-  - layer: shortcut
+  - type: shortcut
     from: -3
     activation: linear
 
-  - layer: convolutional
+  - type: convolutional
     batch_normalize: 1
     filters: 128
     size: 1
@@ -251,7 +237,7 @@ sub_models:
     pad: 1
     activation: leaky
 
-  - layer: convolutional
+  - type: convolutional
     batch_normalize: 1
     filters: 256
     size: 3
@@ -259,11 +245,11 @@ sub_models:
     pad: 1
     activation: leaky
 
-  - layer: shortcut
+  - type: shortcut
     from: -3
     activation: linear
 
-  - layer: convolutional
+  - type: convolutional
     batch_normalize: 1
     filters: 128
     size: 1
@@ -271,7 +257,7 @@ sub_models:
     pad: 1
     activation: leaky
 
-  - layer: convolutional
+  - type: convolutional
     batch_normalize: 1
     filters: 256
     size: 3
@@ -279,13 +265,11 @@ sub_models:
     pad: 1
     activation: leaky
 
-  - layer: shortcut
+  - type: shortcut
     from: -3
     activation: linear
 
-    # Downsample
-
-  - layer: convolutional
+  - type: convolutional
     batch_normalize: 1
     filters: 512
     size: 3
@@ -293,7 +277,7 @@ sub_models:
     pad: 1
     activation: leaky
 
-  - layer: convolutional
+  - type: convolutional
     batch_normalize: 1
     filters: 256
     size: 1
@@ -301,7 +285,7 @@ sub_models:
     pad: 1
     activation: leaky
 
-  - layer: convolutional
+  - type: convolutional
     batch_normalize: 1
     filters: 512
     size: 3
@@ -309,12 +293,12 @@ sub_models:
     pad: 1
     activation: leaky
 
-  - layer: shortcut
+  - type: shortcut
     from: -3
     activation: linear
 
 
-  - layer: convolutional
+  - type: convolutional
     batch_normalize: 1
     filters: 256
     size: 1
@@ -322,7 +306,7 @@ sub_models:
     pad: 1
     activation: leaky
 
-  - layer: convolutional
+  - type: convolutional
     batch_normalize: 1
     filters: 512
     size: 3
@@ -330,12 +314,12 @@ sub_models:
     pad: 1
     activation: leaky
 
-  - layer: shortcut
+  - type: shortcut
     from: -3
     activation: linear
 
 
-  - layer: convolutional
+  - type: convolutional
     batch_normalize: 1
     filters: 256
     size: 1
@@ -343,7 +327,7 @@ sub_models:
     pad: 1
     activation: leaky
 
-  - layer: convolutional
+  - type: convolutional
     batch_normalize: 1
     filters: 512
     size: 3
@@ -351,12 +335,12 @@ sub_models:
     pad: 1
     activation: leaky
 
-  - layer: shortcut
+  - type: shortcut
     from: -3
     activation: linear
 
 
-  - layer: convolutional
+  - type: convolutional
     batch_normalize: 1
     filters: 256
     size: 1
@@ -364,7 +348,7 @@ sub_models:
     pad: 1
     activation: leaky
 
-  - layer: convolutional
+  - type: convolutional
     batch_normalize: 1
     filters: 512
     size: 3
@@ -372,11 +356,11 @@ sub_models:
     pad: 1
     activation: leaky
 
-  - layer: shortcut
+  - type: shortcut
     from: -3
     activation: linear
 
-  - layer: convolutional
+  - type: convolutional
     batch_normalize: 1
     filters: 256
     size: 1
@@ -384,7 +368,7 @@ sub_models:
     pad: 1
     activation: leaky
 
-  - layer: convolutional
+  - type: convolutional
     batch_normalize: 1
     filters: 512
     size: 3
@@ -392,12 +376,12 @@ sub_models:
     pad: 1
     activation: leaky
 
-  - layer: shortcut
+  - type: shortcut
     from: -3
     activation: linear
 
 
-  - layer: convolutional
+  - type: convolutional
     batch_normalize: 1
     filters: 256
     size: 1
@@ -405,7 +389,7 @@ sub_models:
     pad: 1
     activation: leaky
 
-  - layer: convolutional
+  - type: convolutional
     batch_normalize: 1
     filters: 512
     size: 3
@@ -413,12 +397,12 @@ sub_models:
     pad: 1
     activation: leaky
 
-  - layer: shortcut
+  - type: shortcut
     from: -3
     activation: linear
 
 
-  - layer: convolutional
+  - type: convolutional
     batch_normalize: 1
     filters: 256
     size: 1
@@ -426,7 +410,7 @@ sub_models:
     pad: 1
     activation: leaky
 
-  - layer: convolutional
+  - type: convolutional
     batch_normalize: 1
     filters: 512
     size: 3
@@ -434,11 +418,11 @@ sub_models:
     pad: 1
     activation: leaky
 
-  - layer: shortcut
+  - type: shortcut
     from: -3
     activation: linear
 
-  - layer: convolutional
+  - type: convolutional
     batch_normalize: 1
     filters: 256
     size: 1
@@ -446,7 +430,7 @@ sub_models:
     pad: 1
     activation: leaky
 
-  - layer: convolutional
+  - type: convolutional
     batch_normalize: 1
     filters: 512
     size: 3
@@ -454,13 +438,11 @@ sub_models:
     pad: 1
     activation: leaky
 
-  - layer: shortcut
+  - type: shortcut
     from: -3
     activation: linear
 
-    # Downsample
-
-  - layer: convolutional
+  - type: convolutional
     batch_normalize: 1
     filters: 1024
     size: 3
@@ -468,7 +450,7 @@ sub_models:
     pad: 1
     activation: leaky
 
-  - layer: convolutional
+  - type: convolutional
     batch_normalize: 1
     filters: 512
     size: 1
@@ -476,7 +458,7 @@ sub_models:
     pad: 1
     activation: leaky
 
-  - layer: convolutional
+  - type: convolutional
     batch_normalize: 1
     filters: 1024
     size: 3
@@ -484,11 +466,11 @@ sub_models:
     pad: 1
     activation: leaky
 
-  - layer: shortcut
+  - type: shortcut
     from: -3
     activation: linear
 
-  - layer: convolutional
+  - type: convolutional
     batch_normalize: 1
     filters: 512
     size: 1
@@ -496,7 +478,7 @@ sub_models:
     pad: 1
     activation: leaky
 
-  - layer: convolutional
+  - type: convolutional
     batch_normalize: 1
     filters: 1024
     size: 3
@@ -504,11 +486,11 @@ sub_models:
     pad: 1
     activation: leaky
 
-  - layer: shortcut
+  - type: shortcut
     from: -3
     activation: linear
 
-  - layer: convolutional
+  - type: convolutional
     batch_normalize: 1
     filters: 512
     size: 1
@@ -516,7 +498,7 @@ sub_models:
     pad: 1
     activation: leaky
 
-  - layer: convolutional
+  - type: convolutional
     batch_normalize: 1
     filters: 1024
     size: 3
@@ -524,11 +506,11 @@ sub_models:
     pad: 1
     activation: leaky
 
-  - layer: shortcut
+  - type: shortcut
     from: -3
     activation: linear
 
-  - layer: convolutional
+  - type: convolutional
     batch_normalize: 1
     filters: 512
     size: 1
@@ -536,7 +518,7 @@ sub_models:
     pad: 1
     activation: leaky
 
-  - layer: convolutional
+  - type: convolutional
     batch_normalize: 1
     filters: 1024
     size: 3
@@ -544,17 +526,14 @@ sub_models:
     pad: 1
     activation: leaky
 
-  - layer: shortcut
+  - type: shortcut
     from: -3
     activation: linear
 
-       ######################
 - name: neck0
-  layers:
-  - layer: input
-    layers: -1
+  layers_config:
 
-  - layer: convolutional
+  - type: convolutional
     batch_normalize: 1
     filters: 512
     size: 1
@@ -562,7 +541,7 @@ sub_models:
     pad: 1
     activation: leaky
 
-  - layer: convolutional
+  - type: convolutional
     batch_normalize: 1
     size: 3
     stride: 1
@@ -570,7 +549,7 @@ sub_models:
     filters: 1024
     activation: leaky
 
-  - layer: convolutional
+  - type: convolutional
     batch_normalize: 1
     filters: 512
     size: 1
@@ -578,7 +557,7 @@ sub_models:
     pad: 1
     activation: leaky
 
-  - layer: convolutional
+  - type: convolutional
     batch_normalize: 1
     size: 3
     stride: 1
@@ -586,7 +565,7 @@ sub_models:
     filters: 1024
     activation: leaky
 
-  - layer: convolutional
+  - type: convolutional
     batch_normalize: 1
     filters: 512
     size: 1
@@ -594,45 +573,35 @@ sub_models:
     pad: 1
     activation: leaky
 
-  - layer: convolutional
+  - type: convolutional
     batch_normalize: 1
     size: 3
     stride: 1
     pad: 1
     filters: 1024
     activation: leaky
-
-  - layer: convolutional
-    size: 1
-    stride: 1
-    pad: 1
-    filters: 255
-    activation: linear
 
 - name: head0
-  layers:
-  - layer: input
-    layers: -1
+  layers_config:
 
-  - layer: yolo
-    mask :  6,7,8
-    anchors :  10,13,  16,30,  33,23,  30,61,  62,45,  59,119,  116,90,  156,198,  373,326
-    classes: 80
-    num: 9
+  - type: convolutional
+    size: 1
+    stride: 1
+    pad: 1
+    filters: ngrids*(xy_field+wh_field+obj_field+nclasses)
+    activation: linear
+  - type: yolo
     jitter: .3
-    ignore_thresh :  .7
-    truth_thresh :  1
-    random: 1
+
 
 - name: neck1
-  layers:
-  - layer: input
-    layers: -1, 61
+  layers_config:
 
-  - layer: route
-    layers :  -4
+  - type: route
+    layers :
+    - -4
 
-  - layer: convolutional
+  - type: convolutional
     batch_normalize: 1
     filters: 256
     size: 1
@@ -640,13 +609,15 @@ sub_models:
     pad: 1
     activation: leaky
 
-  - layer: upsample
+  - type: upsample
     stride: 2
 
-  - layer: route
-    layers :  -1, 61
+  - type: route
+    layers :
+    - -1
+    - 61
 
-  - layer: convolutional
+  - type: convolutional
     batch_normalize: 1
     filters: 256
     size: 1
@@ -654,7 +625,7 @@ sub_models:
     pad: 1
     activation: leaky
 
-  - layer: convolutional
+  - type: convolutional
     batch_normalize: 1
     size: 3
     stride: 1
@@ -662,7 +633,7 @@ sub_models:
     filters: 512
     activation: leaky
 
-  - layer: convolutional
+  - type: convolutional
     batch_normalize: 1
     filters: 256
     size: 1
@@ -670,7 +641,7 @@ sub_models:
     pad: 1
     activation: leaky
 
-  - layer: convolutional
+  - type: convolutional
     batch_normalize: 1
     size: 3
     stride: 1
@@ -678,7 +649,7 @@ sub_models:
     filters: 512
     activation: leaky
 
-  - layer: convolutional
+  - type: convolutional
     batch_normalize: 1
     filters: 256
     size: 1
@@ -686,41 +657,34 @@ sub_models:
     pad: 1
     activation: leaky
 
-  - layer: convolutional
+  - type: convolutional
     batch_normalize: 1
     size: 3
     stride: 1
     pad: 1
     filters: 512
     activation: leaky
-
-  - layer: convolutional
-    size: 1
-    stride: 1
-    pad: 1
-    filters: 255
-    activation: linear
 
 - name: head1
-  layers:
-  - layer: yolo
-    mask :  3,4,5
-    anchors :  10,13,  16,30,  33,23,  30,61,  62,45,  59,119,  116,90,  156,198,  373,326
-    classes: 80
-    num: 9
+  layers_config:
+  - type: convolutional
+    size: 1
+    stride: 1
+    pad: 1
+    filters: ngrids*(xy_field+wh_field+obj_field+nclasses)
+    activation: linear
+
+  - type: yolo
     jitter: .3
-    ignore_thresh :  .7
-    truth_thresh :  1
-    random: 1
+
 - name: neck2
-  layers:
-  - layer: input
-    layers: -1, 36
+  layers_config:
 
-  - layer: route
-    layers :  -4
+  - type: route
+    layers :
+    - -4
 
-  - layer: convolutional
+  - type: convolutional
     batch_normalize: 1
     filters: 128
     size: 1
@@ -728,15 +692,17 @@ sub_models:
     pad: 1
     activation: leaky
 
-  - layer: upsample
+  - type: upsample
     stride: 2
 
-  - layer: route
-    layers :  -1, 36
+  - type: route
+    layers :
+    - -1
+    -  36
 
 
 
-  - layer: convolutional
+  - type: convolutional
     batch_normalize: 1
     filters: 128
     size: 1
@@ -744,7 +710,7 @@ sub_models:
     pad: 1
     activation: leaky
 
-  - layer: convolutional
+  - type: convolutional
     batch_normalize: 1
     size: 3
     stride: 1
@@ -752,7 +718,7 @@ sub_models:
     filters: 256
     activation: leaky
 
-  - layer: convolutional
+  - type: convolutional
     batch_normalize: 1
     filters: 128
     size: 1
@@ -760,7 +726,7 @@ sub_models:
     pad: 1
     activation: leaky
 
-  - layer: convolutional
+  - type: convolutional
     batch_normalize: 1
     size: 3
     stride: 1
@@ -768,7 +734,7 @@ sub_models:
     filters: 256
     activation: leaky
 
-  - layer: convolutional
+  - type: convolutional
     batch_normalize: 1
     filters: 128
     size: 1
@@ -776,7 +742,8 @@ sub_models:
     pad: 1
     activation: leaky
 
-  - layer: convolutional
+
+  - type: convolutional
     batch_normalize: 1
     size: 3
     stride: 1
@@ -784,23 +751,17 @@ sub_models:
     filters: 256
     activation: leaky
 
-  - layer: convolutional
-    size: 1
-    stride: 1
-    pad: 1
-    filters: 255
-    activation: linear
 - name: head2
-  layers:
-  - layer: yolo
-    mask :  0,1,2
-    anchors :  10,13,  16,30,  33,23,  30,61,  62,45,  59,119,  116,90,  156,198,  373,326
-    classes: 80
-    num: 9
+  layers_config:
+  - type: convolutional
+    size: 1
+    stride: 1
+    pad: 1
+    filters: ngrids*(xy_field+wh_field+obj_field+nclasses)
+    activation: linear
+
+  - type: yolo
     jitter: .3
-    ignore_thresh :  .7
-    truth_thresh :  1
-    random: 1
 
 
 
