@@ -16,6 +16,22 @@ from core.yolo_decode_layer import YoloDecoderLayer
 
 
 class Inference:
+    @staticmethod
+    def _do_inference(model, img_raw, image_size, class_names):
+        img = tf.expand_dims(img_raw, 0)
+        img = resize_image(img, image_size, image_size)
+        boxes, scores, classes, num_of_valid_detections = model(img, training=False)
+
+        detected_classes = [class_names[idx] for idx in classes[0]]
+        return boxes, scores, detected_classes, num_of_valid_detections
+
+    @staticmethod
+    def display_detections(img_raw, detected_classes, boxes, scores, yolo_max_boxes, bbox_color, font_size):
+        annotated_image = annotate_detections(img_raw, detected_classes, boxes, scores,
+                                                                        yolo_max_boxes, bbox_color, font_size)
+        plt.imshow(annotated_image)
+        plt.show()
+
 
     @staticmethod
     def _do_detection(model, img_raw, image_size, class_names, bbox_color, font_size, index, yolo_max_boxes, anchors_table,
@@ -100,21 +116,19 @@ class Inference:
         model = Model(inputs, decoded_output)
         model.summary()
 
-        # model.load_weights(weights).expect_partial()
+        model.load_weights(weights).expect_partial()
 
-        # print('weights loaded')
+        print('weights loaded')
 
         if input_data_source == 'tfrecords':
             dataset = parse_tfrecords(tfrecords_dir, image_size=image_size, max_bboxes=yolo_max_boxes, class_file=None)
             for index, dataset_entry in enumerate(dataset):
                 image = dataset_entry[0]
-                annotated_image, image_detections_result = self._do_detection(model, image, image_size, class_names,
-                                                                              yolo_max_boxes, bbox_color, font_size,
-                                                                              index)
-                self._dump_detections_text(image_detections_result, print_detections, detections_list_outfile)
-                out_filename = f'detect_{index}.jpg'
-                self._output_annotated_image(annotated_image, output_dir, out_filename, save_result_images,
-                                             display_result_images)
+
+                boxes, scores, detected_classes, num_of_valid_detections =  self._do_inference(model, image, image_size, class_names)
+
+                self.display_detections(image, detected_classes, boxes, scores, yolo_max_boxes, bbox_color, font_size)
+
         else:
             if input_data_source == 'image_file':
                 filenames = [image_file_path]
@@ -138,15 +152,22 @@ class Inference:
 
             for index, file in enumerate(filenames):
                 img_raw = tf.image.decode_image(open(file, 'rb').read(), channels=3)
+                img_raw = tf.cast(img_raw, tf.float32) / 255
+                boxes, scores, detected_classes, num_of_valid_detections = self._do_inference(model, img_raw, image_size,
+                                                                                              class_names)
 
-                annotated_image, image_detections_result = self._do_detection(model, img_raw / 255, image_size, class_names,
-                                                                              bbox_color, font_size,
-                                                                              index, yolo_max_boxes, anchors_table,
-                                                                              nms_iou_threshold, nms_score_threshold)
-                self._dump_detections_text(image_detections_result, print_detections, detections_list_outfile)
-                out_filename = f'detect_{index}.jpg'
-                self._output_annotated_image(annotated_image, output_dir, out_filename, save_result_images,
-                                             display_result_images)
+                self.display_detections(img_raw, detected_classes, boxes[0], scores[0], yolo_max_boxes, bbox_color, font_size)
+
+
+
+                # annotated_image, image_detections_result = self._do_detection(model, img_raw / 255, image_size, class_names,
+                #                                                               bbox_color, font_size,
+                #                                                               index, yolo_max_boxes, anchors_table,
+                #                                                               nms_iou_threshold, nms_score_threshold)
+                # self._dump_detections_text(image_detections_result, print_detections, detections_list_outfile)
+                # out_filename = f'detect_{index}.jpg'
+                # self._output_annotated_image(annotated_image, output_dir, out_filename, save_result_images,
+                #                              display_result_images)
 
 
 parser = argparse.ArgumentParser()
