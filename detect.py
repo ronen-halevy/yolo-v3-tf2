@@ -109,7 +109,6 @@ class Inference:
 
         output_layers, layers, inputs = parse_model_cfg(nclasses, **model_config)
 
-        # selected_boxes, selected_scores, selected_classes, num_of_valid_detections\
         decoded_output = YoloDecoderLayer(nclasses, yolo_max_boxes, anchors_table, nms_iou_threshold,
                                           nms_score_threshold)(output_layers)
 
@@ -158,7 +157,7 @@ class Inference:
 
                 self.display_detections(img_raw, detected_classes, boxes[0], scores[0], yolo_max_boxes, bbox_color, font_size)
 
-
+                # save to file - todo
 
                 # annotated_image, image_detections_result = self._do_detection(model, img_raw / 255, image_size, class_names,
                 #                                                               bbox_color, font_size,

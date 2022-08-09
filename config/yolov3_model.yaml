@@ -1,18 +1,11 @@
 ---
 
-#net:
 decay: 0.0005
 xy_field: 2
 wh_field: 2
 obj_field: 1
 ngrids: 3
 
-#learning_rate: 0.001
-#burn_in: 1000
-#max_batches: 500200
-#policy: steps
-#steps: 400000,450000
-#scales: .1,.1
 sub_models:
 - name: backbone
   layers_config:
