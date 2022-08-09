@@ -4,11 +4,10 @@ image_size: 416
 #max_detection_images: 25
 input_data_source:  image_file # [tfrecords, images_dir, image_file]
 display_result_images: True
-print_detections: False
 save_result_images: True
 yolo_max_boxes: 100
 nms_iou_threshold: 0.5
-nms_score_threshold: 0.5
+nms_score_threshold: 0.1
 bbox_color:
   - 1.
   - 1.

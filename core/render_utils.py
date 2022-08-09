@@ -84,7 +84,7 @@ def annotate_text(image_pil, bbox, class_name, score, font_size=30):
         color,
         display_str_list=[display_str], font_size=font_size)
 
-    return image_pil
+    return (display_str, xmin.numpy(), ymin.numpy(), xmax.numpy(), ymax.numpy())
 
 
 def annotate_detections(image, class_names, bboxes, scores, max_detections, bbox_color, font_size):
@@ -95,6 +95,8 @@ def annotate_detections(image, class_names, bboxes, scores, max_detections, bbox
     image = render_bboxes(tf.expand_dims(image, axis=0), tf.expand_dims(bboxes, axis=0), colors=[bbox_color])
 
     annotated_image = Image.fromarray(np.uint8(image * 255)).convert("RGB")
+    detections = []
     for idx, (bbox, class_name, score) in enumerate(zip(bboxes, class_names, scores)):
-        annotated_image = annotate_text(annotated_image, bbox, class_name, score, font_size)
-    return annotated_image
+        detection  = annotate_text(annotated_image, bbox, class_name, score, font_size)
+        detections.append(detection)
+    return annotated_image, detections

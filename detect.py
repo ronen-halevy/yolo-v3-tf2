@@ -27,36 +27,34 @@ class Inference:
 
     @staticmethod
     def display_detections(img_raw, detected_classes, boxes, scores, yolo_max_boxes, bbox_color, font_size):
-        annotated_image = annotate_detections(img_raw, detected_classes, boxes, scores,
+        annotated_image, detections = annotate_detections(img_raw, detected_classes, boxes, scores,
                                                                         yolo_max_boxes, bbox_color, font_size)
         plt.imshow(annotated_image)
         plt.show()
+        return annotated_image, detections
 
+
+    # @staticmethod
+    # def _do_detection(model, img_raw, image_size, class_names, bbox_color, font_size, index, yolo_max_boxes, anchors_table,
+    #                   nms_iou_threshold, nms_score_threshold):
+    #     img = tf.expand_dims(img_raw, 0)
+    #     img = resize_image(img, image_size, image_size)
+    #     boxes, scores, classes, nums = model(img, training=False)
+    #
+    #
+    #     detected_classes = [class_names[idx] for idx in classes[0]]
+    #
+    #     image_pil, num_annotated, num_score_skips = annotate_detections(img_raw, detected_classes, boxes[0], scores[0],
+    #                                                                     yolo_max_boxes, bbox_color, font_size)
+    #     image_detections_result = [f'#{index + 1} detected:{nums[0]}']
+    #     for i in range(nums[0]):
+    #         image_detections_result.append(
+    #             f'{class_names[int(classes[0][i])]}, {np.array(scores[0][i])}, {np.array(boxes[0][i])}')
+    #
+    #     return image_pil, image_detections_result
 
     @staticmethod
-    def _do_detection(model, img_raw, image_size, class_names, bbox_color, font_size, index, yolo_max_boxes, anchors_table,
-                      nms_iou_threshold, nms_score_threshold):
-        img = tf.expand_dims(img_raw, 0)
-        img = resize_image(img, image_size, image_size)
-        boxes, scores, classes, nums = model(img, training=False)
-
-
-        detected_classes = [class_names[idx] for idx in classes[0]]
-
-        image_pil, num_annotated, num_score_skips = annotate_detections(img_raw, detected_classes, boxes[0], scores[0],
-                                                                        yolo_max_boxes, bbox_color, font_size)
-        image_detections_result = [f'#{index + 1} detected:{nums[0]}']
-        for i in range(nums[0]):
-            image_detections_result.append(
-                f'{class_names[int(classes[0][i])]}, {np.array(scores[0][i])}, {np.array(boxes[0][i])}')
-
-        return image_pil, image_detections_result
-
-    @staticmethod
-    def _dump_detections_text(image_detections_result, print_detections, detections_list_outfile):
-        if print_detections:
-            print(image_detections_result)
-
+    def _dump_detections_text(image_detections_result, detections_list_outfile):
         detections_list_outfile.write(f'{image_detections_result}\n')
         detections_list_outfile.flush()
 
@@ -65,9 +63,6 @@ class Inference:
         outfile_path = f'{output_dir}/{out_filename}'
         if save_result_images:
             annotated_image.save(outfile_path)
-        if display_result_images:
-            plt.imshow(annotated_image)
-            plt.show()
 
     def __call__(self,
                  model_config_file,
@@ -84,7 +79,6 @@ class Inference:
                  nms_iou_threshold,
                  nms_score_threshold,
                  display_result_images,
-                 print_detections,
                  save_result_images,
                  bbox_color,
                  font_size
@@ -155,18 +149,11 @@ class Inference:
                 boxes, scores, detected_classes, num_of_valid_detections = self._do_inference(model, img_raw, image_size,
                                                                                               class_names)
 
-                self.display_detections(img_raw, detected_classes, boxes[0], scores[0], yolo_max_boxes, bbox_color, font_size)
-
-                # save to file - todo
-
-                # annotated_image, image_detections_result = self._do_detection(model, img_raw / 255, image_size, class_names,
-                #                                                               bbox_color, font_size,
-                #                                                               index, yolo_max_boxes, anchors_table,
-                #                                                               nms_iou_threshold, nms_score_threshold)
-                # self._dump_detections_text(image_detections_result, print_detections, detections_list_outfile)
-                # out_filename = f'detect_{index}.jpg'
-                # self._output_annotated_image(annotated_image, output_dir, out_filename, save_result_images,
-                #                              display_result_images)
+                annotated_image, detections = self.display_detections(img_raw, detected_classes, boxes[0], scores[0], yolo_max_boxes, bbox_color, font_size)
+                self._dump_detections_text(detections, detections_list_outfile)
+                outfile_path = f'{output_dir}/detect_{index}.jpg'
+                # if save_result_images:
+                annotated_image.save(outfile_path)
 
 
 parser = argparse.ArgumentParser()
