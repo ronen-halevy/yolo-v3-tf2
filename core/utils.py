@@ -40,5 +40,8 @@ def get_anchors(anchors_file):
     return anchors_table
 
 
-
+def count_file_lines(filename):
+    with open(filename, 'r') as fp:
+        nlines = len(fp.readlines())
+    return nlines
 
