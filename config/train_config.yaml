@@ -13,23 +13,32 @@
 
 # dataset:
 input_data_source: tfrecords # images_dir_annot_file # [tfrecords, images_dir_annot_file, coco_debug_data]
-tfrecords_base_dir: datasets/shapes/two_colors/input/tfrecords
+#tfrecords:
+train_tfrecords: datasets/shapes/two_colors/input/tfrecords/train
+val_tfrecords: datasets/shapes/two_colors/input/tfrecords/val
+#plain_dataset:
 images_dir: datasets/shapes/three_mixed_shapes/red/input/images_and_annotations/images # directory location of input images used in non-tfrecords mode
-dataset_repeats: 0
-max_bboxes: 100
-batch_size: 8
-epochs: 1000
-
-
-model_config_file: config/yolov3_model.yaml
+annotations_path: datasets/shapes/three_mixed_shapes/red/input/images_and_annotations/annotations/annotations.yaml
 classes_name_file: datasets/shapes/two_colors/class.names # 'datasets/shapes/class.names'
 anchors_file: datasets/shapes/anchors/shapes_yolov3_anchors.txt
-annotations_path: datasets/shapes/three_mixed_shapes/red/input/images_and_annotations/annotations/annotations.yaml
-image_size: 416
 dataset_cuttof_size: null # null or size limit value
 
-#weights transfer
+dataset_repeats: 0
+max_bboxes: 100
 
+#model
+model_config_file: config/yolov3_model.yaml
+image_size: 416
+
+#algorithm
+mode: fit # eager_tf # fit # 'model execution mode. choices=[eager_tf, fit]'
+batch_size: 8
+epochs: 1000
+learning_rate: 0.001
+early_stopping: False # enables early_stopping callback
+early_stop_patience: 13 # an early_stopping callback parameter
+
+#weights transfer
 
 load_weights: False # backbone, backbone_and_neck, all, none
 training_mode:
@@ -38,15 +47,13 @@ training_mode:
   - head: enable  #enable, freeze, fine_tune
 load_checkpoints_path: checkpoints/yolov3_train1.tf # checkpoints/yolov3_train_rb_circles.tf #'checkpoints/yolov3_train_newclass5.tf' #path to pretrained weights file
 
+
 # operation modes
-debug_mode: False # Debug step-by-step trace graph mode functions
-render_dataset_example: False
-learning_rate: 0.001
-early_stopping: False # enables early_stopping callback
-mode: fit # eager_tf # fit # 'model execution mode. choices=[eager_tf, fit]'
-early_stop_patience: 13 # an early_stopping callback parameter
+debug_mode: False #  run developpers' test code lines
+
 
 #output setup
+render_dataset_example: False
 weights_save_peroid: 4
 output_checkpoints_path: checkpoints/yolov3_train.tf # prefix of path checkpoints save
 

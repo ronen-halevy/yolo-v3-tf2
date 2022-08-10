@@ -181,15 +181,17 @@ class Train:
                  dataset_cuttof_size,
                  dataset_repeats,
                  load_weights,
-                 annotations_path,
                  images_dir,
-                 tfrecords_base_dir,
+                 annotations_path,
+                 train_tfrecords,
+                 val_tfrecords,
                  classes_name_file,
                  output_checkpoints_path,
                  load_checkpoints_path,
                  early_stopping,
                  weights_save_peroid,
-                 training_mode
+                 training_mode,
+                 **kwargs
                  ):
 
         grid_sizes_table = np.array([13, 26, 52])
@@ -201,8 +203,8 @@ class Train:
 
         dataset = []
         if input_data_source == 'tfrecords':
-            tfrecords_dir_train = f'{tfrecords_base_dir}/train'
-            tfrecords_dir_val = f'{tfrecords_base_dir}/val'
+            tfrecords_dir_train = f'{train_tfrecords}'
+            tfrecords_dir_val = f'{val_tfrecords}'
             for ds_dir in [tfrecords_dir_train, tfrecords_dir_val]:
                 dset = parse_tfrecords(
                     ds_dir, image_size, max_bboxes, classes_name_file)
@@ -244,10 +246,6 @@ class Train:
         output_layers, layers, inputs = parse_model_cfg(nclasses, **model_config)
 
         model = Model(inputs, output_layers)
-
-
-
-
 
         with open("model_summary.txt", "w") as file1:
             model.summary(print_fn=lambda x: file1.write(x + '\n'))
