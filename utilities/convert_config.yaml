@@ -1,3 +1,4 @@
+model_config_file: ../config/yolov3_model.yaml
 weights_file: ../weights/coco/coco2012/yolov3.weights
 output_weights_file: ../checkpoints/keras_coco_yolov3.tf
 num_classes: 80
