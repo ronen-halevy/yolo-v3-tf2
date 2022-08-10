@@ -28,11 +28,10 @@ class Inference:
     @staticmethod
     def display_detections(img_raw, detected_classes, boxes, scores, yolo_max_boxes, bbox_color, font_size):
         annotated_image, detections = annotate_detections(img_raw, detected_classes, boxes, scores,
-                                                                        yolo_max_boxes, bbox_color, font_size)
+                                                          yolo_max_boxes, bbox_color, font_size)
         plt.imshow(annotated_image)
         plt.show()
         return annotated_image, detections
-
 
     # @staticmethod
     # def _do_detection(model, img_raw, image_size, class_names, bbox_color, font_size, index, yolo_max_boxes, anchors_table,
@@ -98,10 +97,7 @@ class Inference:
         class_names = [c.strip() for c in open(classes).readlines()]
         nclasses = len(class_names)
 
-        with open(model_config_file, 'r') as stream:
-            model_config = yaml.safe_load(stream)
-
-        output_layers, layers, inputs = parse_model_cfg(nclasses, **model_config)
+        output_layers, layers, inputs = parse_model_cfg(nclasses, model_config_file)
 
         decoded_output = YoloDecoderLayer(nclasses, yolo_max_boxes, anchors_table, nms_iou_threshold,
                                           nms_score_threshold)(output_layers)
@@ -118,7 +114,8 @@ class Inference:
             for index, dataset_entry in enumerate(dataset):
                 image = dataset_entry[0]
 
-                boxes, scores, detected_classes, num_of_valid_detections =  self._do_inference(model, image, image_size, class_names)
+                boxes, scores, detected_classes, num_of_valid_detections = self._do_inference(model, image, image_size,
+                                                                                              class_names)
 
                 self.display_detections(image, detected_classes, boxes, scores, yolo_max_boxes, bbox_color, font_size)
 
@@ -146,10 +143,12 @@ class Inference:
             for index, file in enumerate(filenames):
                 img_raw = tf.image.decode_image(open(file, 'rb').read(), channels=3)
                 img_raw = tf.cast(img_raw, tf.float32) / 255
-                boxes, scores, detected_classes, num_of_valid_detections = self._do_inference(model, img_raw, image_size,
+                boxes, scores, detected_classes, num_of_valid_detections = self._do_inference(model, img_raw,
+                                                                                              image_size,
                                                                                               class_names)
 
-                annotated_image, detections = self.display_detections(img_raw, detected_classes, boxes[0], scores[0], yolo_max_boxes, bbox_color, font_size)
+                annotated_image, detections = self.display_detections(img_raw, detected_classes, boxes[0], scores[0],
+                                                                      yolo_max_boxes, bbox_color, font_size)
                 self._dump_detections_text(detections, detections_list_outfile)
                 outfile_path = f'{output_dir}/detect_{index}.jpg'
                 # if save_result_images:
