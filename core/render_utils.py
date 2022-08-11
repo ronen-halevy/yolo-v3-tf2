@@ -75,16 +75,16 @@ def annotate_text(image_pil, bbox, class_name, score, font_size=30):
     colors = list(ImageColor.colormap.values())
     color = colors[hash(class_name) % len(colors)]
 
-    display_str = "{}: {}%".format(class_name,
+    detections_str = "{}: {}%".format(class_name,
                                    int(100 * score))
     image_pil = draw_text_on_bounding_box(
         image_pil,
         ymin,
         xmin,
         color,
-        display_str_list=[display_str], font_size=font_size)
+        display_str_list=[detections_str], font_size=font_size)
 
-    return (display_str, xmin.numpy(), ymin.numpy(), xmax.numpy(), ymax.numpy())
+    return (detections_str, xmin.numpy(), ymin.numpy(), xmax.numpy(), ymax.numpy())
 
 
 def annotate_detections(image, class_names, bboxes, scores, max_detections, bbox_color, font_size):

@@ -23,10 +23,6 @@ def parse_model_cfg(nclasses, model_config_file):
         model_config = yaml.safe_load(stream)
     sub_models = model_config['sub_models']
     decay = model_config['decay']
-    xy_field = model_config['xy_field']
-    wh_field = model_config['wh_field']
-    obj_field = model_config['obj_field']
-    ngrids = model_config['ngrids']
 
     inputs = Input(shape=(None, None, 3))
 
@@ -38,7 +34,7 @@ def parse_model_cfg(nclasses, model_config_file):
             layer_type = layer_conf['type']
 
             if layer_type == 'convolutional':
-                if isinstance(layer_conf['filters'], str): # eval('ngrids*(xy_field+wh_field+obj_field+nclasses)')
+                if isinstance(layer_conf['filters'], str):  # eval('3*(2+2+1+nclasses)')
                     layer_conf['filters'] = eval(layer_conf['filters'])
                 x, layers = _parse_convolutional(x, layer_conf, layers, decay)
 
@@ -47,8 +43,7 @@ def parse_model_cfg(nclasses, model_config_file):
                 x, layers = _parse_shortcut(x, layer_conf, layers)
 
             elif layer_type == 'yolo':
-                x, layers, output_layers = _parse_yolo(x, nclasses, layers, output_layers, ngrids, xy_field, wh_field,
-                                                       obj_field)
+                x, layers, output_layers = _parse_yolo(x, nclasses, layers, output_layers)
 
             elif layer_type == 'route':
                 x, layers = _parse_route(x, layer_conf, layers)
@@ -202,7 +197,7 @@ def _parse_shortcut(x, layer_conf, layers):
     return x, layers
 
 
-def _parse_yolo(x, nclasses, layers, output_layers, ngrids, xy_field, wh_field, obj_field):
+def _parse_yolo(x, nclasses, layers, output_layers):
     """
 
     :param x:
@@ -213,17 +208,12 @@ def _parse_yolo(x, nclasses, layers, output_layers, ngrids, xy_field, wh_field, 
     :type layers:
     :param output_layers:
     :type output_layers:
-    :param ngrids:
-    :type ngrids:
-    :param xy_field:
-    :type xy_field:
-    :param wh_field:
-    :type wh_field:
-    :param obj_field:
-    :type obj_field:
     :return:
     :rtype:
     """
+
+    ngrids, xy_field, wh_field, obj_field = 3, 2, 2, 1
+
     x = Lambda(lambda xx: tf.reshape(xx, (-1, tf.shape(xx)[1], tf.shape(xx)[2],
                                           ngrids,
                                           nclasses + (xy_field + wh_field + obj_field))))(

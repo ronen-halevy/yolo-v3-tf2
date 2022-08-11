@@ -1,10 +1,6 @@
 ---
 
 decay: 0.0005
-xy_field: 2
-wh_field: 2
-obj_field: 1
-ngrids: 3
 
 sub_models:
 - name: backbone
@@ -581,7 +577,7 @@ sub_models:
     size: 1
     stride: 1
     pad: 1
-    filters: ngrids*(xy_field+wh_field+obj_field+nclasses)
+    filters:  3*(2+2+1+nclasses) # ngrids*(xy_field+wh_field+obj_field+nclasses)
     activation: linear
   - type: yolo
     jitter: .3
@@ -664,7 +660,7 @@ sub_models:
     size: 1
     stride: 1
     pad: 1
-    filters: ngrids*(xy_field+wh_field+obj_field+nclasses)
+    filters: 3*(2+2+1+nclasses) # ngrids*(xy_field+wh_field+obj_field+nclasses)
     activation: linear
 
   - type: yolo
@@ -750,7 +746,7 @@ sub_models:
     size: 1
     stride: 1
     pad: 1
-    filters: ngrids*(xy_field+wh_field+obj_field+nclasses)
+    filters:  3*(2+2+1+nclasses) # ngrids*(xy_field+wh_field+obj_field+nclasses)
     activation: linear
 
   - type: yolo

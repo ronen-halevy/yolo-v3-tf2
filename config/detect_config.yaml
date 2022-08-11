@@ -16,9 +16,9 @@ bbox_color:
 font_size: 15
 classes: datasets/shapes/two_colors/class.names  #./datasets/shapes/class.names
 anchors_file: datasets/shapes/anchors/shapes_yolov3_anchors.txt
-weights:    weights/rb_circles/yolov3_train_rb_circles4.tf
-images_dir: datasets/shapes/three_mixed_shapes/blue/input/images_and_annotations_file/images
-                datasets/shapes/colors_circles_triangles_trapezoid_2sizes/input/tfrecords/test
+weights:   datasets/shapes/two_colors/output/weights/yolov3_train3colors500epocs.tf #  #  weights/rb_circles/yolov3_train_rb_circles4.tf
+images_dir: datasets/shapes/three_circles/input/images_and_annotations_file/images # datasets/shapes/three_mixed_shapes/blue/input/images_and_annotations_file/images
+                # datasets/shapes/colors_circles_triangles_trapezoid_2sizes/input/tfrecords/test
 tfrecords_dir:  datasets/shapes/three_mixed_shapes/red/input/tfrecords/test
 #datasets/shapes/two_colors/input/tfrecords/test
 #datasets/shapes/colors_circles_triangles/input/tfrecords/test
@@ -26,4 +26,4 @@ tfrecords_dir:  datasets/shapes/three_mixed_shapes/red/input/tfrecords/test
 # datasets/shapes/two_colors/input/tfrecords/test
 # datasets/shapes/three_mixed_shapes/blue/input/tfrecords/test
 image_file_path: datasets/shapes/three_circles/input/images_and_annotations_file/images/000001.jpg
-output_dir: datasets/shapes/three_mixed_shapes/blue/output
+output_dir: datasets/shapes/three_circles/output # datasets/shapes/three_mixed_shapes/blue/output
