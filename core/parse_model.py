@@ -54,7 +54,7 @@ class ParseModel:
 
                 else:
                     raise ValueError('{} not recognized as layer_conf type'.format(layer_type))
-        model = Model(inputs, output_layers)
+        model = Model(inputs, output_layers, name="yolo")
         return model, inputs
 
     @staticmethod

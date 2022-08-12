@@ -22,7 +22,7 @@ class Inference:
     def _do_inference(model, img_raw, image_size, class_names):
         img = tf.expand_dims(img_raw, 0)
         img = resize_image(img, image_size, image_size)
-        boxes, scores, classes, num_of_valid_detections = model.predict(img)#, training=False)
+        boxes, scores, classes, num_of_valid_detections = model.predict(img)
 
         if tf.equal(num_of_valid_detections, 0):
             raise NoDetectionsFound
@@ -101,10 +101,15 @@ class Inference:
         parse_model = ParseModel()
         model, inputs = parse_model.build_model(inputs, nclasses, model_config_file)
         model = model(inputs)
-        decoded_output = YoloDecoderLayer(nclasses, yolo_max_boxes, anchors_table, nms_iou_threshold,
-                                          nms_score_threshold)(model)
-        model = Model(inputs, decoded_output, name="dddd")
-        # print(model.summary())
+
+        decoded_output = YoloDecoderLayer(nclasses, anchors_table)(model)
+        model_decoded = Model(inputs, decoded_output, name="yolo_decoded")(inputs)
+        from core.yolo_nms_layer import YoloNmsLayer
+        nms_output = YoloNmsLayer(yolo_max_boxes, nms_iou_threshold,
+                                  nms_score_threshold)(model_decoded)
+        model = Model(inputs, nms_output, name="yolo_nms")
+
+        print(model.summary())
 
         model.load_weights(weights).expect_partial()
 
@@ -132,6 +137,7 @@ class Inference:
                 img_raw = tf.image.decode_image(open(file, 'rb').read(), channels=3, dtype=tf.float32)
                 self._inference(model, img_raw, image_size, yolo_max_boxes, bbox_color, font_size, class_names, index,
                                 output_dir, detections_list_outfile)
+
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--config", type=str, default='config/detect_config.yaml',
