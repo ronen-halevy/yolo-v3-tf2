@@ -27,7 +27,7 @@ from core.render_utils import render_bboxes
 
 from core.preprocess_dataset import PreprocessDataset
 from core.loss_func import get_loss_func
-from core.parse_model import parse_model_cfg
+from core.parse_model import ParseModel
 
 from core.load_tfrecords import parse_tfrecords
 from core.load_dataset import load_dataset, load_debug_dataset
@@ -184,11 +184,12 @@ class Train:
             plt.imshow(image)
             plt.show()
 
-        output_layers, layers, inputs = parse_model_cfg(nclasses, model_config_file)
-        model = Model(inputs, output_layers)
+        inputs = Input(shape=(None, None, 3))
+        parse_model = ParseModel()
+        model, _= parse_model.build_model(inputs, nclasses, model_config_file)
 
-        with open("model_summary.txt", "w") as file1:
-            model.summary(print_fn=lambda x: file1.write(x + '\n'))
+        # with open("model_summary.txt", "w") as file1:
+        #     model.summary(print_fn=lambda x: file1.write(x + '\n'))
 
         optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
 
@@ -210,8 +211,8 @@ class Train:
 
         ds_train, ds_val = ds_preprocessed
 
-        if load_weights:
-            model.load_weights(load_checkpoints_path)
+        # if load_weights:
+        #     model.load_weights(load_checkpoints_path)
 
         if mode == 'eager_tf':
             self._train_eager_mode(model, ds_train, ds_val, loss_fn_list, optimizer, batch_size, epochs,

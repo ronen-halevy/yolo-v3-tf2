@@ -11,7 +11,7 @@ from core.decode_detections import decode_detections
 from core.utils import get_anchors, resize_image
 from core.render_utils import annotate_detections
 from core.load_tfrecords import parse_tfrecords
-from core.parse_model import parse_model_cfg
+from core.parse_model import ParseModel
 from core.yolo_decode_layer import YoloDecoderLayer
 
 from core.exceptions import NoDetectionsFound
@@ -97,12 +97,15 @@ class Inference:
         class_names = [c.strip() for c in open(classes).readlines()]
         nclasses = len(class_names)
 
-        output_layers, layers, inputs = parse_model_cfg(nclasses, model_config_file)
-
+        inputs = Input(shape=(None, None, 3))
+        parse_model = ParseModel()
+        model, inputs = parse_model.build_model(inputs, nclasses, model_config_file)
+        model = model(inputs)
         decoded_output = YoloDecoderLayer(nclasses, yolo_max_boxes, anchors_table, nms_iou_threshold,
-                                          nms_score_threshold)(output_layers)
+                                          nms_score_threshold)(model)
+        model = Model(inputs, decoded_output, name="dddd")
+        # print(model.summary())
 
-        model = Model(inputs, decoded_output)
         model.load_weights(weights).expect_partial()
 
         print('weights loaded')
