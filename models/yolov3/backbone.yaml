@@ -1,0 +1,518 @@
+---
+sub_models:
+- name: backbone
+  layers_config:
+  - type: route
+    source:
+      inputs: 0 # field value is don't care if inputs is a scalar
+
+  - type: convolutional
+    batch_normalize: 1
+    filters: 32
+    size: 3
+    stride: 1
+    pad: 1
+    activation: leaky
+
+  - type: convolutional
+    batch_normalize: 1
+    filters: 64
+    size: 3
+    stride: 2
+    pad: 1
+    activation: leaky
+
+  - type: convolutional
+    batch_normalize: 1
+    filters: 32
+    size: 1
+    stride: 1
+    pad: 1
+    activation: leaky
+
+  - type: convolutional
+    batch_normalize: 1
+    filters: 64
+    size: 3
+    stride: 1
+    pad: 1
+    activation: leaky
+
+  - type: shortcut
+    from: -3
+    activation: linear
+
+  - type: convolutional
+    batch_normalize: 1
+    filters: 128
+    size: 3
+    stride: 2
+    pad: 1
+    activation: leaky
+
+  - type: convolutional
+    batch_normalize: 1
+    filters: 64
+    size: 1
+    stride: 1
+    pad: 1
+    activation: leaky
+
+  - type: convolutional
+    batch_normalize: 1
+    filters: 128
+    size: 3
+    stride: 1
+    pad: 1
+    activation: leaky
+
+  - type: shortcut
+    from: -3
+    activation: linear
+
+  - type: convolutional
+    batch_normalize: 1
+    filters: 64
+    size: 1
+    stride: 1
+    pad: 1
+    activation: leaky
+
+  - type: convolutional
+    batch_normalize: 1
+    filters: 128
+    size: 3
+    stride: 1
+    pad: 1
+    activation: leaky
+
+  - type: shortcut
+    from: -3
+    activation: linear
+
+  - type: convolutional
+    batch_normalize: 1
+    filters: 256
+    size: 3
+    stride: 2
+    pad: 1
+    activation: leaky
+
+  - type: convolutional
+    batch_normalize: 1
+    filters: 128
+    size: 1
+    stride: 1
+    pad: 1
+    activation: leaky
+
+  - type: convolutional
+    batch_normalize: 1
+    filters: 256
+    size: 3
+    stride: 1
+    pad: 1
+    activation: leaky
+
+  - type: shortcut
+    from: -3
+    activation: linear
+
+  - type: convolutional
+    batch_normalize: 1
+    filters: 128
+    size: 1
+    stride: 1
+    pad: 1
+    activation: leaky
+
+  - type: convolutional
+    batch_normalize: 1
+    filters: 256
+    size: 3
+    stride: 1
+    pad: 1
+    activation: leaky
+
+  - type: shortcut
+    from: -3
+    activation: linear
+
+  - type: convolutional
+    batch_normalize: 1
+    filters: 128
+    size: 1
+    stride: 1
+    pad: 1
+    activation: leaky
+
+  - type: convolutional
+    batch_normalize: 1
+    filters: 256
+    size: 3
+    stride: 1
+    pad: 1
+    activation: leaky
+
+  - type: shortcut
+    from: -3
+    activation: linear
+
+  - type: convolutional
+    batch_normalize: 1
+    filters: 128
+    size: 1
+    stride: 1
+    pad: 1
+    activation: leaky
+
+  - type: convolutional
+    batch_normalize: 1
+    filters: 256
+    size: 3
+    stride: 1
+    pad: 1
+    activation: leaky
+
+  - type: shortcut
+    from: -3
+    activation: linear
+
+
+  - type: convolutional
+    batch_normalize: 1
+    filters: 128
+    size: 1
+    stride: 1
+    pad: 1
+    activation: leaky
+
+  - type: convolutional
+    batch_normalize: 1
+    filters: 256
+    size: 3
+    stride: 1
+    pad: 1
+    activation: leaky
+
+  - type: shortcut
+    from: -3
+    activation: linear
+
+  - type: convolutional
+    batch_normalize: 1
+    filters: 128
+    size: 1
+    stride: 1
+    pad: 1
+    activation: leaky
+
+  - type: convolutional
+    batch_normalize: 1
+    filters: 256
+    size: 3
+    stride: 1
+    pad: 1
+    activation: leaky
+
+  - type: shortcut
+    from: -3
+    activation: linear
+
+  - type: convolutional
+    batch_normalize: 1
+    filters: 128
+    size: 1
+    stride: 1
+    pad: 1
+    activation: leaky
+
+  - type: convolutional
+    batch_normalize: 1
+    filters: 256
+    size: 3
+    stride: 1
+    pad: 1
+    activation: leaky
+
+  - type: shortcut
+    from: -3
+    activation: linear
+
+  - type: convolutional
+    batch_normalize: 1
+    filters: 128
+    size: 1
+    stride: 1
+    pad: 1
+    activation: leaky
+
+  - type: convolutional
+    batch_normalize: 1
+    filters: 256
+    size: 3
+    stride: 1
+    pad: 1
+    activation: leaky
+
+  - type: shortcut
+    from: -3
+    activation: linear
+
+  - type: convolutional
+    batch_normalize: 1
+    filters: 512
+    size: 3
+    stride: 2
+    pad: 1
+    activation: leaky
+
+  - type: convolutional
+    batch_normalize: 1
+    filters: 256
+    size: 1
+    stride: 1
+    pad: 1
+    activation: leaky
+
+  - type: convolutional
+    batch_normalize: 1
+    filters: 512
+    size: 3
+    stride: 1
+    pad: 1
+    activation: leaky
+
+  - type: shortcut
+    from: -3
+    activation: linear
+
+  - type: convolutional
+    batch_normalize: 1
+    filters: 256
+    size: 1
+    stride: 1
+    pad: 1
+    activation: leaky
+
+  - type: convolutional
+    batch_normalize: 1
+    filters: 512
+    size: 3
+    stride: 1
+    pad: 1
+    activation: leaky
+
+  - type: shortcut
+    from: -3
+    activation: linear
+
+  - type: convolutional
+    batch_normalize: 1
+    filters: 256
+    size: 1
+    stride: 1
+    pad: 1
+    activation: leaky
+
+  - type: convolutional
+    batch_normalize: 1
+    filters: 512
+    size: 3
+    stride: 1
+    pad: 1
+    activation: leaky
+
+  - type: shortcut
+    from: -3
+    activation: linear
+
+  - type: convolutional
+    batch_normalize: 1
+    filters: 256
+    size: 1
+    stride: 1
+    pad: 1
+    activation: leaky
+
+  - type: convolutional
+    batch_normalize: 1
+    filters: 512
+    size: 3
+    stride: 1
+    pad: 1
+    activation: leaky
+
+  - type: shortcut
+    from: -3
+    activation: linear
+
+  - type: convolutional
+    batch_normalize: 1
+    filters: 256
+    size: 1
+    stride: 1
+    pad: 1
+    activation: leaky
+
+  - type: convolutional
+    batch_normalize: 1
+    filters: 512
+    size: 3
+    stride: 1
+    pad: 1
+    activation: leaky
+
+  - type: shortcut
+    from: -3
+    activation: linear
+
+
+  - type: convolutional
+    batch_normalize: 1
+    filters: 256
+    size: 1
+    stride: 1
+    pad: 1
+    activation: leaky
+
+  - type: convolutional
+    batch_normalize: 1
+    filters: 512
+    size: 3
+    stride: 1
+    pad: 1
+    activation: leaky
+
+  - type: shortcut
+    from: -3
+    activation: linear
+
+
+  - type: convolutional
+    batch_normalize: 1
+    filters: 256
+    size: 1
+    stride: 1
+    pad: 1
+    activation: leaky
+
+  - type: convolutional
+    batch_normalize: 1
+    filters: 512
+    size: 3
+    stride: 1
+    pad: 1
+    activation: leaky
+
+  - type: shortcut
+    from: -3
+    activation: linear
+
+  - type: convolutional
+    batch_normalize: 1
+    filters: 256
+    size: 1
+    stride: 1
+    pad: 1
+    activation: leaky
+
+  - type: convolutional
+    batch_normalize: 1
+    filters: 512
+    size: 3
+    stride: 1
+    pad: 1
+    activation: leaky
+
+  - type: shortcut
+    from: -3
+    activation: linear
+
+  - type: convolutional
+    batch_normalize: 1
+    filters: 1024
+    size: 3
+    stride: 2
+    pad: 1
+    activation: leaky
+
+  - type: convolutional
+    batch_normalize: 1
+    filters: 512
+    size: 1
+    stride: 1
+    pad: 1
+    activation: leaky
+
+  - type: convolutional
+    batch_normalize: 1
+    filters: 1024
+    size: 3
+    stride: 1
+    pad: 1
+    activation: leaky
+
+  - type: shortcut
+    from: -3
+    activation: linear
+
+  - type: convolutional
+    batch_normalize: 1
+    filters: 512
+    size: 1
+    stride: 1
+    pad: 1
+    activation: leaky
+
+  - type: convolutional
+    batch_normalize: 1
+    filters: 1024
+    size: 3
+    stride: 1
+    pad: 1
+    activation: leaky
+
+  - type: shortcut
+    from: -3
+    activation: linear
+
+  - type: convolutional
+    batch_normalize: 1
+    filters: 512
+    size: 1
+    stride: 1
+    pad: 1
+    activation: leaky
+
+  - type: convolutional
+    batch_normalize: 1
+    filters: 1024
+    size: 3
+    stride: 1
+    pad: 1
+    activation: leaky
+
+  - type: shortcut
+    from: -3
+    activation: linear
+
+  - type: convolutional
+    batch_normalize: 1
+    filters: 512
+    size: 1
+    stride: 1
+    pad: 1
+    activation: leaky
+
+  - type: convolutional
+    batch_normalize: 1
+    filters: 1024
+    size: 3
+    stride: 1
+    pad: 1
+    activation: leaky
+
+  - type: shortcut
+    from: -3
+    activation: linear

@@ -1,0 +1,64 @@
+---
+
+sub_models:
+- name: backbone
+  inputs: #  inputs can hold either a hardcoded shape or a list of sub-model outputs sources.
+    shape: "[None, None, 3]"
+  layers_config_file: backbone.yaml
+  outputs_layers: # Set outputs layers as a list or as a scalar according to topology
+  - 36
+  - 61
+  - -1
+
+- name: neck0
+  inputs:  #  inputs can hold either a hardcoded shape or a list of sub-model outputs sources.
+    sources:
+    - name: backbone
+      entries: # entries filed is needed for a list source. Otherwise - filed is redundant
+      - 2
+  layers_config_file: neck0.yaml
+  outputs_layers: -1 # Set outputs layers as a list or as a scalar according to topology
+
+- name: head0
+  inputs:
+    sources:
+    - name: neck0
+      entries: field_is redundant # entries filed is needed for a list source. Otherwise - filed is redundant
+  layers_config_file: head.yaml
+  outputs_layers: -1
+
+- name: neck1
+  inputs:
+  sources:
+  - name: backbone
+    entries:
+    - 1
+  - name: neck0
+  layers_config_file: neck1.yaml
+  outputs_layers: -1  # Set outputs layers as a list or as a scalar according to topology
+
+- name: head1
+  inputs:
+    sources:
+    - name: neck1
+      entries: field_is redundant # entries filed is needed for a list source. Otherwise - filed is redundant
+  layers_config_file: head.yaml
+  outputs_layers: -1  # Set outputs layers as a list or as a scalar according to topology
+
+- name: neck2
+  inputs:
+    sources:
+    - name: neck1
+    - name: backbone
+      entries:
+      - 0
+  layers_config_file: neck2.yaml
+  outputs_layers: -1  # Set outputs layers as a list or as a scalar according to topology
+
+- name: head2
+  inputs:
+    source:
+    - name: neck2
+  layers_config_file: head.yaml
+  outputs_layers: -1  # Set outputs layers as a list or as a scalar according to topology
+
