@@ -17,8 +17,8 @@ input_data_source: tfrecords # images_dir_annot_file # [tfrecords, images_dir_an
 train_tfrecords: datasets/shapes/two_colors/input/tfrecords/train
 val_tfrecords: datasets/shapes/two_colors/input/tfrecords/val
 #plain_dataset:
-images_dir: datasets/shapes/three_mixed_shapes/red/input/images_and_annotations/images # directory location of input images used in non-tfrecords mode
-annotations_path: datasets/shapes/three_mixed_shapes/red/input/images_and_annotations/annotations/annotations.yaml
+images_dir: datasets/shapes/three_circles/input/images_and_annotations_file/images #datasets/shapes/three_mixed_shapes/red/input/images_and_annotations/images # directory location of input images used in non-tfrecords mode
+annotations_path: ddatasets/shapes/three_circles/input/images_and_annotations_file/annotations.yaml
 classes_name_file: datasets/shapes/two_colors/class.names # 'datasets/shapes/class.names'
 anchors_file: datasets/shapes/anchors/shapes_yolov3_anchors.txt
 dataset_cuttof_size: null # null or size limit value
@@ -27,7 +27,7 @@ dataset_repeats: 0
 max_bboxes: 100
 
 #model
-model_config_file: config/yolov3_model.yaml
+model_config_file: models/yolov3/model.yaml # config/yolov3_model.yaml
 image_size: 416
 
 #algorithm
@@ -40,7 +40,7 @@ early_stop_patience: 13 # an early_stopping callback parameter
 
 #weights transfer
 
-load_weights: False # backbone, backbone_and_neck, all, none
+load_weights: True # backbone, backbone_and_neck, all, none
 training_mode:
   - backbone: enable #enable, freeze, fine_tune
   - neck: enable  #enable, freeze, fine_tune

@@ -1,64 +1,70 @@
 ---
-
-sub_models:
+decay_factor: 0.0005
+sub_models_configs:
 - name: backbone
-  inputs: #  inputs can hold either a hardcoded shape or a list of sub-model outputs sources.
+  inputs: #  inputs can hold either a hardcoded shape or a list of sub-model outputs source.
     shape: "[None, None, 3]"
-  layers_config_file: backbone.yaml
+  layers_config_file: ../models/yolov3/backbone.yaml
   outputs_layers: # Set outputs layers as a list or as a scalar according to topology
   - 36
   - 61
   - -1
 
 - name: neck0
-  inputs:  #  inputs can hold either a hardcoded shape or a list of sub-model outputs sources.
-    sources:
+  inputs:  #  inputs can hold either a hardcoded shape or a list of sub-model outputs source.
+    source:
     - name: backbone
-      entries: # entries filed is needed for a list source. Otherwise - filed is redundant
-      - 2
-  layers_config_file: neck0.yaml
-  outputs_layers: -1 # Set outputs layers as a list or as a scalar according to topology
+      entry_index: 2 # entry_index field is needed if source is a list instance. Otherwise - filed is redundant
+
+  layers_config_file: ../models/yolov3/neck0.yaml
+  outputs_layers:
+  - -1
 
 - name: head0
   inputs:
-    sources:
+    source:
     - name: neck0
-      entries: field_is redundant # entries filed is needed for a list source. Otherwise - filed is redundant
-  layers_config_file: head.yaml
-  outputs_layers: -1
+      entry_index: field_is redundant # entry_index filed is needed for a list source. Otherwise - filed is redundant
+  layers_config_file: ../models/yolov3/head.yaml
+  outputs_layers:
+  - -1
 
 - name: neck1
   inputs:
-  sources:
-  - name: backbone
-    entries:
-    - 1
-  - name: neck0
-  layers_config_file: neck1.yaml
-  outputs_layers: -1  # Set outputs layers as a list or as a scalar according to topology
+    source:
+    - name: backbone
+      entry_index: 1
+    - name: neck0
+#      entry_index:  entry_index is redundant if source input is not a list
+  layers_config_file: ../models/yolov3/neck1.yaml
+  outputs_layers:
+  - -1  # Set outputs layers as a list or as a scalar according to topology
 
 - name: head1
   inputs:
-    sources:
+    source:
     - name: neck1
-      entries: field_is redundant # entries filed is needed for a list source. Otherwise - filed is redundant
-  layers_config_file: head.yaml
-  outputs_layers: -1  # Set outputs layers as a list or as a scalar according to topology
+      entry_index: field_is redundant # entry_index filed is needed for a list source. Otherwise - filed is redundant
+  layers_config_file: ../models/yolov3/head.yaml
+  outputs_layers:
+  - -1
 
 - name: neck2
   inputs:
-    sources:
+    source:
     - name: neck1
+      entry_index: 0
     - name: backbone
-      entries:
-      - 0
-  layers_config_file: neck2.yaml
-  outputs_layers: -1  # Set outputs layers as a list or as a scalar according to topology
+      entry_index: 0
+  layers_config_file: ../models/yolov3/neck2.yaml
+  outputs_layers:
+  - -1
 
 - name: head2
   inputs:
     source:
     - name: neck2
-  layers_config_file: head.yaml
-  outputs_layers: -1  # Set outputs layers as a list or as a scalar according to topology
+  layers_config_file: ../models/yolov3/head.yaml
+  outputs_layers:
+  - -1
 

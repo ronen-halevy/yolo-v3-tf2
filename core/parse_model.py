@@ -12,9 +12,9 @@ class ParseModel:
         self.sub_models = []
 
 
-    def _find_sub_model_by_name(self, name):
-        for sub_model in self.sub_models:
-            if sub_model.name == name:
+    def _find_sub_model_by_name(self, sub_models, name):
+        for sub_model in sub_models:
+            if sub_model['name'] == name:
                 return sub_model
         return None
 
@@ -126,7 +126,10 @@ class ParseModel:
 
         selected_inputs = []
         if 'inputs' in layer_conf['source']:
-            selected_inputs = [inputs_entry[idx] for idx in layer_conf['source']['inputs']]
+            if isinstance(inputs_entry, list):
+                selected_inputs = [inputs_entry[idx] for idx in layer_conf['source']['inputs']]
+            else:
+                selected_inputs = [inputs_entry]
 
         selected_layers.extend(selected_inputs)
 
@@ -165,7 +168,7 @@ class ParseModel:
         return x, layers
 
     @staticmethod
-    def _parse_yolo(x, nclasses, layers, output_layers):
+    def _parse_yolo(x, nclasses, layers):
         """
 
         :param x:
@@ -174,8 +177,6 @@ class ParseModel:
         :type nclasses:
         :param layers:
         :type layers:
-        :param output_layers:
-        :type output_layers:
         :return:
         :rtype:
         """
@@ -194,8 +195,7 @@ class ParseModel:
                                                                                  class_probs))
 
         layers.append(x)
-        output_layers.append(x)
-        return x, layers, output_layers
+        return x, layers
 
     def create_inputs(self, inputs_config):
         # inputs_config = sub_model_config['inputs']
@@ -206,22 +206,30 @@ class ParseModel:
             inputs = []
             data_inputs = []
             for idx, source_entry in enumerate(inputs_config['source']):
-                source_sub_model = self._find_sub_model_by_name(source_entry['name'])
+                source_sub_model = self._find_sub_model_by_name(self.sub_models, source_entry['name'])
                 if source_sub_model is None:
                     raise Exception(f'Error: sub-model {source_entry["name"]} not found')
                 source_entry_index = source_entry.get('entry_index', 0)
-                inputs.append(Input(source_sub_model['outputs'][source_entry_index].shape[1:],
+                if isinstance(source_sub_model['outputs'], list):
+                    inputs.append(Input(source_sub_model['outputs'][source_entry_index].shape[1:],
                                     name='{entry["name"]}_to_{sub_model_config["name""]}_{source_entry_index}'))
-                data_inputs.append(source_sub_model['outputs'])
+                    data_inputs.append(source_sub_model['outputs'][source_entry_index])
+                else:
+                    inputs.append(Input(source_sub_model['outputs'].shape[1:],
+                                        name='{entry["name"]}_to_{sub_model_config["name""]}'))
+                    data_inputs.append(source_sub_model['outputs'])
+
             if len(inputs) == 1:
                 inputs = inputs[0]
                 data_inputs = data_inputs[0]
         return inputs, data_inputs
 
-    def _create_layers(self, layers_config_file, inputs_entry, nclasses, decay_factor):
+    def _create_layers(self, layers_config_file, inputs, nclasses, decay_factor):
         with open(layers_config_file, 'r') as stream:
             model_config = yaml.safe_load(stream)
 
+        x = inputs
+        layers = []
         for layer_conf in model_config['layers_config']:
             layer_type = layer_conf['type']
 
@@ -233,10 +241,10 @@ class ParseModel:
                 x, layers = self._parse_shortcut(x, layer_conf, layers)
 
             elif layer_type == 'yolo':
-                x, layers, output_layers = self._parse_yolo(x, nclasses, layers, output_layers)
+                x, layers = self._parse_yolo(x, nclasses, layers)
 
             elif layer_type == 'route':
-                x, layers = self._parse_route(layer_conf, inputs_entry, layers)
+                x, layers = self._parse_route(layer_conf, inputs, layers)
 
             elif layer_type == 'upsample':
                 x, layers = self._parse_upsample(x, layer_conf, layers)
@@ -246,9 +254,9 @@ class ParseModel:
 
             else:
                 raise ValueError('{} not recognized as layer_conf type'.format(layer_type))
-        return x, layers
+        return layers
 
-    def build_model(self, nclasses, model_config_file):
+    def build_model(self, nclasses, decay_factor, sub_models_configs):
         """
         Builds model by parsing model config file
 
@@ -260,12 +268,9 @@ class ParseModel:
         :rtype:  lists
         """
 
-        with open(model_config_file, 'r') as stream:
-            model_config = yaml.safe_load(stream)
-
-        sub_models_configs = model_config['sub_models']
-        decay_factor = model_config['decay_factor']
+        # sub_models_configs = model_config['sub_models']
         # sub_modules = _find_sub_model_ny_name()
+        sub_models_entries = []
         for sub_model_config in sub_models_configs:
             sub_model_entry = {'name': sub_model_config['name']}
 
@@ -274,23 +279,30 @@ class ParseModel:
 
             sub_model_entry.update({'inputs': inputs, 'data_inputs': data_inputs})
             layers = self._create_layers(sub_model_config['layers_config_file'], inputs, nclasses, decay_factor)
-            sub_model_entry.update({'outputs': layers[-1]})
+            # sub_model_entry.update({'outputs': layers[-1]})
             outputs = [layers[int(l)] for l in sub_model_config['outputs_layers']]
             outputs = outputs[0] if len(outputs) == 0 else outputs
-            model = Model(inputs, outputs, name="yolo")(data_inputs)
-            sub_model_entry.update({'output': model})
+            model = Model(inputs, outputs, name= sub_model_config['name'])(data_inputs)
+            sub_model_entry.update({'outputs': model})
+            self.sub_models.append(sub_model_entry)
+        outputs = [sub_model_entry['outputs'] for  sub_model_entry in  self.sub_models if 'head' in sub_model_entry['name'] ]
+        inputs = self.sub_models[0]['inputs']
+        data_inputs = self.sub_models[0]['data_inputs']
+        model = Model(inputs, outputs, name="yolo") # (data_inputs)
+        model.summary()
+        return model, data_inputs
 
 
 if __name__ == '__main__':
-    model_conf_file = '../config/yolov3_model.yaml'
+    model_conf_file = '../models/yolov3/model.yaml'
 
     with open(model_conf_file, 'r') as _stream:
         _model_config = yaml.safe_load(_stream)
     classes = 3
     parse_model = ParseModel()
-    _output_layers, _layers, _inputs = parse_model.build_model(classes, **_model_config)
+    _model, inputs = parse_model.build_model(classes, **_model_config)
 
-    _model = Model(_inputs, _output_layers)
+    # _model = Model(_inputs, _output_layers)
 
     _model.summary()
     with open("model_summary.txt", "w") as file1:

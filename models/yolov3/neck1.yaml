@@ -1,6 +1,4 @@
 ---
-sub_models:
-  - name: neck1
     layers_config:
 
     - type: route

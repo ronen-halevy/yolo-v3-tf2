@@ -31,7 +31,7 @@ max_bboxes: 100
 
 
 # model
-model_config_file: config/yolov3_model.yaml
+model_config_file: models/yolov3/model.yaml
 mode: fit # 'model execution mode. choices=[eager_tf, fit]'
 
 #algorithm

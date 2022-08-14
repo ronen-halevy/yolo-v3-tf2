@@ -1,5 +1,5 @@
 ---
-model_config_file: config/yolov3_model.yaml
+model_config_file: models/yolov3/model.yaml
 image_size: 416
 #max_detection_images: 25
 input_data_source:  image_file # [tfrecords, images_dir, image_file]
