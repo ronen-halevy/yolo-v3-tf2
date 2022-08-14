@@ -6,56 +6,17 @@ from tensorflow.python.keras.layers import MaxPool2D, MaxPooling2D
 from tensorflow.keras import Input, Model
 import yaml
 
+
 class ParseModel:
-
-    def build_model(self, inputs, nclasses, model_config_file):
-        """
-        Builds model by parsing model config file
-
-        :param nclasses: Num of dataset classes. Needed by head layers, where field size is according to ncllasses
-        :type nclasses: int
-        :param model_config_file: yaml conf file which holds the model definitions, according which parser builds model
-        :type model_config_file: filename str
-        :return: output_layers: edge output layerss (list), layers: list which appends all model's layers while created.
-        :rtype:  lists
-        """
-
-        with open(model_config_file, 'r') as stream:
-            model_config = yaml.safe_load(stream)
-        sub_models = model_config['sub_models']
-        decay = model_config['decay']
-
-        output_layers = []
-        layers = []
-        x = inputs
-        for model in sub_models:
-            for layer_conf in model['layers_config']:
-                layer_type = layer_conf['type']
-                if layer_type == 'convolutional':
-                    if isinstance(layer_conf['filters'], str):  # eval('3*(2+2+1+nclasses)')
-                        layer_conf['filters'] = eval(layer_conf['filters'])
-                    x, layers = self._parse_convolutional(x, layer_conf, layers, decay)
+    def __init__(self):
+        self.sub_models = []
 
 
-                elif layer_type == 'shortcut':
-                    x, layers = self._parse_shortcut(x, layer_conf, layers)
-
-                elif layer_type == 'yolo':
-                    x, layers, output_layers = self._parse_yolo(x, nclasses, layers, output_layers)
-
-                elif layer_type == 'route':
-                    x, layers = self._parse_route(x, layer_conf, layers)
-
-                elif layer_type == 'upsample':
-                    x, layers = self._parse_upsample(x, layer_conf, layers)
-
-                elif layer_type == 'maxpool':
-                    x, layers = self._parse_maxpool(x, layer_conf, layers)
-
-                else:
-                    raise ValueError('{} not recognized as layer_conf type'.format(layer_type))
-        model = Model(inputs, output_layers, name="yolo")
-        return model, inputs
+    def _find_sub_model_by_name(self, name):
+        for sub_model in self.sub_models:
+            if sub_model.name == name:
+                return sub_model
+        return None
 
     @staticmethod
     def _parse_convolutional(x, layer_conf, layers, decay):
@@ -145,8 +106,9 @@ class ParseModel:
 
         return x, layers
 
+
     @staticmethod
-    def _parse_route(_x, layer_conf, layers):
+    def _parse_route(layer_conf, inputs_entry, layers):
         """
 
         :param _x:
@@ -158,12 +120,19 @@ class ParseModel:
         :return:
         :rtype:
         """
-        selected_layers = [layers[int(l)] for l in layer_conf['layers']]
+        selected_layers = []
+        if 'layers' in layer_conf['source']:
+            selected_layers = [layers[int(l)] for l in layer_conf['source']['layers']]
+
+        selected_inputs = []
+        if 'inputs' in layer_conf['source']:
+            selected_inputs = [inputs_entry[idx] for idx in layer_conf['source']['inputs']]
+
+        selected_layers.extend(selected_inputs)
 
         if len(selected_layers) == 1:
             x = selected_layers[0]
             layers.append(x)
-
             return x, layers
 
         elif len(selected_layers) == 2:
@@ -228,17 +197,98 @@ class ParseModel:
         output_layers.append(x)
         return x, layers, output_layers
 
+    def create_inputs(self, inputs_config):
+        # inputs_config = sub_model_config['inputs']
+        if 'shape' in inputs_config:
+            inputs = Input(eval(inputs_config['shape']))
+            data_inputs = inputs
+        else:
+            inputs = []
+            data_inputs = []
+            for idx, source_entry in enumerate(inputs_config['source']):
+                source_sub_model = self._find_sub_model_by_name(source_entry['name'])
+                if source_sub_model is None:
+                    raise Exception(f'Error: sub-model {source_entry["name"]} not found')
+                source_entry_index = source_entry.get('entry_index', 0)
+                inputs.append(Input(source_sub_model['outputs'][source_entry_index].shape[1:],
+                                    name='{entry["name"]}_to_{sub_model_config["name""]}_{source_entry_index}'))
+                data_inputs.append(source_sub_model['outputs'])
+            if len(inputs) == 1:
+                inputs = inputs[0]
+                data_inputs = data_inputs[0]
+        return inputs, data_inputs
+
+    def _create_layers(self, layers_config_file, inputs_entry, nclasses, decay_factor):
+        with open(layers_config_file, 'r') as stream:
+            model_config = yaml.safe_load(stream)
+
+        for layer_conf in model_config['layers_config']:
+            layer_type = layer_conf['type']
+
+            if layer_type == 'convolutional':
+                if isinstance(layer_conf['filters'], str):  # eval('3*(2+2+1+nclasses)')
+                    layer_conf['filters'] = eval(layer_conf['filters'])
+                x, layers = self._parse_convolutional(x, layer_conf, layers, decay_factor)
+            elif layer_type == 'shortcut':
+                x, layers = self._parse_shortcut(x, layer_conf, layers)
+
+            elif layer_type == 'yolo':
+                x, layers, output_layers = self._parse_yolo(x, nclasses, layers, output_layers)
+
+            elif layer_type == 'route':
+                x, layers = self._parse_route(layer_conf, inputs_entry, layers)
+
+            elif layer_type == 'upsample':
+                x, layers = self._parse_upsample(x, layer_conf, layers)
+
+            elif layer_type == 'maxpool':
+                x, layers = self._parse_maxpool(x, layer_conf, layers)
+
+            else:
+                raise ValueError('{} not recognized as layer_conf type'.format(layer_type))
+        return x, layers
+
+    def build_model(self, nclasses, model_config_file):
+        """
+        Builds model by parsing model config file
+
+        :param nclasses: Num of dataset classes. Needed by head layers, where field size is according to ncllasses
+        :type nclasses: int
+        :param model_config_file: yaml conf file which holds the model definitions, according which parser builds model
+        :type model_config_file: filename str
+        :return: output_layers: edge output layerss (list), layers: list which appends all model's layers while created.
+        :rtype:  lists
+        """
+
+        with open(model_config_file, 'r') as stream:
+            model_config = yaml.safe_load(stream)
+
+        sub_models_configs = model_config['sub_models']
+        decay_factor = model_config['decay_factor']
+        # sub_modules = _find_sub_model_ny_name()
+        for sub_model_config in sub_models_configs:
+            sub_model_entry = {'name': sub_model_config['name']}
+
+            inputs_config = sub_model_config['inputs']
+            inputs, data_inputs = self.create_inputs(inputs_config)
+
+            sub_model_entry.update({'inputs': inputs, 'data_inputs': data_inputs})
+            layers = self._create_layers(sub_model_config['layers_config_file'], inputs, nclasses, decay_factor)
+            sub_model_entry.update({'outputs': layers[-1]})
+            outputs = [layers[int(l)] for l in sub_model_config['outputs_layers']]
+            outputs = outputs[0] if len(outputs) == 0 else outputs
+            model = Model(inputs, outputs, name="yolo")(data_inputs)
+            sub_model_entry.update({'output': model})
+
 
 if __name__ == '__main__':
-    import yaml
-
     model_conf_file = '../config/yolov3_model.yaml'
 
     with open(model_conf_file, 'r') as _stream:
         _model_config = yaml.safe_load(_stream)
     classes = 3
     parse_model = ParseModel()
-    _output_layers, _layers, _inputs = parse_model.parse(classes, **_model_config)
+    _output_layers, _layers, _inputs = parse_model.build_model(classes, **_model_config)
 
     _model = Model(_inputs, _output_layers)
 
