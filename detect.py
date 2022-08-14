@@ -97,16 +97,19 @@ class Inference:
         class_names = [c.strip() for c in open(classes).readlines()]
         nclasses = len(class_names)
 
-        inputs = Input(shape=(None, None, 3))
+        # inputs = Input(shape=(None, None, 3))
         parse_model = ParseModel()
-        model, inputs = parse_model.build_model(inputs, nclasses, model_config_file)
+
+        with open(model_config_file, 'r') as _stream:
+            model_config = yaml.safe_load(_stream)
+        model, inputs = parse_model.build_model(nclasses, **model_config)
         model = model(inputs)
 
         decoded_output = YoloDecoderLayer(nclasses, anchors_table)(model)
-        model_decoded = Model(inputs, decoded_output, name="yolo_decoded")(inputs)
+        # model_decoded = Model(inputs, decoded_output, name="yolo_decoded")(inputs)
         from core.yolo_nms_layer import YoloNmsLayer
         nms_output = YoloNmsLayer(yolo_max_boxes, nms_iou_threshold,
-                                  nms_score_threshold)(model_decoded)
+                                  nms_score_threshold)(decoded_output)
         model = Model(inputs, nms_output, name="yolo_nms")
 
         print(model.summary())

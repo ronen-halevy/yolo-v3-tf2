@@ -4,7 +4,7 @@ layers_config:
   - type: route
     source:
       inputs:
-        - 1
+        - 0
 
   - type: convolutional
     batch_normalize: 1
@@ -22,7 +22,7 @@ layers_config:
       layers:
         - -1
       inputs:
-        - 0
+        - 1
 
   - type: convolutional
     batch_normalize: 1
