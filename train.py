@@ -113,7 +113,7 @@ class Train:
             if self.epoch % self.weights_save_peroid == 0:
                 # name = 'checkpoints/yolov3_train.tf'
                 self.model.save_weights(self.output_checkpoints_path)
-                self.epoch += 1
+            self.epoch += 1
 
     def __call__(self,
                  model_config_file,
@@ -214,8 +214,8 @@ class Train:
 
         ds_train, ds_val = ds_preprocessed
 
-        # if load_weights:
-        #     model.load_weights(load_checkpoints_path)
+        if load_weights:
+            model.load_weights(load_checkpoints_path)
 
         if mode == 'eager_tf':
             self._train_eager_mode(model, ds_train, ds_val, loss_fn_list, optimizer, batch_size, epochs,
