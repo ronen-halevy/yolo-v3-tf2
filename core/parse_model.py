@@ -8,9 +8,6 @@ import yaml
 
 
 class ParseModel:
-    def __init__(self):
-        self.sub_models = []
-
 
     def _find_sub_model_by_name(self, sub_models, name):
         for sub_model in sub_models:
@@ -197,7 +194,7 @@ class ParseModel:
         layers.append(x)
         return x, layers
 
-    def create_inputs(self, inputs_config):
+    def create_inputs(self, inputs_config, sub_models):
         # inputs_config = sub_model_config['inputs']
         if 'shape' in inputs_config:
             inputs = Input(eval(inputs_config['shape']))
@@ -206,7 +203,7 @@ class ParseModel:
             inputs = []
             data_inputs = []
             for idx, source_entry in enumerate(inputs_config['source']):
-                source_sub_model = self._find_sub_model_by_name(self.sub_models, source_entry['name'])
+                source_sub_model = self._find_sub_model_by_name(sub_models, source_entry['name'])
                 if source_sub_model is None:
                     raise Exception(f'Error: sub-model {source_entry["name"]} not found')
                 source_entry_index = source_entry.get('entry_index', 0)
@@ -271,14 +268,14 @@ class ParseModel:
         # sub_models_configs = model_config['sub_models']
         # sub_modules = _find_sub_model_ny_name()
         sub_models_entries = []
-        sub_models_outputs = []
+        sub_models = []
         first_sub_model_inputs = None
 
         for sub_model_config in sub_models_configs:
             sub_model_entry = {'name': sub_model_config['name']}
 
             inputs_config = sub_model_config['inputs']
-            inputs, data_inputs = self.create_inputs(inputs_config)
+            inputs, data_inputs = self.create_inputs(inputs_config, sub_models)
 
             if first_sub_model_inputs is None:
                 first_sub_model_inputs = {'inputs': inputs, 'data_inputs': data_inputs}
@@ -289,8 +286,8 @@ class ParseModel:
             outputs = outputs[0] if len(outputs) == 0 else outputs
             model = Model(inputs, outputs, name= sub_model_config['name'])(data_inputs)
             sub_model_entry.update({'outputs': model})
-            self.sub_models.append(sub_model_entry)
-        outputs = [sub_model_entry['outputs'] for  sub_model_entry in  self.sub_models if 'head' in sub_model_entry['name'] ]
+            sub_models.append(sub_model_entry)
+        outputs = [sub_model_entry['outputs'] for  sub_model_entry in  sub_models if 'head' in sub_model_entry['name'] ]
         inputs = first_sub_model_inputs['inputs']
         data_inputs = first_sub_model_inputs['data_inputs']
 
