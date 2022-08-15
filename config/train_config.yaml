@@ -14,8 +14,8 @@
 # dataset:
 input_data_source: tfrecords # images_dir_annot_file # [tfrecords, images_dir_annot_file, coco_debug_data]
 #tfrecords:
-train_tfrecords: datasets/shapes/two_colors/input/tfrecords/train
-val_tfrecords: datasets/shapes/two_colors/input/tfrecords/val
+train_tfrecords: datasets/shapes/red_circle/input/tfrecords/train
+val_tfrecords: datasets/shapes/red_circle/input/tfrecords/val
 #plain_dataset:
 images_dir: datasets/shapes/three_circles/input/images_and_annotations_file/images #datasets/shapes/three_mixed_shapes/red/input/images_and_annotations/images # directory location of input images used in non-tfrecords mode
 annotations_path: ddatasets/shapes/three_circles/input/images_and_annotations_file/annotations.yaml
