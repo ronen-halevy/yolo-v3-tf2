@@ -9,12 +9,6 @@ import yaml
 
 class ParseModel:
 
-    def _find_sub_model_by_name(self, sub_models, name):
-        for sub_model in sub_models:
-            if sub_model['name'] == name:
-                return sub_model
-        return None
-
     @staticmethod
     def _parse_convolutional(x, layer_conf, layers, decay):
         """
@@ -103,7 +97,6 @@ class ParseModel:
 
         return x, layers
 
-
     @staticmethod
     def _parse_route(layer_conf, inputs_entry, layers):
         """
@@ -119,7 +112,7 @@ class ParseModel:
         """
         selected_layers = []
         if 'layers' in layer_conf['source']:
-            selected_layers = [layers[int(l)] for l in layer_conf['source']['layers']]
+            selected_layers = [layers[int(layer)] for layer in layer_conf['source']['layers']]
 
         selected_inputs = []
         if 'inputs' in layer_conf['source']:
@@ -194,8 +187,8 @@ class ParseModel:
         layers.append(x)
         return x, layers
 
-    def create_inputs(self, inputs_config, sub_models_outputs_list, models_name):
-        # inputs_config = sub_model_config['inputs']
+    @staticmethod
+    def create_inputs(inputs_config, sub_models_outputs_list, models_name):
         if 'shape' in inputs_config:
             inputs = Input(eval(inputs_config['shape']))
             data_inputs = inputs
@@ -203,20 +196,21 @@ class ParseModel:
             inputs = []
             data_inputs = []
             for idx, source_entry in enumerate(inputs_config['source']):
-                selected_sub_model = self._find_sub_model_by_name(sub_models_outputs_list, source_entry['name'])
-                if selected_sub_model is None:
+                selected_sourcing_sub_model = list(filter(lambda x: x['name'] == source_entry['name'], sub_models_outputs_list))
+                selected_sourcing_sub_model = selected_sourcing_sub_model[0] # a single selected model - name is unique
+                if not len(selected_sourcing_sub_model):
                     raise Exception(f'Error: sub-model {source_entry["name"]} not found')
-                selected_sub_model_output = selected_sub_model['outputs']
+                selected_sourcing_output = selected_sourcing_sub_model['outputs']
 
                 source_entry_index = source_entry.get('entry_index', 0)
-                if isinstance(selected_sub_model_output, list):
-                    inputs.append(Input(selected_sub_model_output[source_entry_index].shape[1:],
-                                    name=f'{source_entry["name"]}_to_{models_name}_{source_entry_index}'))
-                    data_inputs.append(selected_sub_model_output[source_entry_index])
-                else:
-                    inputs.append(Input(selected_sub_model_output.shape[1:],
+                if isinstance(selected_sourcing_output, list):
+                    inputs.append(Input(selected_sourcing_output[source_entry_index].shape[1:],
                                         name=f'{source_entry["name"]}_to_{models_name}_{source_entry_index}'))
-                    data_inputs.append(selected_sub_model_output)
+                    data_inputs.append(selected_sourcing_output[source_entry_index])
+                else:
+                    inputs.append(Input(selected_sourcing_output.shape[1:],
+                                        name=f'{source_entry["name"]}_to_{models_name}_{source_entry_index}'))
+                    data_inputs.append(selected_sourcing_output)
 
             if len(inputs) == 1:
                 inputs = inputs[0]
@@ -269,7 +263,6 @@ class ParseModel:
 
         # sub_models_configs = model_config['sub_models']
         # sub_modules = _find_sub_model_ny_name()
-        sub_models_entries = []
         sub_models_outputs_list = []
         first_sub_model_inputs = None
 
@@ -282,16 +275,16 @@ class ParseModel:
                 first_sub_model_inputs = {'inputs': inputs, 'data_inputs': data_inputs}
 
             layers = self._create_layers(sub_model_config['layers_config_file'], inputs, nclasses, decay_factor)
-            outputs = [layers[int(l)] for l in sub_model_config['outputs_layers']]
+            outputs = [layers[int(layer)] for layer in sub_model_config['outputs_layers']]
             outputs = outputs[0] if len(outputs) == 0 else outputs
-            model = Model(inputs, outputs, name= sub_model_config['name'])(data_inputs)
+            model = Model(inputs, outputs, name=sub_model_config['name'])(data_inputs)
             sub_models_outputs_list.append({'outputs': model, 'name': sub_model_config['name']})
-        outputs = [sub_model_entry['outputs'] for  sub_model_entry in  sub_models_outputs_list if 'head' in sub_model_entry['name'] ]
+        outputs = [sub_model_entry['outputs'] for sub_model_entry in sub_models_outputs_list if
+                   'head' in sub_model_entry['name']]
         inputs = first_sub_model_inputs['inputs']
         data_inputs = first_sub_model_inputs['data_inputs']
 
-        model = Model(inputs, outputs, name="yolo") # (data_inputs)
-        model.summary()
+        model = Model(inputs, outputs, name="yolo")  # (data_inputs)
         return model, data_inputs
 
 
@@ -302,10 +295,7 @@ if __name__ == '__main__':
         _model_config = yaml.safe_load(_stream)
     classes = 3
     parse_model = ParseModel()
-    _model, inputs = parse_model.build_model(classes, **_model_config)
+    _model, _inputs = parse_model.build_model(classes, **_model_config)
 
-    # _model = Model(_inputs, _output_layers)
-
-    _model.summary()
     with open("model_summary.txt", "w") as file1:
         _model.summary(print_fn=lambda x: file1.write(x + '\n'))

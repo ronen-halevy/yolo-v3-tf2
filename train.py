@@ -184,9 +184,12 @@ class Train:
             plt.imshow(image)
             plt.show()
 
-        inputs = Input(shape=(None, None, 3))
+        with open(model_config_file, 'r') as _stream:
+            model_config = yaml.safe_load(_stream)
         parse_model = ParseModel()
-        model, _= parse_model.build_model(inputs, nclasses, model_config_file)
+
+        model, inputs = parse_model.build_model(nclasses, **model_config)
+
 
         # with open("model_summary.txt", "w") as file1:
         #     model.summary(print_fn=lambda x: file1.write(x + '\n'))
