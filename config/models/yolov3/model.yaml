@@ -4,7 +4,7 @@ sub_models_configs:
 - name: backbone
   inputs: #  inputs can hold either a hardcoded shape or a list of sub-model outputs source.
     shape: "[None, None, 3]"
-  layers_config_file: models/yolov3/backbone.yaml
+  layers_config_file: config/models/yolov3/backbone.yaml
   outputs_layers: # Set outputs layers as a list or as a scalar according to topology
   - 36
   - 61
@@ -16,7 +16,7 @@ sub_models_configs:
     - name: backbone
       entry_index: 2 # entry_index field is needed if source is a list instance. Otherwise - filed is redundant
 
-  layers_config_file: models/yolov3/neck0.yaml
+  layers_config_file: config/models/yolov3/neck0.yaml
   outputs_layers:
   - -1
 
@@ -25,7 +25,7 @@ sub_models_configs:
     source:
     - name: neck0
       entry_index: field_is redundant # entry_index filed is needed for a list source. Otherwise - filed is redundant
-  layers_config_file: models/yolov3/head.yaml
+  layers_config_file: config/models/yolov3/head.yaml
   outputs_layers:
   - -1
 
@@ -36,7 +36,7 @@ sub_models_configs:
       entry_index: 1
     - name: neck0
 #      entry_index:  entry_index is redundant if source input is not a list
-  layers_config_file: models/yolov3/neck1.yaml
+  layers_config_file: config/models/yolov3/neck1.yaml
   outputs_layers:
   - -1  # Set outputs layers as a list or as a scalar according to topology
 
@@ -45,7 +45,7 @@ sub_models_configs:
     source:
     - name: neck1
       entry_index: field_is redundant # entry_index filed is needed for a list source. Otherwise - filed is redundant
-  layers_config_file: models/yolov3/head.yaml
+  layers_config_file: config/models/yolov3/head.yaml
   outputs_layers:
   - -1
 
@@ -56,7 +56,7 @@ sub_models_configs:
       entry_index: 0
     - name: backbone
       entry_index: 0
-  layers_config_file: models/yolov3/neck2.yaml
+  layers_config_file: config/models/yolov3/neck2.yaml
   outputs_layers:
   - -1
 
@@ -64,7 +64,7 @@ sub_models_configs:
   inputs:
     source:
     - name: neck2
-  layers_config_file: models/yolov3/head.yaml
+  layers_config_file: config/models/yolov3/head.yaml
   outputs_layers:
   - -1
 

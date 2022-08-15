@@ -27,7 +27,7 @@ dataset_repeats: 0
 max_bboxes: 100
 
 #model
-model_config_file: models/yolov3/model.yaml # config/yolov3_model.yaml
+model_config_file: config/models/yolov3/model.yaml # config/yolov3_model.yaml
 image_size: 416
 
 #algorithm

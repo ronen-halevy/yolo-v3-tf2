@@ -294,7 +294,7 @@ class ParseModel:
 
 
 if __name__ == '__main__':
-    model_conf_file = '../models/yolov3/model.yaml'
+    model_conf_file = '../config/models/yolov3/model.yaml'
 
     with open(model_conf_file, 'r') as _stream:
         _model_config = yaml.safe_load(_stream)
