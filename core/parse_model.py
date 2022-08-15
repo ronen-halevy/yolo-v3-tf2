@@ -221,7 +221,7 @@ class ParseModel:
 
             if len(inputs) == 1:
                 inputs = inputs[0]
-                data_inputs = data_inputs[0]
+                # data_inputs = data_inputs[0]
         return inputs, data_inputs
 
     def _create_layers(self, layers_config_file, inputs, nclasses, decay_factor):
@@ -271,13 +271,18 @@ class ParseModel:
         # sub_models_configs = model_config['sub_models']
         # sub_modules = _find_sub_model_ny_name()
         sub_models_entries = []
+        sub_models_outputs = []
+        first_sub_model_inputs = None
+
         for sub_model_config in sub_models_configs:
             sub_model_entry = {'name': sub_model_config['name']}
 
             inputs_config = sub_model_config['inputs']
             inputs, data_inputs = self.create_inputs(inputs_config)
 
-            sub_model_entry.update({'inputs': inputs, 'data_inputs': data_inputs})
+            if first_sub_model_inputs is None:
+                first_sub_model_inputs = {'inputs': inputs, 'data_inputs': data_inputs}
+
             layers = self._create_layers(sub_model_config['layers_config_file'], inputs, nclasses, decay_factor)
             # sub_model_entry.update({'outputs': layers[-1]})
             outputs = [layers[int(l)] for l in sub_model_config['outputs_layers']]
@@ -286,8 +291,9 @@ class ParseModel:
             sub_model_entry.update({'outputs': model})
             self.sub_models.append(sub_model_entry)
         outputs = [sub_model_entry['outputs'] for  sub_model_entry in  self.sub_models if 'head' in sub_model_entry['name'] ]
-        inputs = self.sub_models[0]['inputs']
-        data_inputs = self.sub_models[0]['data_inputs']
+        inputs = first_sub_model_inputs['inputs']
+        data_inputs = first_sub_model_inputs['data_inputs']
+
         model = Model(inputs, outputs, name="yolo") # (data_inputs)
         model.summary()
         return model, data_inputs
