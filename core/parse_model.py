@@ -203,18 +203,20 @@ class ParseModel:
             inputs = []
             data_inputs = []
             for idx, source_entry in enumerate(inputs_config['source']):
-                source_sub_model = self._find_sub_model_by_name(sub_models, source_entry['name'])
-                if source_sub_model is None:
+                selected_sub_model = self._find_sub_model_by_name(sub_models, source_entry['name'])
+                if selected_sub_model is None:
                     raise Exception(f'Error: sub-model {source_entry["name"]} not found')
+                selected_sub_model_output = selected_sub_model['outputs']
+
                 source_entry_index = source_entry.get('entry_index', 0)
-                if isinstance(source_sub_model['outputs'], list):
-                    inputs.append(Input(source_sub_model['outputs'][source_entry_index].shape[1:],
-                                    name='{entry["name"]}_to_{sub_model_config["name""]}_{source_entry_index}'))
-                    data_inputs.append(source_sub_model['outputs'][source_entry_index])
+                if isinstance(selected_sub_model_output, list):
+                    inputs.append(Input(selected_sub_model_output[source_entry_index].shape[1:]) )#,
+                                    # name='{entry["name"]}_to_{sub_model_config["name"]}_{source_entry_index}'))
+                    data_inputs.append(selected_sub_model_output[source_entry_index])
                 else:
-                    inputs.append(Input(source_sub_model['outputs'].shape[1:],
-                                        name='{entry["name"]}_to_{sub_model_config["name""]}'))
-                    data_inputs.append(source_sub_model['outputs'])
+                    inputs.append(Input(selected_sub_model_output.shape[1:]))#,
+                                        # name='{selected_sub_model["name"]}_to_{sub_model_config["name"]}'))
+                    data_inputs.append(selected_sub_model_output)
 
             if len(inputs) == 1:
                 inputs = inputs[0]
