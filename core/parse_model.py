@@ -194,7 +194,7 @@ class ParseModel:
         layers.append(x)
         return x, layers
 
-    def create_inputs(self, inputs_config, sub_models):
+    def create_inputs(self, inputs_config, sub_models_outputs_list, models_name):
         # inputs_config = sub_model_config['inputs']
         if 'shape' in inputs_config:
             inputs = Input(eval(inputs_config['shape']))
@@ -203,19 +203,19 @@ class ParseModel:
             inputs = []
             data_inputs = []
             for idx, source_entry in enumerate(inputs_config['source']):
-                selected_sub_model = self._find_sub_model_by_name(sub_models, source_entry['name'])
+                selected_sub_model = self._find_sub_model_by_name(sub_models_outputs_list, source_entry['name'])
                 if selected_sub_model is None:
                     raise Exception(f'Error: sub-model {source_entry["name"]} not found')
                 selected_sub_model_output = selected_sub_model['outputs']
 
                 source_entry_index = source_entry.get('entry_index', 0)
                 if isinstance(selected_sub_model_output, list):
-                    inputs.append(Input(selected_sub_model_output[source_entry_index].shape[1:]) )#,
-                                    # name='{entry["name"]}_to_{sub_model_config["name"]}_{source_entry_index}'))
+                    inputs.append(Input(selected_sub_model_output[source_entry_index].shape[1:],
+                                    name=f'{source_entry["name"]}_to_{models_name}_{source_entry_index}'))
                     data_inputs.append(selected_sub_model_output[source_entry_index])
                 else:
-                    inputs.append(Input(selected_sub_model_output.shape[1:]))#,
-                                        # name='{selected_sub_model["name"]}_to_{sub_model_config["name"]}'))
+                    inputs.append(Input(selected_sub_model_output.shape[1:],
+                                        name=f'{source_entry["name"]}_to_{models_name}_{source_entry_index}'))
                     data_inputs.append(selected_sub_model_output)
 
             if len(inputs) == 1:
@@ -270,13 +270,13 @@ class ParseModel:
         # sub_models_configs = model_config['sub_models']
         # sub_modules = _find_sub_model_ny_name()
         sub_models_entries = []
-        sub_models = []
+        sub_models_outputs_list = []
         first_sub_model_inputs = None
 
         for sub_model_config in sub_models_configs:
 
             inputs_config = sub_model_config['inputs']
-            inputs, data_inputs = self.create_inputs(inputs_config, sub_models)
+            inputs, data_inputs = self.create_inputs(inputs_config, sub_models_outputs_list, sub_model_config['name'])
 
             if first_sub_model_inputs is None:
                 first_sub_model_inputs = {'inputs': inputs, 'data_inputs': data_inputs}
@@ -285,8 +285,8 @@ class ParseModel:
             outputs = [layers[int(l)] for l in sub_model_config['outputs_layers']]
             outputs = outputs[0] if len(outputs) == 0 else outputs
             model = Model(inputs, outputs, name= sub_model_config['name'])(data_inputs)
-            sub_models.append({'outputs': model, 'name': sub_model_config['name']})
-        outputs = [sub_model_entry['outputs'] for  sub_model_entry in  sub_models if 'head' in sub_model_entry['name'] ]
+            sub_models_outputs_list.append({'outputs': model, 'name': sub_model_config['name']})
+        outputs = [sub_model_entry['outputs'] for  sub_model_entry in  sub_models_outputs_list if 'head' in sub_model_entry['name'] ]
         inputs = first_sub_model_inputs['inputs']
         data_inputs = first_sub_model_inputs['data_inputs']
 
