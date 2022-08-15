@@ -272,7 +272,6 @@ class ParseModel:
         first_sub_model_inputs = None
 
         for sub_model_config in sub_models_configs:
-            sub_model_entry = {'name': sub_model_config['name']}
 
             inputs_config = sub_model_config['inputs']
             inputs, data_inputs = self.create_inputs(inputs_config, sub_models)
@@ -281,12 +280,10 @@ class ParseModel:
                 first_sub_model_inputs = {'inputs': inputs, 'data_inputs': data_inputs}
 
             layers = self._create_layers(sub_model_config['layers_config_file'], inputs, nclasses, decay_factor)
-            # sub_model_entry.update({'outputs': layers[-1]})
             outputs = [layers[int(l)] for l in sub_model_config['outputs_layers']]
             outputs = outputs[0] if len(outputs) == 0 else outputs
             model = Model(inputs, outputs, name= sub_model_config['name'])(data_inputs)
-            sub_model_entry.update({'outputs': model})
-            sub_models.append(sub_model_entry)
+            sub_models.append({'outputs': model, 'name': sub_model_config['name']})
         outputs = [sub_model_entry['outputs'] for  sub_model_entry in  sub_models if 'head' in sub_model_entry['name'] ]
         inputs = first_sub_model_inputs['inputs']
         data_inputs = first_sub_model_inputs['data_inputs']
