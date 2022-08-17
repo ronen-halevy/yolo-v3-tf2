@@ -31,7 +31,7 @@ class Inference:
 
     @staticmethod
     def display_detections(img_raw, detected_classes, boxes, scores, yolo_max_boxes, bbox_color, font_size):
-        annotated_image, detections = annotate_detections(img_raw, detected_classes, boxes, scores,
+        annotated_image, detections = annotate_detections(img_raw, detected_classes, boxes[0], scores[0],
                                                           yolo_max_boxes, bbox_color, font_size)
         plt.imshow(annotated_image)
         plt.show()
@@ -120,7 +120,7 @@ class Inference:
 
         if input_data_source == 'tfrecords':
             dataset = parse_tfrecords(tfrecords_dir, image_size=image_size, max_bboxes=yolo_max_boxes, class_file=None)
-            for index, dataset_entry in enumerate(dataset):
+            for index, dataset_entry in enumerate(dataset):# todo consider batch inference
                 image = dataset_entry[0]
                 self._inference(model, image, image_size, yolo_max_boxes, bbox_color, font_size, class_names, index,
                                 output_dir, detections_list_outfile)
@@ -136,7 +136,7 @@ class Inference:
                         continue
                     filenames.append(f'{images_dir}/{f}')
 
-            for index, file in enumerate(filenames):
+            for index, file in enumerate(filenames): # todo consider batch inference
                 img_raw = tf.image.decode_image(open(file, 'rb').read(), channels=3, dtype=tf.float32)
                 self._inference(model, img_raw, image_size, yolo_max_boxes, bbox_color, font_size, class_names, index,
                                 output_dir, detections_list_outfile)
