@@ -84,7 +84,7 @@ def annotate_text(image_pil, bbox, class_name, score, font_size=30):
         color,
         display_str_list=[detections_str], font_size=font_size)
 
-    return (detections_str, xmin.numpy(), ymin.numpy(), xmax.numpy(), ymax.numpy())
+    return (detections_str, xmin, ymin, xmax, ymax)
 
 
 def annotate_detections(image, class_names, bboxes, scores, max_detections, bbox_color, font_size):
