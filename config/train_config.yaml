@@ -14,8 +14,8 @@
 # dataset:
 input_data_source: tfrecords # images_dir_annot_file # [tfrecords, images_dir_annot_file, coco_debug_data]
 #tfrecords:
-train_tfrecords:  datasets/shapes/red_circle/input/tfrecords/train # datasets/shapes/circle_and_triangle/input/tfrecords/train
-val_tfrecords: datasets/shapes/red_circle/input/tfrecords/val # datasets/shapes/circle_and_triangle/input/tfrecords/val
+train_tfrecords:  datasets/shapes/circle_and_triangle/input/tfrecords/train # datasets/shapes/red_circle/input/tfrecords/train # datasets/shapes/circle_and_triangle/input/tfrecords/train
+val_tfrecords: datasets/shapes/circle_and_triangle/input/tfrecords/val # datasets/shapes/red_circle/input/tfrecords/val # datasets/shapes/circle_and_triangle/input/tfrecords/val
 #plain_dataset:
 images_dir: datasets/shapes/three_circles/input/images_and_annotations_file/images #datasets/shapes/three_mixed_shapes/red/input/images_and_annotations/images # directory location of input images used in non-tfrecords mode
 annotations_path: ddatasets/shapes/three_circles/input/images_and_annotations_file/annotations.yaml
@@ -31,7 +31,7 @@ model_config_file: config/models/yolov3/model.yaml # config/yolov3_model.yaml
 image_size: 416
 
 #algorithm
-mode: fit # eager_tf # fit # 'model execution mode. choices=[eager_tf, fit]'
+mode: eager_tf # fit # 'model execution mode. choices=[eager_tf, fit]'
 batch_size: 8
 epochs: 1000
 learning_rate: 0.001
