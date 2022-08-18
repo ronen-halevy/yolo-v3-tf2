@@ -2,8 +2,8 @@
 decay_factor: 0.0005
 sub_models_configs:
 - name: backbone
-  inputs: #  inputs can hold either a hardcoded shape or a list of sub-model outputs source.
-    shape: "[None, None, 3]"
+#  inputs: Edge element uses model's global input
+
   layers_config_file: config/models/yolov3/backbone.yaml
   outputs_layers: # Set outputs layers as a list or as a scalar according to topology
   - 36
@@ -11,7 +11,7 @@ sub_models_configs:
   - -1
 
 - name: neck0
-  inputs:  #  inputs can hold either a hardcoded shape or a list of sub-model outputs source.
+  inputs:  #  a list of sub-model outputs source.
     source:
     - name: backbone
       entry_index: 2 # entry_index field is needed if source is a list instance. Otherwise - filed is redundant
@@ -25,7 +25,7 @@ sub_models_configs:
     source:
     - name: neck0
       entry_index: 0 #  entry_index field is needed for a list source. Otherwise - put 0 or omit entire entry_index row
-  layers_config_file: config/models/yolov3/head.yaml
+  layers_config_file: config/models/yolov3/head0.yaml
   outputs_layers:
   - -1
 
@@ -45,7 +45,7 @@ sub_models_configs:
     source:
     - name: neck1
       entry_index:  0 #  entry_index field is needed for a list source. Otherwise - put 0 or omit entire entry_index row
-  layers_config_file: config/models/yolov3/head.yaml
+  layers_config_file: config/models/yolov3/head1.yaml
   outputs_layers:
   - -1
 
@@ -64,7 +64,7 @@ sub_models_configs:
   inputs:
     source:
     - name: neck2
-  layers_config_file: config/models/yolov3/head.yaml
+  layers_config_file: config/models/yolov3/head2.yaml
   outputs_layers:
   - -1
 
