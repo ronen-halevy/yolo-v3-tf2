@@ -167,7 +167,13 @@ class YoloV3Model:
 
 
         concat_output0 = self._arrange_output(head_out0, nclasses)
+        m1 = Model(head_out0, concat_output0, name='yolo1')(head_out0)
         concat_output1 = self._arrange_output(head_out1, nclasses)
+        m2 =Model(head_out1, concat_output1, name='yolo2')(head_out1)
+
         concat_output2 = self._arrange_output(head_out2, nclasses)
-        return Model(inputs, (concat_output0, concat_output1, concat_output2), name='yolov3')
+        m3 = Model(head_out2, concat_output2, name='yolo3')(head_out2)
+        return Model(inputs, (m1, m2, m3), name='yolov3'), inputs
+
+        return Model(inputs, (concat_output0, concat_output1, concat_output2), name='yolov3'), inputs
 

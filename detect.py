@@ -12,6 +12,11 @@ from core.utils import get_anchors, resize_image
 from core.render_utils import annotate_detections
 from core.load_tfrecords import parse_tfrecords
 from core.parse_model import ParseModel
+import  core.parse_model_unimodel
+
+
+
+
 from core.yolo_decode_layer import YoloDecoderLayer
 
 from core.exceptions import NoDetectionsFound
@@ -97,13 +102,43 @@ class Inference:
         class_names = [c.strip() for c in open(classes).readlines()]
         nclasses = len(class_names)
 
-        # inputs = Input(shape=(None, None, 3))
-        parse_model = ParseModel()
 
-        with open(model_config_file, 'r') as _stream:
-            model_config = yaml.safe_load(_stream)
-        model, inputs = parse_model.build_model(nclasses, **model_config)
+        inputs = Input(shape=(None, None, 3))
+        #new model
+        # parse_model = ParseModel()
+        #
+        # with open(model_config_file, 'r') as _stream:
+        #     model_config = yaml.safe_load(_stream)
+        # model, inputs = parse_model.build_model(nclasses, **model_config)
+        # model = model(inputs)
+        # ###
+
+        # #old model
+        from core.models import YoloV3Model
+
+        yolov3_model = YoloV3Model()
+
+        model, inputs = yolov3_model(416, nclasses, nanchors=3)
+        # #######
+
+        model.load_weights(weights).expect_partial()
+
+        print(model.summary())
+
         model = model(inputs)
+
+        # inputs = Input(shape=(None, None, 3))
+        # #new model
+        # parse_model = ParseModel()
+        #
+        # with open(model_config_file, 'r') as _stream:
+        #     model_config = yaml.safe_load(_stream)
+        # model, inputs = parse_model.build_model(nclasses, **model_config)
+        # model.load_weights(weights).expect_partial()
+        #
+        # model = model(inputs)
+        # ###
+
 
         decoded_output = YoloDecoderLayer(nclasses, anchors_table)(model)
         # model_decoded = Model(inputs, decoded_output, name="yolo_decoded")(inputs)
@@ -112,9 +147,17 @@ class Inference:
                                   nms_score_threshold)(decoded_output)
         model = Model(inputs, nms_output, name="yolo_nms")
 
-        print(model.summary())
+##
+        # from core.parse_model import ParseModel
+        # import core.parse_model_unimodel
 
-        model.load_weights(weights).expect_partial()
+        # model, _inputs = core.parse_model_unimodel.parse_model.build_model(inputs, nclasses, model_config_file)
+        # _output_layers = model(_inputs)
+        # _model = Model(_inputs, _output_layers)
+
+        # print(model.summary())
+
+        # model.load_weights(weights).expect_partial()
 
         print('weights loaded')
 
@@ -143,7 +186,7 @@ class Inference:
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--config", type=str, default='config/detect_config.yaml',
+parser.add_argument("--config", type=str, default='config/detect_config_coco.yaml',
                     help='yaml config file')
 
 args = parser.parse_args()
