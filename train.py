@@ -187,12 +187,13 @@ class Train:
         with open(model_config_file, 'r') as _stream:
             model_config = yaml.safe_load(_stream)
         parse_model = ParseModel()
+        inputs = Input(shape=(None, None, 3))
 
-        model, inputs = parse_model.build_model(nclasses, **model_config)
+        model = parse_model.build_model(inputs, nclasses, **model_config)
 
 
-        # with open("model_summary.txt", "w") as file1:
-        #     model.summary(print_fn=lambda x: file1.write(x + '\n'))
+        with open("model_summary.txt", "w") as file1:
+            model.summary(print_fn=lambda x: file1.write(x + '\n'))
 
         optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
 
