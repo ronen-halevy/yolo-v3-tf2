@@ -7,17 +7,14 @@ import yaml
 import argparse
 import matplotlib.pyplot as plt
 
-from core.decode_detections import decode_detections
 from core.utils import get_anchors, resize_image
 from core.render_utils import annotate_detections
 from core.load_tfrecords import parse_tfrecords
 from core.parse_model import ParseModel
-import  core.parse_model_unimodel
-
-
 
 
 from core.yolo_decode_layer import YoloDecoderLayer
+from core.yolo_nms_layer import YoloNmsLayer
 
 from core.exceptions import NoDetectionsFound
 
@@ -105,61 +102,27 @@ class Inference:
 
         inputs = Input(shape=(None, None, 3))
         #new model
-        # parse_model = ParseModel()
-        #
-        # with open(model_config_file, 'r') as _stream:
-        #     model_config = yaml.safe_load(_stream)
-        # model, inputs = parse_model.build_model(nclasses, **model_config)
-        # model = model(inputs)
-        # ###
+        parse_model = ParseModel()
 
-        # #old model
-        from core.models import YoloV3Model
+        with open(model_config_file, 'r') as _stream:
+            model_config = yaml.safe_load(_stream)
 
-        yolov3_model = YoloV3Model()
 
-        model, inputs = yolov3_model(416, nclasses, nanchors=3)
-        # #######
+        inputs = Input(shape=(None, None, 3))
 
+        parse_model = ParseModel()
+
+        with open(model_config_file, 'r') as _stream:
+            model_config = yaml.safe_load(_stream)
+        model = parse_model.build_model(inputs, nclasses, **model_config)
         model.load_weights(weights).expect_partial()
-
-        print(model.summary())
-
+        print('weights loaded')
         model = model(inputs)
 
-        # inputs = Input(shape=(None, None, 3))
-        # #new model
-        # parse_model = ParseModel()
-        #
-        # with open(model_config_file, 'r') as _stream:
-        #     model_config = yaml.safe_load(_stream)
-        # model, inputs = parse_model.build_model(nclasses, **model_config)
-        # model.load_weights(weights).expect_partial()
-        #
-        # model = model(inputs)
-        # ###
-
-
         decoded_output = YoloDecoderLayer(nclasses, anchors_table)(model)
-        # model_decoded = Model(inputs, decoded_output, name="yolo_decoded")(inputs)
-        from core.yolo_nms_layer import YoloNmsLayer
         nms_output = YoloNmsLayer(yolo_max_boxes, nms_iou_threshold,
                                   nms_score_threshold)(decoded_output)
         model = Model(inputs, nms_output, name="yolo_nms")
-
-##
-        # from core.parse_model import ParseModel
-        # import core.parse_model_unimodel
-
-        # model, _inputs = core.parse_model_unimodel.parse_model.build_model(inputs, nclasses, model_config_file)
-        # _output_layers = model(_inputs)
-        # _model = Model(_inputs, _output_layers)
-
-        # print(model.summary())
-
-        # model.load_weights(weights).expect_partial()
-
-        print('weights loaded')
 
         if input_data_source == 'tfrecords':
             dataset = parse_tfrecords(tfrecords_dir, image_size=image_size, max_bboxes=yolo_max_boxes, class_file=None)

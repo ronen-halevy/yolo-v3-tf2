@@ -249,7 +249,7 @@ class ParseModel:
                 raise ValueError('{} not recognized as layer_conf type'.format(layer_type))
         return layers
 
-    def build_model(self, nclasses, decay_factor, sub_models_configs):
+    def build_model(self, model_inputs, nclasses, decay_factor, sub_models_configs):
         """
         Builds model by parsing model config file
 
@@ -261,18 +261,15 @@ class ParseModel:
         :rtype:  lists
         """
 
-        # sub_models_configs = model_config['sub_models']
-        # sub_modules = _find_sub_model_ny_name()
         sub_models_outputs_list = []
-        first_sub_model_inputs = None
 
         for sub_model_config in sub_models_configs:
-
-            inputs_config = sub_model_config['inputs']
-            inputs, data_inputs = self.create_inputs(inputs_config, sub_models_outputs_list, sub_model_config['name'])
-
-            if first_sub_model_inputs is None:
-                first_sub_model_inputs = {'inputs': inputs, 'data_inputs': data_inputs}
+            inputs_config = sub_model_config.get('inputs')
+            if inputs_config:
+                # locate peers' output according to configuration
+                inputs, data_inputs = self.create_inputs(inputs_config, sub_models_outputs_list, sub_model_config['name'])
+            else: # peerles bottom model (leftmost) uses model_inputs
+                inputs = data_inputs = model_inputs
 
             layers = self._create_layers(sub_model_config['layers_config_file'], inputs, nclasses, decay_factor)
             outputs = [layers[int(layer)] for layer in sub_model_config['outputs_layers']]
@@ -281,11 +278,10 @@ class ParseModel:
             sub_models_outputs_list.append({'outputs': model, 'name': sub_model_config['name']})
         outputs = [sub_model_entry['outputs'] for sub_model_entry in sub_models_outputs_list if
                    'head' in sub_model_entry['name']]
-        inputs = first_sub_model_inputs['inputs']
-        data_inputs = first_sub_model_inputs['data_inputs']
 
-        model = Model(inputs, outputs, name="yolo")  # (data_inputs)
-        return model, data_inputs
+
+        model = Model(model_inputs, outputs, name="yolo")
+        return model
 
 
 if __name__ == '__main__':
