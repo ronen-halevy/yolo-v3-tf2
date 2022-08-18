@@ -12,7 +12,6 @@ from core.render_utils import annotate_detections
 from core.load_tfrecords import parse_tfrecords
 from core.parse_model import ParseModel
 
-
 from core.yolo_decode_layer import YoloDecoderLayer
 from core.yolo_nms_layer import YoloNmsLayer
 
@@ -99,15 +98,6 @@ class Inference:
         class_names = [c.strip() for c in open(classes).readlines()]
         nclasses = len(class_names)
 
-
-        inputs = Input(shape=(None, None, 3))
-        #new model
-        parse_model = ParseModel()
-
-        with open(model_config_file, 'r') as _stream:
-            model_config = yaml.safe_load(_stream)
-
-
         inputs = Input(shape=(None, None, 3))
 
         parse_model = ParseModel()
@@ -126,7 +116,7 @@ class Inference:
 
         if input_data_source == 'tfrecords':
             dataset = parse_tfrecords(tfrecords_dir, image_size=image_size, max_bboxes=yolo_max_boxes, class_file=None)
-            for index, dataset_entry in enumerate(dataset):# todo consider batch inference
+            for index, dataset_entry in enumerate(dataset):  # todo consider batch inference
                 image = dataset_entry[0]
                 self._inference(model, image, image_size, yolo_max_boxes, bbox_color, font_size, class_names, index,
                                 output_dir, detections_list_outfile)
@@ -135,6 +125,7 @@ class Inference:
                 filenames = [image_file_path]
             elif input_data_source == 'images_dir':
                 valid_images = ('.jpeg', '.jpg', '.png', '.bmp')
+                valid_images = ('.jpeg', '.jpg', '.png', '.bmp')
                 filenames = []
                 for f in os.listdir(images_dir):
                     ext = os.path.splitext(f)[1]
@@ -142,7 +133,7 @@ class Inference:
                         continue
                     filenames.append(f'{images_dir}/{f}')
 
-            for index, file in enumerate(filenames): # todo consider batch inference
+            for index, file in enumerate(filenames):  # todo consider batch inference
                 img_raw = tf.image.decode_image(open(file, 'rb').read(), channels=3, dtype=tf.float32)
                 self._inference(model, img_raw, image_size, yolo_max_boxes, bbox_color, font_size, class_names, index,
                                 output_dir, detections_list_outfile)
