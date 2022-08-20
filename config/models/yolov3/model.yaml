@@ -20,7 +20,7 @@ sub_models_configs:
   outputs_layers:
   - -1
 
-- name: head0
+- name: head0_output
   inputs:
     source:
     - name: neck0
@@ -40,7 +40,7 @@ sub_models_configs:
   outputs_layers:
   - -1  # Set outputs layers as a list or as a scalar according to topology
 
-- name: head1
+- name: head1_output
   inputs:
     source:
     - name: neck1
@@ -60,7 +60,7 @@ sub_models_configs:
   outputs_layers:
   - -1
 
-- name: head2
+- name: head2_output
   inputs:
     source:
     - name: neck2
