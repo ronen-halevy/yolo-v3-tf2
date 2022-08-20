@@ -1,4 +1,5 @@
 ---
+output_stage: head
 decay_factor: 0.0005
 sub_models_configs:
 - name: backbone

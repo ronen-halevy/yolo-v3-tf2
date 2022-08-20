@@ -250,7 +250,7 @@ class ParseModel:
                 raise ValueError('{} not recognized as layer_conf type'.format(layer_type))
         return layers
 
-    def build_model(self, model_inputs, nclasses, decay_factor, sub_models_configs):
+    def build_model(self, model_inputs, nclasses, decay_factor, sub_models_configs, output_stage):
         """
         Builds model by parsing model config file
 
@@ -279,7 +279,7 @@ class ParseModel:
             model = Model(inputs, outputs, name=sub_model_config['name'])(data_inputs)
             sub_models_outputs_list.append({'outputs': model, 'name': sub_model_config['name']})
         outputs = [sub_model_entry['outputs'] for sub_model_entry in sub_models_outputs_list if
-                   'output' in sub_model_entry['name']]
+                   output_stage in sub_model_entry['name']]
 
         model = Model(model_inputs, outputs, name="yolo")
         return model
