@@ -32,7 +32,7 @@ max_bboxes: 100
 
 # model
 model_config_file: config/models/yolov3/model.yaml
-mode: fit # 'model execution mode. choices=[eager_tf, fit]'
+training_mode: fit # 'model execution mode. choices=[eager_tf, fit]'
 
 #algorithm
 batch_size: 8
@@ -41,13 +41,21 @@ learning_rate: 0.001
 early_stopping: False # enables early_stopping callback
 early_stop_patience: 13 # an early_stopping callback parameter
 
-#weights transfer
-load_weights: all # backbone, backbone_and_neck, all, none
-training_mode:
-  - backbone_training: freeze #enable, freeze, fine_tune
-  - neck_training: fine_tune  #enable, freeze, fine_tune
-  - head_training: enable  #enable, freeze, fine_tune
-load_checkpoints_path: weights/coco/girl/yolov3_train_girl.tf #'checkpoints/yolov3_train_newclass5.tf' #path to pretrained weights file
+transfer_learning:
+  load_weights:
+#    - none
+#    - all
+    - backbone
+    - neck
+    - head
+  freeze_training:
+    - backbone
+    - neck
+  batch_norm_freeze:
+    - backbone
+    - neck
+    - head
+input_weights_path: checkpoints/my_keras_coco_yolov3.tf
 
 # operation modes
 debug_mode: False # Debug step-by-step trace graph mode functions

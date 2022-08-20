@@ -31,7 +31,7 @@ model_config_file: config/models/yolov3/model.yaml # config/yolov3_model.yaml
 image_size: 416
 
 #algorithm
-mode: eager_tf # fit # 'model execution mode. choices=[eager_tf, fit]'
+training_mode: eager_tf # fit # 'model execution mode. choices=[eager_tf, fit]'
 batch_size: 8
 epochs: 1000
 learning_rate: 0.001
@@ -40,12 +40,23 @@ early_stop_patience: 13 # an early_stopping callback parameter
 
 #weights transfer
 
-load_weights: False # backbone, backbone_and_neck, all, none
-training_mode:
-  - backbone: enable #enable, freeze, fine_tune
-  - neck: enable  #enable, freeze, fine_tune
-  - head: enable  #enable, freeze, fine_tune
-load_checkpoints_path: checkpoints/yolov3_train1.tf # checkpoints/yolov3_train_rb_circles.tf #'checkpoints/yolov3_train_newclass5.tf' #path to pretrained weights file
+#load_weights: False # backbone, backbone_and_neck, all, none
+transfer_learning:
+  load_weights:
+    # - none
+    # - all
+    - backbone
+    - neck
+    - head
+  freeze_training:
+    - backbone
+    - neck
+  batch_norm_freeze:
+    - backbone
+    - neck
+    - head
+
+input_weights_path: checkpoints/yolov3_train_circle_and_triangle.tf # checkpoints/yolov3_train_rb_circles.tf #'checkpoints/yolov3_train_newclass5.tf' #path to pretrained weights file
 
 
 # operation modes

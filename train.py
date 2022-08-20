@@ -31,7 +31,7 @@ from core.parse_model import ParseModel
 
 from core.load_tfrecords import parse_tfrecords
 from core.load_dataset import load_dataset, load_debug_dataset
-
+from core.transfer_learning import do_transfer_learning
 
 class Train:
     @staticmethod
@@ -126,21 +126,20 @@ class Train:
                  learning_rate,
                  early_stop_patience,
                  epochs,
-                 mode,
+                 training_mode,
                  render_dataset_example,
                  dataset_cuttof_size,
                  dataset_repeats,
-                 load_weights,
+                 transfer_learning,
                  images_dir,
                  annotations_path,
                  train_tfrecords,
                  val_tfrecords,
                  classes_name_file,
                  output_checkpoints_path,
-                 load_checkpoints_path,
+                 input_weights_path,
                  early_stopping,
                  weights_save_peroid,
-                 training_mode,
                  **kwargs
                  ):
 
@@ -195,13 +194,23 @@ class Train:
         with open("model_summary.txt", "w") as file1:
             model.summary(print_fn=lambda x: file1.write(x + '\n'))
 
+        if transfer_learning and transfer_learning.get('load_weights'):
+            if 'all' in transfer_learning.get('load_weights'):
+                model.load_weights(input_weights_path)
+            else:
+                parse_model = ParseModel()
+                inputs = Input(shape=(None, None, 3))
+                ref_model = parse_model.build_model(inputs, nclasses, **model_config)
+                ref_model.load_weights(input_weights_path)
+                do_transfer_learning(model, ref_model, transfer_learning, input_weights_path)
+
         optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
 
-        loss_fn_list = [get_loss_func(anchors, nclasses, tf.constant(mode == 'eager_tf', dtype=tf.bool))
+        loss_fn_list = [get_loss_func(anchors, nclasses, tf.constant(training_mode == 'eager_tf', dtype=tf.bool))
                         for anchors in anchors_table]
 
         model.compile(optimizer=optimizer, loss=loss_fn_list,
-                      run_eagerly=(mode == 'eager_fit'))
+                      run_eagerly=(training_mode == 'eager_fit'))
         preprocess_dataset = PreprocessDataset()
         if debug_mode:
             preprocess_dataset.preprocess_dataset_debug(dataset[0], batch_size, image_size, anchors_table,
@@ -215,10 +224,10 @@ class Train:
 
         ds_train, ds_val = ds_preprocessed
 
-        if load_weights:
-            model.load_weights(load_checkpoints_path)
 
-        if mode == 'eager_tf':
+
+
+        if training_mode == 'eager_tf':
             self._train_eager_mode(model, ds_train, ds_val, loss_fn_list, optimizer, batch_size, epochs,
                                    output_checkpoints_path, weights_save_peroid)
         else:
@@ -245,7 +254,7 @@ class Train:
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("--config", type=str, default='config/train_config.yaml',
+    parser.add_argument("--config", type=str, default='config/train_config_coco.yaml',
                         help='yaml config file')
 
     args = parser.parse_args()
