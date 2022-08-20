@@ -93,7 +93,7 @@ def load_dataset(images_dir, annotations_path, classes_name_file, image_size=416
 
 def load_debug_dataset():
     x_train = tf.image.decode_jpeg(
-        open('../datasets/coco2012/images/girl.png', 'rb').read(), channels=3)
+        open('datasets/coco2012/images/girl.png', 'rb').read(), channels=3)
     x_train = tf.expand_dims(x_train/255, axis=0)
 
     labels = [
