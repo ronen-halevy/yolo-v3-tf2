@@ -187,7 +187,7 @@ class Train:
         parse_model = ParseModel()
         inputs = Input(shape=(None, None, 3))
 
-        model = parse_model.build_model(inputs, nclasses, **model_config)
+        model = parse_model.build_model(inputs, **model_config, nclasses=nclasses)
 
 
         with open("model_summary.txt", "w") as file1:
@@ -200,8 +200,8 @@ class Train:
             else:
                 parse_model = ParseModel()
                 inputs = Input(shape=(None, None, 3))
-                ref_model = parse_model.build_model(inputs, nclasses, **model_config)
-                ref_model.load_weights(input_weights_path)
+                ref_model = parse_model.build_model(inputs, **model_config, output_stage='neck')
+                ref_model.load_weights(input_weights_path).expect_partial()
                 do_transfer_learning(model, ref_model, transfer_learning_config, input_weights_path)
 
         optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
