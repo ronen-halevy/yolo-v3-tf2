@@ -10,55 +10,58 @@
 #
 # ================================================================
 import yaml
+from tensorflow.keras import Input
+
 from core.parse_model import ParseModel
 
-def transfer_learning(model, model_config_file, nclasses, submodels_names_prefixes, weights_file_path):
-    with open(model_config_file, 'r') as _stream:
-        model_config = yaml.safe_load(_stream)
-    parse_model = ParseModel()
-    ref_model, _ = parse_model.build_model(nclasses, **model_config)
 
-    ref_model.load_weights(weights_file_path)
+
+def copy_weights(model, ref_model, transfer_learning_submodels, weights_file_path):
     for layer in model.layers:
-        submodels = list(filter(lambda x: x in layer.name ,submodels_names_prefixes))
+        submodels = list(filter(lambda x: x in layer.name ,transfer_learning_submodels))
         if submodels:
             layer.set_weights(ref_model.get_layer(
                 layer.name).get_weights())
 
 
-
-
-
-def freeze_model(model, submodels_names_prefixes, freeze_flag):
+def freeze_model(model, freeze_models, freeze_flag=True):
     for layer in model.layers:
-        submodels = list(filter(lambda x: x in layer.name, submodels_names_prefixes))
+        submodels = list(filter(lambda x: x in layer.name, freeze_models))
         if submodels:
-            layer.trainable = freeze_flag
+            layer.trainable = not freeze_flag
 
-def disable_bn(model, submodels_names_prefixes, freeze_flag):
+def disable_bn(model, freeze_bn, freeze_flag=True):
     for layer in model.layers:
-        submodels = list(filter(lambda x: x in layer.name, submodels_names_prefixes))
+        submodels = list(filter(lambda x: x in layer.name, freeze_bn))
         if submodels:
-            layer.training = freeze_flag
+            layer.training = not freeze_flag
 
 
+def do_transfer_learning(model, ref_model, transfer_learning_cfg, input_weights_path):
+    if transfer_learning_cfg.get('load_weights') and 'none' not in transfer_learning_cfg['load_weights']:
+        copy_weights(model, ref_model, transfer_learning_cfg['load_weights'],
+                      input_weights_path)
+    if transfer_learning_cfg['freeze_training']:
+        freeze_model(model, transfer_learning_cfg['freeze_training'])
+
+    if transfer_learning_cfg['batch_norm_freeze']:
+        disable_bn(model, transfer_learning_cfg['batch_norm_freeze'])
 
 
 if __name__ == '__main__':
     model_config_file = 'config/models/yolov3/model.yaml'
-    weights_file_path = 'stam.tf'
     with open(model_config_file, 'r') as _stream:
         model_config = yaml.safe_load(_stream)
     parse_model = ParseModel()
-    nclasses = 7
-    model, _ = parse_model.build_model(nclasses, **model_config)
-    model.save_weights(
-        weights_file_path)
+    nclasses = 80
+    inputs = Input(shape=(None, None, 3), name = 'input')
+    model = parse_model.build_model(inputs, nclasses, **model_config)
 
-    submodels_names_prefixes = ['head', 'neck']
-    transfer_learning(model, model_config_file, nclasses, submodels_names_prefixes, weights_file_path)
-    freeze_flag = False
-    freeze_model(model, submodels_names_prefixes, freeze_flag)
-    disable_bn(model, submodels_names_prefixes, freeze_flag)
-    pass
-    print('fff')
+
+    with open('config/train_config.yaml', 'r') as _stream:
+        train_config = yaml.safe_load(_stream)
+    transfer_learning_cfg = train_config['transfer_learning_config']
+    input_weights_path = train_config['input_weights_path']
+    model.load_weights(input_weights_path)
+
+    do_transfer_learning(transfer_learning_cfg, input_weights_path)

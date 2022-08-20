@@ -196,8 +196,9 @@ class ParseModel:
             inputs = []
             data_inputs = []
             for idx, source_entry in enumerate(inputs_config['source']):
-                selected_sourcing_sub_model = list(filter(lambda x: x['name'] == source_entry['name'], sub_models_outputs_list))
-                selected_sourcing_sub_model = selected_sourcing_sub_model[0] # a single selected model - name is unique
+                selected_sourcing_sub_model = list(
+                    filter(lambda x: x['name'] == source_entry['name'], sub_models_outputs_list))
+                selected_sourcing_sub_model = selected_sourcing_sub_model[0]  # a single selected model - name is unique
                 if not len(selected_sourcing_sub_model):
                     raise Exception(f'Error: sub-model {source_entry["name"]} not found')
                 selected_sourcing_output = selected_sourcing_sub_model['outputs']
@@ -267,8 +268,9 @@ class ParseModel:
             inputs_config = sub_model_config.get('inputs')
             if inputs_config:
                 # locate peers' output according to configuration
-                inputs, data_inputs = self.create_inputs(inputs_config, sub_models_outputs_list, sub_model_config['name'])
-            else: # peerles bottom model (leftmost) uses model_inputs
+                inputs, data_inputs = self.create_inputs(inputs_config, sub_models_outputs_list,
+                                                         sub_model_config['name'])
+            else:  # peerles bottom model (leftmost) uses model_inputs
                 inputs = data_inputs = model_inputs
 
             layers = self._create_layers(sub_model_config['layers_config_file'], inputs, nclasses, decay_factor)
@@ -279,8 +281,15 @@ class ParseModel:
         outputs = [sub_model_entry['outputs'] for sub_model_entry in sub_models_outputs_list if
                    'head' in sub_model_entry['name']]
 
-
         model = Model(model_inputs, outputs, name="yolo")
+        return model
+
+    def create_model(self, nclasses, model_config_file):
+        with open(model_config_file, 'r') as _stream:
+            model_config = yaml.safe_load(_stream)
+        parse_model = ParseModel()
+        inputs = Input(shape=(None, None, 3), name='input')
+        model = parse_model.build_model(inputs, nclasses, **model_config)
         return model
 
 
