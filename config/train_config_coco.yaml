@@ -10,7 +10,8 @@
 #
 # ================================================================
 ---
-# dataset:
+#training_dataset_config:
+
 input_data_source: debug_data # [tfrecords, images_dir_annot_file, debug_data]
 ##tfrecords:
 train_tfrecords: datasets/shapes/two_colors/input/tfrecords/train
@@ -18,8 +19,6 @@ val_tfrecords: datasets/shapes/two_colors/input/tfrecords/val
 ##plain_dataset:
 images_dir: datasets/coco2012/images
 annotations_path: datasets/coco2012/annotations.json
-
-image_size: 416
 
 classes_name_file: datasets/coco2012/coco.names
 anchors_file: datasets/coco2012/anchors.txt
@@ -32,16 +31,20 @@ max_bboxes: 100
 
 # model
 model_config_file: config/models/yolov3/model.yaml
+image_size: 416
+
 training_mode: fit # 'model execution mode. choices=[eager_tf, fit]'
 
-#algorithm
 batch_size: 8
 epochs: 1000
 learning_rate: 0.001
 early_stopping: False # enables early_stopping callback
 early_stop_patience: 13 # an early_stopping callback parameter
+weights_save_peroid: 4
+output_checkpoints_path: 'checkpoints/yolov3_train.tf' # prefix of path checkpoints save
 
-transfer_learning:
+
+transfer_learning_config:
   load_weights:
 #    - none
 #    - all
@@ -55,15 +58,12 @@ transfer_learning:
     - backbone
     - neck
     - head
-input_weights_path: checkpoints/my_keras_coco_yolov3.tf
 
-# operation modes
+  input_weights_path: checkpoints/my_keras_coco_yolov3.tf
+
+#training_etc_config:
 debug_mode: False # Debug step-by-step trace graph mode functions
 render_dataset_example: False
-
-#output setup
-weights_save_peroid: 4
-output_checkpoints_path: 'checkpoints/yolov3_train.tf' # prefix of path checkpoints save
 
 
 

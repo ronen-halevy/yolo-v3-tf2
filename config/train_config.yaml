@@ -14,7 +14,7 @@
 #training_dataset_config:
 input_data_source: tfrecords # images_dir_annot_file # [tfrecords, images_dir_annot_file, coco_debug_data]
 #tfrecords:
-train_tfrecords:  datasets/shapes/circle_and_triangle/input/tfrecords/train # datasets/shapes/red_circle/input/tfrecords/train # datasets/shapes/circle_and_triangle/input/tfrecords/train
+train_tfrecords:  datasets/shapes/red_circle/input/tfrecords/train # datasets/shapes/circle_and_triangle/input/tfrecords/train #  datasets/shapes/circle_and_triangle/input/tfrecords/train
 val_tfrecords: datasets/shapes/circle_and_triangle/input/tfrecords/val # datasets/shapes/red_circle/input/tfrecords/val # datasets/shapes/circle_and_triangle/input/tfrecords/val
 #plain_dataset:
 images_dir: datasets/shapes/three_circles/input/images_and_annotations_file/images #datasets/shapes/three_mixed_shapes/red/input/images_and_annotations/images # directory location of input images used in non-tfrecords mode
@@ -41,21 +41,21 @@ weights_save_peroid: 4
 output_checkpoints_path: checkpoints/yolov3_train.tf # prefix of path checkpoints save
 
 
-#transfer_learning_config:
-load_weights:
-#   - all
-  - backbone
-  - neck
-  - head
-freeze_training:
-  - backbone
-  - neck
-batch_norm_freeze:
-  - backbone
-  - neck
-  - head
+transfer_learning_config:
+  load_weights:
+  #   - all
+    - backbone
+    - neck
+    - head
+  freeze_training:
+    - backbone
+    - neck
+  batch_norm_freeze:
+    - backbone
+    - neck
+    - head
 
-input_weights_path: checkpoints/yolov3_train_circle_and_triangle.tf # checkpoints/yolov3_train_rb_circles.tf #'checkpoints/yolov3_train_newclass5.tf' #path to pretrained weights file
+  input_weights_path: checkpoints/yolov3_train_circle_and_triangle.tf # checkpoints/yolov3_train_rb_circles.tf #'checkpoints/yolov3_train_newclass5.tf' #path to pretrained weights file
 
 
 #training_etc_config:
