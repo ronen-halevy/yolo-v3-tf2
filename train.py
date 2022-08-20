@@ -130,14 +130,13 @@ class Train:
                  render_dataset_example,
                  dataset_cuttof_size,
                  dataset_repeats,
-                 transfer_learning,
+                 transfer_learning_config,
                  images_dir,
                  annotations_path,
                  train_tfrecords,
                  val_tfrecords,
                  classes_name_file,
                  output_checkpoints_path,
-                 input_weights_path,
                  early_stopping,
                  weights_save_peroid,
                  **kwargs
@@ -194,15 +193,16 @@ class Train:
         with open("model_summary.txt", "w") as file1:
             model.summary(print_fn=lambda x: file1.write(x + '\n'))
 
-        if transfer_learning and transfer_learning.get('load_weights'):
-            if 'all' in transfer_learning.get('load_weights'):
+        if transfer_learning_config and transfer_learning_config.get('load_weights'):
+            input_weights_path = transfer_learning_config['input_weights_path']
+            if 'all' in transfer_learning_config.get('load_weights'):
                 model.load_weights(input_weights_path)
             else:
                 parse_model = ParseModel()
                 inputs = Input(shape=(None, None, 3))
                 ref_model = parse_model.build_model(inputs, nclasses, **model_config)
                 ref_model.load_weights(input_weights_path)
-                do_transfer_learning(model, ref_model, transfer_learning, input_weights_path)
+                do_transfer_learning(model, ref_model, transfer_learning_config, input_weights_path)
 
         optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
 
@@ -254,7 +254,7 @@ class Train:
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("--config", type=str, default='config/train_config_coco.yaml',
+    parser.add_argument("--config", type=str, default='config/train_config.yaml',
                         help='yaml config file')
 
     args = parser.parse_args()
