@@ -41,19 +41,21 @@ weights_save_peroid: 4
 output_checkpoints_path: checkpoints/yolov3_train.tf # prefix of path checkpoints save
 
 
-transfer_learning_config: # all, or nonw, or
-  load_weights:
+transfer_learning_config:
+  transfer_list: # all, none, backbone, or neck (equivalent to listing backbone and neck)
 #    - all
 #    - none
     - backbone
-    - neck
+#    - neck
 #    - head
-  freeze_training:
-    - backbone
-    - neck
-  batch_norm_freeze:
-    - backbone
-    - neck
+  freeze_train_list: # Can omit. Note: selecting neck does not imply to  backbone
+     - none
+#    - backbone
+#    - neck
+  batch_norm_freeze_list:  # Can omit. Note: selecting neck does not imply to  backbone
+    - none
+#    - backbone
+#    - neck
 #    - head
 
   input_weights_path: checkpoints/yolov3_train_circle_and_triangle.tf # checkpoints/yolov3_train_rb_circles.tf #'checkpoints/yolov3_train_newclass5.tf' #path to pretrained weights file

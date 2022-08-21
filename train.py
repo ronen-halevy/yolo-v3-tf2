@@ -193,16 +193,12 @@ class Train:
         with open("model_summary.txt", "w") as file1:
             model.summary(print_fn=lambda x: file1.write(x + '\n'))
 
-        if transfer_learning_config and transfer_learning_config.get('load_weights'):
+        if transfer_learning_config and transfer_learning_config.get('transfer_list'):
             input_weights_path = transfer_learning_config['input_weights_path']
-            if 'all' in transfer_learning_config.get('load_weights'):
+            if 'all' in transfer_learning_config['transfer_list']:
                 model.load_weights(input_weights_path)
-            elif 'none' not in transfer_learning_config.get('load_weights'):
-                parse_model = ParseModel()
-                inputs = Input(shape=(None, None, 3))
-                ref_model = parse_model.build_model(inputs, **model_config, output_stage='neck')
-                ref_model.load_weights(input_weights_path).expect_partial()
-                do_transfer_learning(model, ref_model, transfer_learning_config, input_weights_path)
+            elif 'none' not in transfer_learning_config['transfer_list']:
+                do_transfer_learning(model, model_config, transfer_learning_config, input_weights_path)
 
         optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
 

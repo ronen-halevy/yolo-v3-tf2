@@ -45,19 +45,22 @@ output_checkpoints_path: 'checkpoints/yolov3_train.tf' # prefix of path checkpoi
 
 
 transfer_learning_config:
-  load_weights:
+  transfer_list: # all, none, backbone, or neck (equivalent to listing backbone and neck)
+#    - all
 #    - none
 #    - all
     - backbone
-    - neck
-    - head
-  freeze_training:
-    - backbone
-    - neck
-  batch_norm_freeze:
-    - backbone
-    - neck
-    - head
+#    - neck
+#    - head
+  freeze_train_list: # Can omit. Note: selecting neck does not imply to  backbone
+     - none
+#    - backbone
+#    - neck
+  batch_norm_freeze_list:  # Can omit. Note: selecting neck does not imply to  backbone
+    - none
+#    - backbone
+#    - neck
+#    - head
 
   input_weights_path: checkpoints/my_keras_coco_yolov3.tf
 
