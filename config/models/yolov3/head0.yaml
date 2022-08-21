@@ -6,13 +6,6 @@
         inputs:
           entries: anyvalue # if inputs source holds a scalar and not a list, then entires value is 'don't care'
 
-    - type: convolutional
-      batch_normalize: 1
-      size: 3
-      stride: 1
-      pad: 1
-      filters: 1024
-      activation: leaky
 
 
     - type: convolutional

@@ -64,6 +64,14 @@
       pad: 1
       activation: leaky
 
+    - type: convolutional
+      batch_normalize: 1
+      size: 3
+      stride: 1
+      pad: 1
+      filters: 512
+      activation: leaky
+
     -type: output
     list:
       layers:
