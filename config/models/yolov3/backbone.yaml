@@ -2,6 +2,7 @@
   layers_config:
   - type: route
     source:
+      inputs:
       - 0 # btw - if inputs source holds a scalar and not a list, then inputs value is actually 'don't care'
   - type: convolutional
     batch_normalize: 1
