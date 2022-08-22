@@ -1,5 +1,7 @@
 ---
 decay_factor: 0.0005
+output_stage: head
+
 sub_models_configs:
 - name: backbone
 #  inputs: Edge element uses model's global input
