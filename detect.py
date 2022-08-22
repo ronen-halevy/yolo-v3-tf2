@@ -66,9 +66,9 @@ class Inference:
 
     def __call__(self,
                  model_config_file,
-                 classes,
+                 classes_name_file,
                  anchors_file,
-                 weights,
+                 input_weights_path,
                  image_size,
                  input_data_source,
                  images_dir,
@@ -95,7 +95,7 @@ class Inference:
         detections_list_outfile = open(detections_text_list_outfile, 'a')
 
         anchors_table = tf.cast(get_anchors(anchors_file), tf.float32)
-        class_names = [c.strip() for c in open(classes).readlines()]
+        class_names = [c.strip() for c in open(classes_name_file).readlines()]
         nclasses = len(class_names)
 
         inputs = Input(shape=(None, None, 3))
@@ -104,8 +104,10 @@ class Inference:
 
         with open(model_config_file, 'r') as _stream:
             model_config = yaml.safe_load(_stream)
-        model = parse_model.build_model(inputs, nclasses, **model_config)
-        model.load_weights(weights)
+        model = parse_model.build_model(inputs, nclasses=nclasses, **model_config)
+        # ww = 'tt.tf'
+        # model.save('path/to/location')
+        model.load_weights(input_weights_path)
         print('weights loaded')
         model = model(inputs)
 
@@ -140,7 +142,7 @@ class Inference:
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--config", type=str, default='config/detect_config_coco.yaml',
+parser.add_argument("--config", type=str, default='config/detect_config.yaml',
                     help='yaml config file')
 
 args = parser.parse_args()

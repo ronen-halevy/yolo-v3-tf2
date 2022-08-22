@@ -8,7 +8,7 @@ input_data_source:  image_file # [tfrecords, images_dir, image_file]
 images_dir: datasets/shapes/three_mixed_shapes/blue/input/images_and_annotations_file/images
 tfrecords_dir:  datasets/shapes/colors_circles_triangles_trapezoid_2sizes/input/tfrecords/test
 image_file_path: datasets/coco2012/images/girl.png # datasets/shapes/three_circles/input/images_and_annotations_file/images/000001.jpg
-classes: datasets/coco2012/coco.names # datasets/shapes/two_colors/class.names  #./datasets/shapes/class.names
+classes_name_file: datasets/coco2012/coco.names # datasets/shapes/two_colors/class.names  #./datasets/shapes/class.names
 anchors_file: datasets/coco2012/anchors.txt #datasets/shapes/anchors/shapes_yolov3_anchors.txt
 
 
@@ -29,4 +29,4 @@ font_size: 15
 output_dir: datasets/coco2012/output
 
 #inference_input:
-weights: checkpoints/my_keras_coco_yolov3.tf # /home/ronen/PycharmProjects/yolov3-tf2/checkpoints/yolov3.tf # weights/coco/girl/yolov3_train_girl.tf # weights/coco/girl/yolov3_train_coco_25.tf # checkpoints/yolov3_train_rb_circles4.tf
+input_weights_path: checkpoints/keras_coco_yolov3.tf # /home/ronen/PycharmProjects/yolov3-tf2/checkpoints/yolov3.tf # weights/coco/girl/yolov3_train_girl.tf # weights/coco/girl/yolov3_train_coco_25.tf # checkpoints/yolov3_train_rb_circles4.tf
