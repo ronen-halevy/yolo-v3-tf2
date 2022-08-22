@@ -31,7 +31,7 @@ model_config_file: config/models/yolov3/model.yaml # config/yolov3_model.yaml
 image_size: 416
 
 
-training_mode: eager_tf # fit # 'model execution mode. choices=[eager_tf, fit]'
+training_mode: fit # eager_tf # fit # 'model execution mode. choices=[eager_tf, fit]'
 batch_size: 8
 epochs: 1000
 learning_rate: 0.001
