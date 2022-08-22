@@ -20,7 +20,7 @@ sub_models_configs:
   outputs_layers:
   - -1
 
-- name: head0_output
+- name: head0
   inputs:
     source:
     - name: neck0
@@ -40,7 +40,7 @@ sub_models_configs:
   outputs_layers:
   - -1
 
-- name: head1_output
+- name: head1
   inputs:
     source:
     - name: neck1
@@ -60,7 +60,7 @@ sub_models_configs:
   outputs_layers:
   - -1
 
-- name: head2_output
+- name: head2
   inputs:
     source:
     - name: neck2
