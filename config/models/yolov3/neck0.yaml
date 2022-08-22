@@ -3,7 +3,8 @@
 
     - type: route
       source:
-        inputs: anyvalue # field value is don't care if inputs is a scalar
+        inputs:
+        - 0 # btw - if inputs source holds a scalar and not a list, then inputs value is 'don't care'
 
     - type: convolutional
       batch_normalize: 1
