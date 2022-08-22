@@ -20,7 +20,7 @@ sub_models_configs:
 
   layers_config_file: config/models/yolov3/neck0.yaml
   outputs_layers:
-  - -2
+  - -1
 
 - name: head0
   inputs:
@@ -40,7 +40,7 @@ sub_models_configs:
       entry_index: 0
   layers_config_file: config/models/yolov3/neck1.yaml
   outputs_layers:
-  - -2
+  - -1
 
 
 - name: head1
@@ -61,7 +61,7 @@ sub_models_configs:
       entry_index: 0
   layers_config_file: config/models/yolov3/neck2.yaml
   outputs_layers:
-  - -2
+  - -1
 
 - name: head2
   inputs:
