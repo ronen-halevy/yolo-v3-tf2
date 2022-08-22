@@ -105,8 +105,6 @@ class Inference:
         with open(model_config_file, 'r') as _stream:
             model_config = yaml.safe_load(_stream)
         model = parse_model.build_model(inputs, nclasses=nclasses, **model_config)
-        # ww = 'tt.tf'
-        # model.save('path/to/location')
         model.load_weights(input_weights_path)
         print('weights loaded')
         model = model(inputs)
@@ -139,7 +137,7 @@ class Inference:
                 img_raw = tf.image.decode_image(open(file, 'rb').read(), channels=3, dtype=tf.float32)
                 self._inference(model, img_raw, image_size, yolo_max_boxes, bbox_color, font_size, class_names, index,
                                 output_dir, detections_list_outfile)
-
+        return
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--config", type=str, default='config/detect_config.yaml',

@@ -188,7 +188,7 @@ class ParseModel:
         return x, layers
 
     @staticmethod
-    def create_inputs(inputs_config, sub_models_outputs_list, models_name):
+    def create_sub_model_inputs(inputs_config, sub_models_outputs_list, models_name):
         if 'shape' in inputs_config:
             inputs = Input(eval(inputs_config['shape']))
             data_inputs = inputs
@@ -218,7 +218,7 @@ class ParseModel:
                 # data_inputs = data_inputs[0]
         return inputs, data_inputs
 
-    def _create_layers(self, layers_config_file, inputs, nclasses, decay_factor):
+    def create_sub_model_layers(self, layers_config_file, inputs, nclasses, decay_factor):
         with open(layers_config_file, 'r') as stream:
             model_config = yaml.safe_load(stream)
 
@@ -268,20 +268,23 @@ class ParseModel:
             inputs_config = sub_model_config.get('inputs')
             if inputs_config:
                 # locate peers' output according to configuration
-                inputs, data_inputs = self.create_inputs(inputs_config, sub_models_outputs_list,
+                sub_model_inputs, sub_model_data_inputs = self.create_sub_model_inputs(inputs_config, sub_models_outputs_list,
                                                          sub_model_config['name'])
             else:  # peerles bottom model (leftmost) uses model_inputs
-                inputs = data_inputs = model_inputs
+                sub_model_inputs = sub_model_data_inputs = model_inputs
 
-            layers = self._create_layers(sub_model_config['layers_config_file'], inputs, nclasses, decay_factor)
-            outputs = [layers[int(layer)] for layer in sub_model_config['outputs_layers']]
-            outputs = outputs[0] if len(outputs) == 0 else outputs
-            model = Model(inputs, outputs, name=sub_model_config['name'])(data_inputs)
+            sub_model_layers = self.create_sub_model_layers(sub_model_config['layers_config_file'], sub_model_inputs, nclasses, decay_factor)
+
+            sub_model_outputs = [sub_model_layers[int(layer)] for layer in sub_model_config['outputs_layers']]
+            sub_model_outputs = sub_model_outputs[0] if len(sub_model_outputs) == 0 else sub_model_outputs
+
+            model = Model(sub_model_inputs, sub_model_outputs, name=sub_model_config['name'])(sub_model_data_inputs)
             sub_models_outputs_list.append({'outputs': model, 'name': sub_model_config['name']})
-        outputs = [sub_model_entry['outputs'] for sub_model_entry in sub_models_outputs_list if
+
+        model_outputs = [sub_model_entry['outputs'] for sub_model_entry in sub_models_outputs_list if
                    output_stage in sub_model_entry['name']]
 
-        model = Model(model_inputs, outputs, name="yolo")
+        model = Model(model_inputs, model_outputs, name="yolo")
         return model
 
     def create_model(self, nclasses, model_config_file):
