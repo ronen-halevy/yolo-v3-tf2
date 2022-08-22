@@ -35,7 +35,7 @@ sub_models_configs:
     - name: backbone
       entry_index: 1
     - name: neck0
-#      entry_index: 0 #  entry_index field is needed for a list source. Otherwise - put 0 or omit entire entry_index row
+      entry_index: 0
   layers_config_file: config/models/yolov3/neck1.yaml
   outputs_layers:
   - -1  # Set outputs layers as a list or as a scalar according to topology
@@ -64,6 +64,7 @@ sub_models_configs:
   inputs:
     source:
     - name: neck2
+      entry_index: 0
   layers_config_file: config/models/yolov3/head2.yaml
   outputs_layers:
   - -1
