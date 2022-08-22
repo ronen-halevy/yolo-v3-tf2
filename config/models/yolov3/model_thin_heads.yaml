@@ -18,13 +18,14 @@ sub_models_configs:
 
   layers_config_file: config/models/yolov3/neck0.yaml
   outputs_layers:
+  - -2
   - -1
 
 - name: head0_output
   inputs:
     source:
     - name: neck0
-      entry_index: 0 #  entry_index field is needed for a list source. Otherwise - put 0 or omit entire entry_index row
+      entry_index: 1 #  entry_index field is needed for a list source. Otherwise - put 0 or omit entire entry_index row
   layers_config_file: config/models/yolov3/head0.yaml
   outputs_layers:
   - -1
@@ -35,16 +36,17 @@ sub_models_configs:
     - name: backbone
       entry_index: 1
     - name: neck0
-      entry_index: 0
+      entry_index: -2
   layers_config_file: config/models/yolov3/neck1.yaml
   outputs_layers:
+  - -2
   - -1
 
 - name: head1_output
   inputs:
     source:
     - name: neck1
-      entry_index:  0 #  entry_index field is needed for a list source. Otherwise - put 0 or omit entire entry_index row
+      entry_index:  1 #  entry_index field is needed for a list source. Otherwise - put 0 or omit entire entry_index row
   layers_config_file: config/models/yolov3/head1.yaml
   outputs_layers:
   - -1
@@ -53,18 +55,19 @@ sub_models_configs:
   inputs:
     source:
     - name: neck1
-      entry_index: 0
+      entry_index: -2
     - name: backbone
       entry_index: 0
   layers_config_file: config/models/yolov3/neck2.yaml
   outputs_layers:
+  - -2
   - -1
 
 - name: head2_output
   inputs:
     source:
     - name: neck2
-      entry_index: 0
+      entry_index: 1
   layers_config_file: config/models/yolov3/head2.yaml
   outputs_layers:
   - -1
