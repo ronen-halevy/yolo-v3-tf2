@@ -43,7 +43,9 @@ def do_transfer_learning(model, model_config, transfer_learning_config, input_we
     parse_model = ParseModel()
     inputs = Input(shape=(None, None, 3))
     complete_transfer_list = ['backbone', 'neck'] if 'neck' in transfer_list else ['backbone']
-    ref_model = parse_model.build_model(inputs, **model_config, output_stage=complete_transfer_list[-1])
+    sub_models_configs = model_config['sub_models_configs']
+    # note: ref_model output stage is according to the stransferred sub-models. Head is not transfered anyway (otherwise, load_weights is used):
+    ref_model = parse_model.build_model(inputs, sub_models_configs, output_stage=complete_transfer_list[-1])
     ref_model.load_weights(input_weights_path).expect_partial()
 
     transfer_weights(model, ref_model, complete_transfer_list,
