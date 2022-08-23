@@ -104,7 +104,10 @@ class Inference:
 
         with open(model_config_file, 'r') as _stream:
             model_config = yaml.safe_load(_stream)
-        model = parse_model.build_model(inputs, nclasses=nclasses, **model_config)
+
+        sub_models_configs = model_config['sub_models_configs']
+        output_stage = model_config['output_stage']
+        model = parse_model.build_model(inputs, sub_models_configs, output_stage, nclasses=nclasses)
         model.load_weights(input_weights_path)
         print('weights loaded')
         model = model(inputs)

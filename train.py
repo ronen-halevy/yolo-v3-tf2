@@ -187,8 +187,10 @@ class Train:
         parse_model = ParseModel()
         inputs = Input(shape=(None, None, 3))
 
-        model = parse_model.build_model(inputs, **model_config, nclasses=nclasses)
-
+        sub_models_configs = model_config['sub_models_configs']
+        output_stage = model_config['output_stage']
+        decay_factor = model_config['decay_factor']
+        model = parse_model.build_model(inputs, sub_models_configs, output_stage, decay_factor, nclasses)
 
         with open("model_summary.txt", "w") as file1:
             model.summary(print_fn=lambda x: file1.write(x + '\n'))

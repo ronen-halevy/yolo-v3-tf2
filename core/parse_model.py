@@ -249,8 +249,7 @@ class ParseModel:
             else:
                 raise ValueError('{} not recognized as layer_conf type'.format(layer_type))
         return layers
-
-    def build_model(self, model_inputs, decay_factor, sub_models_configs, nclasses = 0, output_stage='head'):
+    def build_model(self, model_inputs, sub_models_configs, output_stage='head', decay_factor=0, nclasses = 0, **kwargs):
         """
         Builds model by parsing model config file
 
