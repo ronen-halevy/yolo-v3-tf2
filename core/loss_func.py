@@ -23,7 +23,7 @@ def get_loss_func(anchors, nclasses, eager_mode):
 
         true_box, true_obj, true_class_idx = tf.split(
             y_true, (4, 1, 1), axis=-1)
-        true_xy = (true_box[..., 0:2] + true_box[..., 2:4]) / 2
+        true_bbox_center_xy = (true_box[..., 0:2] + true_box[..., 2:4]) / 2
         true_wh = true_box[..., 2:4] - true_box[..., 0:2]
 
         # give higher weights to small boxes
@@ -32,7 +32,7 @@ def get_loss_func(anchors, nclasses, eager_mode):
         grid_size = tf.shape(y_true)[1]
         grid = tf.meshgrid(tf.range(grid_size), tf.range(grid_size))
         grid = tf.expand_dims(tf.stack(grid, axis=-1), axis=2)
-        true_xy = true_xy * tf.cast(grid_size, tf.float32) - \
+        true_bbox_center_xy = true_bbox_center_xy * tf.cast(grid_size, tf.float32) - \
                   tf.cast(grid, tf.float32)
         true_wh = tf.math.log(true_wh / anchors)
         true_wh = tf.where(tf.math.is_inf(true_wh),
@@ -41,7 +41,7 @@ def get_loss_func(anchors, nclasses, eager_mode):
         obj_mask = tf.squeeze(true_obj, -1)
 
         xy_loss = obj_mask * box_loss_scale * \
-                  tf.reduce_sum(tf.square(true_xy - pred_xy), axis=-1)
+                  tf.reduce_sum(tf.square(true_bbox_center_xy - pred_xy), axis=-1)
         xy_loss = tf.reduce_sum(xy_loss, axis=(0, 1, 2, 3))
 
         wh_loss = obj_mask * box_loss_scale * \
