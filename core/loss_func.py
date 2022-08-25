@@ -54,7 +54,7 @@ def get_loss_func(anchors, nclasses, eager_mode):
         class_loss = obj_mask * sparse_categorical_crossentropy(
             true_class_idx, pred_class)
         class_loss = tf.reduce_sum(class_loss, axis=(0, 1, 2, 3))
-
+        # in eager mode, extra info is returned for display/debug:
         result = tf.cond(eager_mode,  lambda: tf.stack([xy_loss, wh_loss, obj_loss, class_loss]), lambda: xy_loss+wh_loss+obj_loss+class_loss)
         return result
 
