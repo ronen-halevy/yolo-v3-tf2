@@ -84,7 +84,6 @@ class Train:
                     f'perGrid{list(pred_loss_per_grid.numpy())}, '
                     f'perSource[xy,wh,obj,class]:{pred_loss_per_source.numpy()}, '
                     f'perGridPerSource:{[list(x.numpy()) for idx, x in enumerate(pred_loss)]}')
-                global_steps.assign_add(1)
             if epoch % weights_save_peroid == 0:
                 model.save_weights(
                     checkpoits_path_prefix)
@@ -119,6 +118,7 @@ class Train:
                  model_config_file,
                  input_data_source,
                  image_size,
+                 grid_sizes_table,
                  batch_size,
                  max_bboxes,
                  debug_mode,
@@ -142,7 +142,7 @@ class Train:
                  **kwargs
                  ):
 
-        grid_sizes_table = np.array([13, 26, 52])
+        grid_sizes_table = np.array(grid_sizes_table)
 
         logging.basicConfig(level=logging.INFO,
                             format='%(levelname)s %(message)s',

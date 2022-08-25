@@ -32,6 +32,10 @@ max_bboxes: 100
 # model
 model_config_file: config/models/yolov3/model.yaml
 image_size: 416
+grid_sizes_table:
+  - 13
+  - 26
+  - 52
 
 training_mode: fit # 'model execution mode. choices=[eager_tf, fit]'
 
