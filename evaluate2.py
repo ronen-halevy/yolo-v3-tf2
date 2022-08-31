@@ -296,19 +296,24 @@ class Evaluate:
             t_unassigned = tf.Variable(tf.fill(tf.shape(true_y[..., 1]), 1))
 
             tp, fp, fn, objects_count = tf.cond(tf.shape(true_y)[0] != 0,
-                                                false_fn =lambda: self.do_iou(pred_y, true_y, tp, fp, fn, objects_count, t_unassigned),
-                                 true_fn=lambda: (tp, fp,
+                                                 true_fn=lambda: self.do_iou(pred_y, true_y, tp, fp, fn, objects_count, t_unassigned),
+                                                  false_fn=lambda: (tp, fp,
                                                   tf.tensor_scatter_nd_add(fn,
                                                                            tf.expand_dims(tf.cast(pred_y[..., 4], tf.int32), axis=-1),
-                                                                           tf.fill(tf.shape(pred_y)[0], 1)), objects_count)
+                                                                           tf.fill(tf.shape(pred_y)[0], 1)),
+
+                                                  tf.tensor_scatter_nd_add(objects_count,
+                                                                           tf.expand_dims(
+                                                                               tf.cast(pred_y[..., 4], tf.int32),
+                                                                               axis=-1),
+                                                                           tf.fill(tf.shape(pred_y)[0], 1)))
                                                 )# rone todo fix inc_arg
 
             print(tp, fp, fn, objects_count)
 
         # # updates = tf.ones(tf.shape(true_y[..., 4])[0], dtype=tf.int32)
         # # indices = tf.expand_dims(true_y, axis=-1)
-        # objects_count = tf.tensor_scatter_nd_add(objects_count, indices=tf.expand_dims(true_y[..., 4], axis=-1),
-        #                                          tf.ones(tf.shape(true_y[..., 4])[0], dtype=tf.int32))
+
 
 
         # hist =  data.map(lambda x, y:  tf.histogram_fixed_width(y[:,5], value_range=[0, nclasses], nbins=nclasses))
