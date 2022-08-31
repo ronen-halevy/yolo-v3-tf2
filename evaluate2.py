@@ -10,7 +10,7 @@
 #   Description :
 #
 # ================================================================
-import numpy as np
+# import numpy as np
 import os
 import tensorflow as tf
 from tensorflow.keras import Input, Model
@@ -76,7 +76,7 @@ class Evaluate:
         # self.inc_count(tp[class_index])
         # tf.cond(result, true_fn=lambda: self.inc_count(tp[class_index]), false_fn=lambda: self.inc_count(fp[class_index]))
 
-    # @tf.function
+    @tf.function
     def do_iou(self, pred_y, true_y, tp, fp, fn, objects_count):
         t_unassigned = tf.Variable(tf.fill(tf.shape(true_y[...,1]), 1))
 
@@ -85,14 +85,14 @@ class Evaluate:
         p_bboxes, p_classes_indices = tf.split(pred_y, [4,1], axis=-1)
 
         iou = tf.map_fn(fn=lambda t: self.broadcast_iou(t, t_bboxes), elems=p_bboxes, parallel_iterations=3)
-        best_iou_index = tf.math.argmax(iou, axis=-1, output_type=tf.int32).numpy()
+        best_iou_index = tf.math.argmax(iou, axis=-1, output_type=tf.int32)#.numpy()
         best_iou_index = tf.cast(tf.squeeze(best_iou_index, axis=-1), tf.int32)
         t_classes_indices =  tf.cast(tf.squeeze(t_classes_indices, axis=-1), tf.int32)
         # true_class1 = [t_classes_indices[idx] for idx in best_iou_index]
         true_class = tf.gather(t_classes_indices, best_iou_index)
 
         iou = tf.squeeze(iou, axis=1)
-        sel_iou1 = np.ndarray([tf.shape(iou)[0]])
+        # sel_iou1 = np.ndarray([tf.shape(iou)[0]])
         ## ronen todo gather?
         # for idx, (iou_, sel_index) in enumerate(zip(iou, best_iou_index)):
         #     sel_iou1[idx] = iou_[sel_index]
@@ -296,7 +296,7 @@ class Evaluate:
                                  true_fn=lambda: self.do_iou(pred_y, true_y, tp, fp, fn, objects_count),
                                  false_fn=lambda: self.inc_arg(fp, pred_y[..., 4]))
 
-            # print(tp, fp, fn)
+            print(tp, fp, fn)
 
 
         # hist =  data.map(lambda x, y:  tf.histogram_fixed_width(y[:,5], value_range=[0, nclasses], nbins=nclasses))
