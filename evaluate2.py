@@ -76,6 +76,7 @@ class Evaluate:
         # self.inc_count(tp[class_index])
         # tf.cond(result, true_fn=lambda: self.inc_count(tp[class_index]), false_fn=lambda: self.inc_count(fp[class_index]))
 
+    # @tf.function
     def do_iou(self, pred_y, true_y, tp, fp, fn, objects_count):
         t_unassigned = tf.Variable(tf.fill(tf.shape(true_y[...,1]), 1))
 
@@ -87,12 +88,17 @@ class Evaluate:
         best_iou_index = tf.math.argmax(iou, axis=-1, output_type=tf.int32).numpy()
         best_iou_index = tf.cast(tf.squeeze(best_iou_index, axis=-1), tf.int32)
         t_classes_indices =  tf.cast(tf.squeeze(t_classes_indices, axis=-1), tf.int32)
-        true_class = [t_classes_indices[idx] for idx in best_iou_index]
+        # true_class1 = [t_classes_indices[idx] for idx in best_iou_index]
+        true_class = tf.gather(t_classes_indices, best_iou_index)
+
         iou = tf.squeeze(iou, axis=1)
-        sel_iou = np.ndarray([tf.shape(iou)[0]])
+        sel_iou1 = np.ndarray([tf.shape(iou)[0]])
         ## ronen todo gather?
-        for idx, (iou_, sel_index) in enumerate(zip(iou, best_iou_index)):
-            sel_iou[idx] = iou_[sel_index]
+        # for idx, (iou_, sel_index) in enumerate(zip(iou, best_iou_index)):
+        #     sel_iou1[idx] = iou_[sel_index]
+
+        best_iou_index_2d = tf.stack([tf.range(tf.shape(iou)[0]), best_iou_index], axis=-1)
+        sel_iou = tf.gather_nd(iou, best_iou_index_2d)
 
         valid_detection = sel_iou > self.iou_thresh
         true_class = tf.convert_to_tensor(true_class)
