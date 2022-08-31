@@ -76,13 +76,18 @@ class Evaluate:
         # self.inc_count(tp[class_index])
         # tf.cond(result, true_fn=lambda: self.inc_count(tp[class_index]), false_fn=lambda: self.inc_count(fp[class_index]))
 
-    @tf.function
+    # @tf.function
     def do_iou(self, pred_y, true_y, tp, fp, fn, objects_count, t_unassigned):
         t_bboxes, t_confidences, t_classes_indices = tf.split(true_y, [4,1,1], axis=-1)
         p_bboxes, p_classes_indices = tf.split(pred_y, [4,1], axis=-1)
 
         iou = tf.map_fn(fn=lambda t: self.broadcast_iou(t, t_bboxes), elems=p_bboxes, parallel_iterations=3)
-        best_iou_index = tf.math.argmax(iou, axis=-1, output_type=tf.int32)#.numpy()
+        # if not iou:
+
+        try:
+            best_iou_index = tf.math.argmax(iou, axis=-1, output_type=tf.int32)#.numpy()
+        except Exception as e:
+            print(e)
         best_iou_index = tf.cast(tf.squeeze(best_iou_index, axis=-1), tf.int32)
         t_classes_indices =  tf.cast(tf.squeeze(t_classes_indices, axis=-1), tf.int32)
         # true_class1 = [t_classes_indices[idx] for idx in best_iou_index]
@@ -291,10 +296,19 @@ class Evaluate:
             t_unassigned = tf.Variable(tf.fill(tf.shape(true_y[..., 1]), 1))
 
             tp, fp, fn, objects_count = tf.cond(tf.shape(true_y)[0] != 0,
-                                 true_fn=lambda: self.do_iou(pred_y, true_y, tp, fp, fn, objects_count, t_unassigned),
-                                 false_fn=lambda: self.inc_arg(fp, pred_y[..., 4]))
+                                                false_fn =lambda: self.do_iou(pred_y, true_y, tp, fp, fn, objects_count, t_unassigned),
+                                 true_fn=lambda: (tp, fp,
+                                                  tf.tensor_scatter_nd_add(fn,
+                                                                           tf.expand_dims(tf.cast(pred_y[..., 4], tf.int32), axis=-1),
+                                                                           tf.fill(tf.shape(pred_y)[0], 1)), objects_count)
+                                                )# rone todo fix inc_arg
 
-            print(tp, fp, fn)
+            print(tp, fp, fn, objects_count)
+
+        # # updates = tf.ones(tf.shape(true_y[..., 4])[0], dtype=tf.int32)
+        # # indices = tf.expand_dims(true_y, axis=-1)
+        # objects_count = tf.tensor_scatter_nd_add(objects_count, indices=tf.expand_dims(true_y[..., 4], axis=-1),
+        #                                          tf.ones(tf.shape(true_y[..., 4])[0], dtype=tf.int32))
 
 
         # hist =  data.map(lambda x, y:  tf.histogram_fixed_width(y[:,5], value_range=[0, nclasses], nbins=nclasses))
