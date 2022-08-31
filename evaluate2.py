@@ -77,11 +77,8 @@ class Evaluate:
         # tf.cond(result, true_fn=lambda: self.inc_count(tp[class_index]), false_fn=lambda: self.inc_count(fp[class_index]))
 
     @tf.function
-    def do_iou(self, pred_y, true_y, tp, fp, fn, objects_count):
-        t_unassigned = tf.Variable(tf.fill(tf.shape(true_y[...,1]), 1))
-
+    def do_iou(self, pred_y, true_y, tp, fp, fn, objects_count, t_unassigned):
         t_bboxes, t_confidences, t_classes_indices = tf.split(true_y, [4,1,1], axis=-1)
-        # p_bboxes, p_classes_indices = tf.split(tf.squeeze(pred_y, axis=0), [4,1], axis=-1)
         p_bboxes, p_classes_indices = tf.split(pred_y, [4,1], axis=-1)
 
         iou = tf.map_fn(fn=lambda t: self.broadcast_iou(t, t_bboxes), elems=p_bboxes, parallel_iterations=3)
@@ -291,9 +288,10 @@ class Evaluate:
 
         for idx, (pred_y, true_y) in enumerate(data):
             pred_y =tf.squeeze(pred_y, axis=0)
+            t_unassigned = tf.Variable(tf.fill(tf.shape(true_y[..., 1]), 1))
 
             tp, fp, fn, objects_count = tf.cond(tf.shape(true_y)[0] != 0,
-                                 true_fn=lambda: self.do_iou(pred_y, true_y, tp, fp, fn, objects_count),
+                                 true_fn=lambda: self.do_iou(pred_y, true_y, tp, fp, fn, objects_count, t_unassigned),
                                  false_fn=lambda: self.inc_arg(fp, pred_y[..., 4]))
 
             print(tp, fp, fn)
