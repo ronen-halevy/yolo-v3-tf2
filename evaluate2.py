@@ -73,11 +73,13 @@ class Evaluate:
 
     # @tf.function
     #todo split the iou func to iou and stats
-    def do_iou(self, pred_y, true_y, tp, fp, fn, true_obj, t_unassigned, errors):
+    def do_iou(self, pred_y, true_y, tp, fp, fn, true_obj, unmatched_ref_objects, errors):
         t_bboxes, t_confidences, t_classes_indices = tf.split(true_y, [4,1,1], axis=-1)
         p_bboxes, p_classes_indices = tf.split(pred_y, [4,1], axis=-1)
 
         iou = tf.map_fn(fn=lambda t: self.broadcast_iou(t, t_bboxes), elems=p_bboxes, parallel_iterations=3)
+        iou = tf.squeeze(iou, axis=1)
+
         if tf.equal(tf.size(iou), 0):
             fn = tf.tensor_scatter_nd_add(fn, # todo arrange dup counts - + like in start
                                      tf.expand_dims(
@@ -94,35 +96,33 @@ class Evaluate:
             best_iou_index = tf.math.argmax(iou, axis=-1, output_type=tf.int32)#.numpy()
         except Exception as e:
             print(e)
-        best_iou_index = tf.cast(tf.squeeze(best_iou_index, axis=-1), tf.int32)
+        # best_iou_index = tf.cast(tf.squeeze(best_iou_index, axis=-1), tf.int32)
         t_classes_indices =  tf.cast(tf.squeeze(t_classes_indices, axis=-1), tf.int32)
-        true_class = tf.gather(t_classes_indices, best_iou_index)
-
-        iou = tf.squeeze(iou, axis=1)
-
+        selected_true_class = tf.gather(t_classes_indices, best_iou_index)
 
         best_iou_index_2d = tf.stack([tf.range(tf.shape(iou)[0]), best_iou_index], axis=-1)
         sel_iou = tf.gather_nd(iou, best_iou_index_2d)
 
-        valid_detections = sel_iou > self.iou_thresh
+        qualified_ious = sel_iou > self.iou_thresh
+
         # true_class = tf.convert_to_tensor(true_class)
         # p_classes_indices = tf.cast(tf.squeeze(p_classes_indices, axis=-1), tf.int32)
         p_classes_indices = tf.cast(p_classes_indices, tf.int32)
-        valid_class = true_class == tf.squeeze(p_classes_indices, axis=-1)
-        decisions = tf.math.logical_and(valid_detections, valid_class)
+        matched_classes = selected_true_class == tf.squeeze(p_classes_indices, axis=-1)
+        decisions = tf.math.logical_and(qualified_ious, matched_classes)
 
-        is_not_assigned = tf.gather(t_unassigned, best_iou_index)
+        is_not_assigned = tf.gather(unmatched_ref_objects, best_iou_index)
         decisions = tf.math.logical_and(decisions, tf.cast(is_not_assigned, bool))
-        tf.map_fn(fn=lambda t: t_unassigned[t].assign(0), elems=best_iou_index, parallel_iterations=3)
-
+        tf.map_fn(fn=lambda t: unmatched_ref_objects[t].assign(0), elems=best_iou_index, parallel_iterations=3)
+        # return decisions, unmatched_ref_objects
 
         tp_decisions = tf.cast(decisions, dtype=tf.int32)
         tp = tf.tensor_scatter_nd_add(tp, p_classes_indices, tp_decisions)
         fp_decisions = tf.cast(tf.math.logical_not(decisions), dtype=tf.int32)
         fp = tf.tensor_scatter_nd_add(fp, p_classes_indices, fp_decisions)
 
-        # t_unassigned, t_classes_indices)
-        fn_decisions = tf.cast(t_unassigned, dtype=tf.int32)
+        # unmatched_ref_objects, t_classes_indices)
+        fn_decisions = tf.cast(unmatched_ref_objects, dtype=tf.int32)
         try:
             fn = tf.tensor_scatter_nd_add(fn, tf.expand_dims(t_classes_indices, axis=-1), fn_decisions)
         except Exception as e:
@@ -194,10 +194,10 @@ class Evaluate:
 
         for idx, (pred_y, true_y) in enumerate(data):
             pred_y =tf.squeeze(pred_y, axis=0)
-            t_unassigned = tf.Variable(tf.fill(tf.shape(true_y[..., 1]), 1))
+            unmatched_ref_objects = tf.Variable(tf.fill(tf.shape(true_y[..., 1]), 1))
 
-            tp, fp, fn, true, errors = tf.cond(tf.shape(true_y)[0] != 0,
-                                                 true_fn=lambda: self.do_iou(pred_y, true_y, tp, fp, fn, true_obj, t_unassigned, errors),
+            tp, fp, fn, true_obj, errors = tf.cond(tf.shape(true_y)[0] != 0,
+                                                 true_fn=lambda: self.do_iou(pred_y, true_y, tp, fp, fn, true_obj, unmatched_ref_objects, errors),
                                                   false_fn=lambda: (tp, fp,
                                                   tf.tensor_scatter_nd_add(fn,
                                                                            tf.expand_dims(tf.cast(true_y[..., 4], tf.int32), axis=-1),
