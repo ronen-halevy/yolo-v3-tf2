@@ -33,7 +33,7 @@ def render_bboxes(image, bboxes, colors):
     image = tf.image.draw_bounding_boxes(
         image, bboxes, colors, name=None
     )
-    return image[0]
+    return image
 
 
 def draw_text_on_bounding_box(image, ymin, xmin, color, display_str_list=(), font_size=30):
@@ -87,12 +87,7 @@ def annotate_text(image_pil, bbox, class_name, score, font_size=30):
     return (detections_str, xmin, ymin, xmax, ymax)
 
 
-def annotate_detections(image, class_names, bboxes, scores, max_detections, bbox_color, font_size):
-    bboxes = bboxes[:max_detections, ...]
-    class_names = class_names[:max_detections]
-    scores = scores[:max_detections]
-
-    image = render_bboxes(tf.expand_dims(image, axis=0), tf.expand_dims(bboxes, axis=0), colors=[bbox_color])
+def annotate_detections(image, class_names, bboxes, scores, bbox_color, font_size):
 
     annotated_image = Image.fromarray(np.uint8(image * 255)).convert("RGB")
     detections = []

@@ -1,4 +1,3 @@
-import numpy as np
 import os
 import tensorflow as tf
 from tensorflow.keras import Input, Model
@@ -7,8 +6,9 @@ import yaml
 import argparse
 import matplotlib.pyplot as plt
 
-from core.utils import get_anchors, resize_image
-from core.render_utils import annotate_detections
+from core.utils import get_anchors, resize_image, dir_filelist
+from core.render_utils import render_bboxes, annotate_detections
+
 from core.load_tfrecords import parse_tfrecords
 from core.parse_model import ParseModel
 
@@ -19,21 +19,35 @@ from core.exceptions import NoDetectionsFound
 
 
 class Inference:
-    @staticmethod
-    def _do_inference(model, img_raw, image_size, class_names):
-        img = tf.expand_dims(img_raw, 0)
-        img = resize_image(img, image_size, image_size)
-        boxes, scores, classes, num_of_valid_detections = model.predict(img)
 
-        if tf.equal(num_of_valid_detections, 0):
-            raise NoDetectionsFound
-        detected_classes = [class_names[idx] for idx in classes[0]]
-        return boxes, scores, detected_classes, num_of_valid_detections
+    def render_detections(self, image, bboxes, classes_names, scores, bbox_color, font_size, image_index,
+                          image_output_dir, detections_list_outfile, display_result_images=False):
+        rendered_image = render_bboxes(tf.expand_dims(image, axis=0), tf.expand_dims(bboxes, axis=0),
+                                       colors=[bbox_color])
+        rendered_image = tf.squeeze(rendered_image, axis=0)
+        text_annotated_image, detections_string = annotate_detections(rendered_image, classes_names, bboxes,
+                                                                      scores, bbox_color, font_size)
+
+        if display_result_images:
+            plt.imshow(text_annotated_image)
+            plt.show()
+        self._dump_detections_text(detections_string, detections_list_outfile)
+        outfile_path = f'{image_output_dir}/detect_{image_index}.jpg'
+        text_annotated_image.save(outfile_path)
 
     @staticmethod
-    def display_detections(img_raw, detected_classes, boxes, scores, yolo_max_boxes, bbox_color, font_size):
+    def gather_valid_detections_results(bboxes_padded, class_indices_padded, scores_padded,
+                                        selected_indices_padded, num_valid_detections):
+
+        bboxes = tf.gather(bboxes_padded, selected_indices_padded[:num_valid_detections], axis=0)
+        classes = tf.gather(class_indices_padded, selected_indices_padded[:num_valid_detections], axis=0)
+        scores = tf.gather(scores_padded, selected_indices_padded[:num_valid_detections], axis=0)
+        return bboxes, classes, scores
+
+    @staticmethod
+    def display_detections(img_raw, detected_classes, boxes, scores, bbox_color, font_size):
         annotated_image, detections = annotate_detections(img_raw, detected_classes, boxes[0], scores[0],
-                                                          yolo_max_boxes, bbox_color, font_size)
+                                                          bbox_color, font_size)
         plt.imshow(annotated_image)
         plt.show()
         return annotated_image, detections
@@ -42,27 +56,6 @@ class Inference:
     def _dump_detections_text(image_detections_result, detections_list_outfile):
         detections_list_outfile.write(f'{image_detections_result}\n')
         detections_list_outfile.flush()
-
-    def _inference(self, model, image, image_size, yolo_max_boxes, bbox_color, font_size, class_names, image_id,
-                   output_dir, detections_list_outfile):
-        try:
-            boxes, scores, detected_classes, num_of_valid_detections = self._do_inference(model, image, image_size,
-                                                                                          class_names)
-            annotated_image, detections_str = self.display_detections(image, detected_classes, boxes, scores,
-                                                                      yolo_max_boxes, bbox_color, font_size)
-        except NoDetectionsFound:
-            detections_str = (f'No detections found. Index = {image_id}')
-            import PIL
-            annotated_image = PIL.Image.fromarray(np.uint8(image * 255)).convert("RGB")
-        self._dump_detections_text(detections_str, detections_list_outfile)
-        outfile_path = f'{output_dir}/detect_{image_id}.jpg'
-        annotated_image.save(outfile_path)
-
-    @staticmethod
-    def _output_annotated_image(annotated_image, output_dir, out_filename, save_result_images, display_result_images):
-        outfile_path = f'{output_dir}/{out_filename}'
-        if save_result_images:
-            annotated_image.save(outfile_path)
 
     def __call__(self,
                  model_config_file,
@@ -73,6 +66,7 @@ class Inference:
                  input_data_source,
                  images_dir,
                  tfrecords_dir,
+                 batch_size,
                  image_file_path,
                  output_dir,
                  yolo_max_boxes,
@@ -110,6 +104,7 @@ class Inference:
         model = parse_model.build_model(inputs, sub_models_configs, output_stage, nclasses=nclasses)
         model.load_weights(input_weights_path)
         print('weights loaded')
+
         model = model(inputs)
 
         decoded_output = YoloDecoderLayer(nclasses, anchors_table)(model)
@@ -118,29 +113,64 @@ class Inference:
         model = Model(inputs, nms_output, name="yolo_nms")
 
         if input_data_source == 'tfrecords':
+
             dataset = parse_tfrecords(tfrecords_dir, image_size=image_size, max_bboxes=yolo_max_boxes, class_file=None)
-            for index, dataset_entry in enumerate(dataset):  # todo consider batch inference
-                image = dataset_entry[0]
-                self._inference(model, image, image_size, yolo_max_boxes, bbox_color, font_size, class_names, index,
-                                output_dir, detections_list_outfile)
+            dataset = dataset.batch(batch_size)
+            dataset_images = dataset.map(lambda img, _: resize_image(img, image_size, image_size))
+
+            for batch_dataset_image in dataset_images:
+                batch_bboxes_padded, batch_class_indices_padded, batch_scores_padded, batch_selected_indices_padded, \
+                batch_num_valid_detections = model.predict(
+                    batch_dataset_image)
+
+                for image_index, \
+                    (bboxes_padded, class_indices_padded, scores_padded, selected_indices_padded, num_valid_detections,
+                     image) \
+                        in enumerate(zip(batch_bboxes_padded, batch_class_indices_padded, batch_scores_padded,
+                                         batch_selected_indices_padded, batch_num_valid_detections,
+                                         batch_dataset_image)):
+                    bboxes, classes, scores = self.gather_valid_detections_results(bboxes_padded, class_indices_padded,
+                                                                                   scores_padded,
+                                                                                   selected_indices_padded,
+                                                                                   num_valid_detections)
+                    classes_names = [class_names[idx] for idx in classes]
+                    self.render_detections(image, bboxes, classes_names, scores, bbox_color, font_size, image_index,
+                                           output_dir,
+                                           detections_list_outfile, display_result_images)
+
         else:
             if input_data_source == 'image_file':
                 filenames = [image_file_path]
             elif input_data_source == 'images_dir':
-                valid_images = ('.jpeg', '.jpg', '.png', '.bmp')
-                valid_images = ('.jpeg', '.jpg', '.png', '.bmp')
+                filenames = dir_filelist(images_dir, ('.jpeg', '.jpg', '.png', '.bmp'))
+            else:
                 filenames = []
-                for f in os.listdir(images_dir):
-                    ext = os.path.splitext(f)[1]
-                    if ext.lower() not in valid_images:
-                        continue
-                    filenames.append(f'{images_dir}/{f}')
 
-            for index, file in enumerate(filenames):  # todo consider batch inference
-                img_raw = tf.image.decode_image(open(file, 'rb').read(), channels=3, dtype=tf.float32)
-                self._inference(model, img_raw, image_size, yolo_max_boxes, bbox_color, font_size, class_names, index,
-                                output_dir, detections_list_outfile)
+            for image_index, file in enumerate(filenames):
+                image = tf.image.decode_image(open(file, 'rb').read(), channels=3, dtype=tf.float32)
+                image = resize_image(image, image_size, image_size)
+                batch_dataset_image = tf.expand_dims(image, axis=0)
+                batch_bboxes_padded, batch_class_indices_padded, batch_scores_padded, batch_selected_indices_padded, \
+                    batch_num_valid_detections = model.predict(
+                    tf.expand_dims(image, axis=0))
+                for index, (
+                        bboxes_padded, class_indices_padded, scores_padded, selected_indices_padded,
+                        num_valid_detections, image) \
+                        in enumerate(zip(batch_bboxes_padded, batch_class_indices_padded, batch_scores_padded,
+                                         batch_selected_indices_padded, batch_num_valid_detections,
+                                         batch_dataset_image)):
+                    bboxes, classes, scores = self.gather_valid_detections_results(bboxes_padded, class_indices_padded,
+                                                                                   scores_padded,
+                                                                                   selected_indices_padded,
+                                                                                   num_valid_detections)
+                    classes_names = [class_names[idx] for idx in classes]
+
+                    self.render_detections(image, bboxes, classes_names, scores, bbox_color, font_size, image_index,
+                                           output_dir,
+                                           detections_list_outfile, display_result_images)
+
         return
+
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--config", type=str, default='config/detect_config.yaml',
