@@ -1,4 +1,3 @@
-
 #! /usr/bin/env python
 # coding=utf-8
 # ================================================================
@@ -10,13 +9,11 @@
 #   Description :
 #
 # ================================================================
-# import numpy as np
-import os
+
 import tensorflow as tf
 from tensorflow.keras import Input, Model
 
 import yaml
-import argparse
 import matplotlib.pyplot as plt
 
 from core.load_tfrecords import parse_tfrecords
@@ -48,66 +45,62 @@ class Evaluate:
                            tf.maximum(box_1[..., 1], box_2[..., 1]), 0)
         int_area = int_w * int_h
         box_1_area = (box_1[..., 2] - box_1[..., 0]) * \
-            (box_1[..., 3] - box_1[..., 1])
+                     (box_1[..., 3] - box_1[..., 1])
         box_2_area = (box_2[..., 2] - box_2[..., 0]) * \
-            (box_2[..., 3] - box_2[..., 1])
+                     (box_2[..., 3] - box_2[..., 1])
 
         return int_area / (box_1_area + box_2_area - int_area)
 
-    def inc_left_arg(self, left_arg, right_arg):
-        counter = tf.math.add(left_arg,1)
-        return counter, right_arg
+    # def inc_left_arg(self, left_arg, right_arg):
+    #     counter = tf.math.add(left_arg,1)
+    #     return counter, right_arg
 
-    def inc_right_arg(self, left_arg, right_arg):
-        counter = tf.math.add(right_arg,1)
-        return counter, right_arg
-
-    def inc_arg(self, arg, val=1):
-        counter = tf.math.add(arg,val)
-        return counter
-    def inc_args(self, args, val=1):
-        counter = tf.map_fn(n=lambda t: tf.math.add(t,val), elems=args, parallel_iterations=3)
-        return counter
-    def nop_func(self, arg):
-        return arg
+    # def inc_right_arg(self, left_arg, right_arg):
+    #     counter = tf.math.add(right_arg,1)
+    #     return counter, right_arg
+    #
+    # def inc_arg(self, arg, val=1):
+    #     counter = tf.math.add(arg,val)
+    #     return counter
+    # def inc_args(self, args, val=1):
+    #     counter = tf.map_fn(n=lambda t: tf.math.add(t,val), elems=args, parallel_iterations=3)
+    #     return counter
+    # def nop_func(self, arg):
+    #     return arg
 
     # @tf.function
-    #todo split the iou func to iou and stats
-    def do_iou(self, pred_y, true_y, tp, fp, fn, all_ref, unmatched_ref_objects_list, errors):
-        ref_bboxes, ref_confidences, ref_classes_indices = tf.split(true_y, [4,1,1], axis=-1)
-        p_bboxes, p_classes_indices = tf.split(pred_y, [4,1], axis=-1)
+    # todo split the iou func to iou and stats
+    def do_iou(self, p_bboxes, p_classes_indices, ref_y, tp, fp, fn, all_ref, unmatched_ref_objects_list, errors):
+        ref_bboxes, _, ref_classes_indices = tf.split(ref_y, [4,1,1], axis=-1)
+        # p_bboxes, p_classes_indices = tf.split(pred_y, [4,1], axis=-1)
 
-        ref_classes_indices =  tf.cast(tf.squeeze(ref_classes_indices, axis=-1), tf.int32)
-        p_classes_indices = tf.squeeze(p_classes_indices, axis=-1)
+        ref_classes_indices = tf.squeeze(tf.cast(ref_classes_indices, tf.int32), axis=-1)
+        # p_classes_indices = tf.squeeze(p_classes_indices, axis=-1)
 
         iou = tf.map_fn(fn=lambda t: self.broadcast_iou(t, ref_bboxes), elems=p_bboxes, parallel_iterations=3)
         iou = tf.squeeze(iou, axis=1)
 
         if tf.equal(tf.size(iou), 0):
-            fn = tf.tensor_scatter_nd_add(fn, # todo arrange dup counts - + like in start
-                                     tf.expand_dims(
-                                         tf.cast(true_y[..., 4], tf.int32),
-                                         axis=-1),
-                                     tf.fill(tf.shape(true_y)[0], 1))
+            fn = tf.tensor_scatter_nd_add(fn,  # todo arrange dup counts - + like in start
+                                          tf.expand_dims(
+                                              tf.cast(ref_y[..., 4], tf.int32),
+                                              axis=-1),
+                                          tf.fill(tf.shape(ref_y)[0], 1))
             all_ref = tf.tensor_scatter_nd_add(all_ref,
-                                      tf.expand_dims(
-                                          tf.cast(true_y[..., 4], tf.int32),
-                                          axis=-1),
-                                      tf.fill(tf.shape(true_y)[0], 1))
+                                               tf.expand_dims(
+                                                   tf.cast(ref_y[..., 4], tf.int32),
+                                                   axis=-1),
+                                               tf.fill(tf.shape(ref_y)[0], 1))
             return tp, fp, fn, all_ref, errors
-        try:
-            selected_ref_indices = tf.math.argmax(iou, axis=-1, output_type=tf.int32)#.numpy()
-        except Exception as e:
-            print(e)
+
+        selected_ref_indices = tf.math.argmax(iou, axis=-1, output_type=tf.int32)  # .numpy()
 
         best_iou_index_2d = tf.stack([tf.range(tf.shape(iou)[0]), selected_ref_indices], axis=-1)
         sel_iou = tf.gather_nd(iou, best_iou_index_2d)
 
         thresh_qualified_ious = sel_iou > self.iou_thresh
 
-
         selected_ref_class = tf.gather(ref_classes_indices, selected_ref_indices)
-
 
         p_classes_indices = tf.cast(p_classes_indices, tf.int32)
         detect_matched_classes = selected_ref_class == p_classes_indices
@@ -134,7 +127,8 @@ class Evaluate:
         try:
             fn = tf.tensor_scatter_nd_add(fn, tf.expand_dims(ref_classes_indices, axis=-1), fn_decisions)
         except Exception as e:
-            print(f'!!!Exception!!:  {e} probably negative  class id in dataset!! Skipping to next data sample!!') # todo check where -1 class come from
+            print(
+                f'!!!Exception!!:  {e} probably negative  class id in dataset!! Skipping to next data sample!!')  # todo check where -1 class come from
             errors = tf.math.add(errors, 1)
             return tp, fp, fn, all_ref, errors
 
@@ -143,17 +137,24 @@ class Evaluate:
         all_ref = tf.tensor_scatter_nd_add(all_ref, indices, updates)
         return tp, fp, fn, all_ref, errors
 
+    # @staticmethod
+    # def inference_func(true_image, model):
+    #     img = tf.expand_dims(true_image, 0)
+    #     img = resize_image(img, image_size, image_size)
+    #     output = model(img)
+    #     return output
+    @staticmethod
+    def gather_valid_detections_results(bboxes_padded, class_indices_padded, scores_padded,
+                                        selected_indices_padded, num_valid_detections):
 
+        bboxes = tf.gather(bboxes_padded, selected_indices_padded[:num_valid_detections], axis=0)
+        classes = tf.gather(class_indices_padded, selected_indices_padded[:num_valid_detections], axis=0)
+        scores = tf.gather(scores_padded, selected_indices_padded[:num_valid_detections], axis=0)
+        return bboxes, classes, scores
 
     @staticmethod
-    def inference_func(true_image, model):
-        img = tf.expand_dims(true_image, 0)
-        img = resize_image(img, image_size, image_size)
-        output = model(img)
-        return output
-
-
-    def create_model(self, model_config_file, nclasses, nms_score_threshold, nms_iou_threshold):
+    def create_model(model_config_file, nclasses, anchors_table, nms_score_threshold, nms_iou_threshold, yolo_max_boxes,
+                     input_weights_path):
         with open(model_config_file, 'r') as _stream:
             model_config = yaml.safe_load(_stream)
         parse_model = ParseModel()
@@ -171,26 +172,30 @@ class Evaluate:
         model = Model(inputs, nms_output, name="yolo_nms")
         return model
 
-    def calc_ap(self, gt_classes, tfrecords_dir, evaluate_iou_threshold, image_size, classes_name_file, model_config_file, input_weights_path, anchors_table,
+    def calc_ap(self, tfrecords_dir, image_size, classes_name_file, model_config_file, input_weights_path,
+                anchors_table,
                 nms_iou_threshold, nms_score_threshold, yolo_max_boxes=100):
 
         class_names = [c.strip() for c in open(classes_name_file).readlines()]
-        nclasses = len(class_names)
+        nclasses = len(class_names)  # todo
         nclasses = 7
 
-        dataset = parse_tfrecords(tfrecords_dir, image_size=image_size, max_bboxes=yolo_max_boxes, class_file=classes_name_file)
+        # dataset = parse_tfrecords(tfrecords_dir, image_size=image_size, max_bboxes=yolo_max_boxes, class_file=classes_name_file)
         # mask dataset's padded boxes:
-        # dataset = dataset.batch(8)
+        model = self.create_model(model_config_file, nclasses, anchors_table, nms_score_threshold, nms_iou_threshold,
+                                  yolo_max_boxes, input_weights_path)
+        #
+        # dataset = dataset.map(lambda x, y: (self.inference_func(x, model), y))
+        #
+        #
+        # data = dataset.map(lambda x, y: (tf.concat([x[0], tf.expand_dims(tf.cast(x[2], dtype=tf.float32), axis=-1)], axis=-1), y))
+        # # tp = fp = fn = [0] * nclasses
+        batch_size = 8  # todo config
+        dataset = parse_tfrecords(tfrecords_dir, image_size=image_size, max_bboxes=yolo_max_boxes,
+                                  class_file=classes_name_file)
         dataset = dataset.map(lambda x, y: (x, y[y[..., 4] == 1]))
-        model = self.create_model(model_config_file, nclasses, nms_score_threshold, nms_iou_threshold)
-
-        dataset = dataset.map(lambda x, y: (self.inference_func(x, model), y))
-
-
-        data = dataset.map(lambda x, y: (tf.concat([x[0], tf.expand_dims(tf.cast(x[2], dtype=tf.float32), axis=-1)], axis=-1), y))
-        # tp = fp = fn = [0] * nclasses
-
-
+        dataset = dataset.batch(batch_size)
+        dataset = dataset.map(lambda img, y: (resize_image(img, image_size, image_size), y))
 
         tp = tf.convert_to_tensor([0] * nclasses)
         fp = tf.convert_to_tensor([0] * nclasses)
@@ -199,65 +204,85 @@ class Evaluate:
         errors = tf.Variable(0)
         images = tf.Variable(0)
 
-        print(f'Stats Table:\n #image, accum tp per class, accum fp per class, accum fn per calss,  accum true objects per class, accum errors count')
+        print(
+            f'Stats Table:\n #image, accum tp per class, accum fp per class, accum fn per calss,  accum true objects per class, accum errors count')
 
-        for idx, (pred_y, true_y) in enumerate(data):
-            pred_y =tf.squeeze(pred_y, axis=0)
-            unmatched_ref_objects_list = tf.Variable(tf.fill(tf.shape(true_y[..., 1]), 1))
+        # for idx, (pred_y, ref_y) in enumerate(data):
+        for batch_images, batch_ref_y in dataset:
+            batch_bboxes_padded, batch_class_indices_padded, batch_scores_padded, batch_selected_indices_padded, \
+            batch_num_valid_detections = model.predict(
+                batch_images)
 
-            tp, fp, fn, all_ref, errors = tf.cond(tf.shape(true_y)[0] != 0,
-                                                 true_fn=lambda: self.do_iou(pred_y, true_y, tp, fp, fn, all_ref, unmatched_ref_objects_list, errors),
-                                                  false_fn=lambda: (tp, fp,
-                                                  tf.tensor_scatter_nd_add(fn,
-                                                                           tf.expand_dims(tf.cast(true_y[..., 4], tf.int32), axis=-1),
-                                                                           tf.fill(tf.shape(true_y)[0], 1)),
+            for image_index, \
+                (bboxes_padded, class_indices_padded, scores_padded, selected_indices_padded, num_valid_detections,
+                 image, ref_y) \
+                    in enumerate(zip(batch_bboxes_padded, batch_class_indices_padded, batch_scores_padded,
+                                     batch_selected_indices_padded, batch_num_valid_detections,
+                                     batch_images, batch_ref_y)):
+                pred_bboxes, pred_classes, pred_scores = self.gather_valid_detections_results(bboxes_padded,
+                                                                                              class_indices_padded,
+                                                                                              scores_padded,
+                                                                                              selected_indices_padded,
+                                                                                              num_valid_detections)
+                # tf.data.Dataset.from_tensor_slices([1, 2, 3])
+                # data = dataset.map(
+                #     lambda x, y: (tf.concat([x[0], tf.expand_dims(tf.cast(x[2], dtype=tf.float32), axis=-1)], axis=-1), y))
 
-                                                  tf.tensor_scatter_nd_add(all_ref,
-                                                                           tf.expand_dims(
-                                                                               tf.cast(true_y[..., 4], tf.int32),
-                                                                               axis=-1),
-                                                                           tf.fill(tf.shape(true_y)[0], 1)),errors
-                                                                    )
-                                                )# rone todo fix inc_arg
-            images = tf.math.add(images, 1)
+                unmatched_ref_objects_list = tf.Variable(tf.fill(tf.shape(ref_y[..., 1]), 1))
 
-            print(images.numpy(), tp.numpy(), fp.numpy(), fn.numpy(), all_ref.numpy(), errors.numpy())
+                tp, fp, fn, all_ref, errors = tf.cond(tf.shape(batch_ref_y)[0] != 0,
+                                                      true_fn=lambda: self.do_iou(pred_bboxes, pred_classes, ref_y, tp,
+                                                                                  fp, fn, all_ref,
+                                                                                  unmatched_ref_objects_list, errors),
+                                                      false_fn=lambda: (tp,
+                                                                        tf.tensor_scatter_nd_add(fp,
+                                                                                                 tf.expand_dims(tf.cast(
+                                                                                                     pred_classes,
+                                                                                                     tf.int32),
+                                                                                                     axis=-1),
+                                                                                                 tf.fill(tf.shape(
+                                                                                                     pred_classes)[0],
+                                                                                                         1)),
+                                                                        fn, all_ref)
 
-        tn = all_ref - tp -fp - fn
+                                                      )  # rone todo fix inc_arg
+                images = tf.math.add(images, 1)
 
-        accuracy = tf.cast(tp+tn, tf.float32)/(tf.cast(all_ref, tf.float32) + 1e-10)
-        recall = tf.cast(tp, tf.float32) / (tf.cast(tp + fn, tf.float32)  + 1e-20)
-        precision = tf.cast(tp, tf.float32) / (tf.cast(tp + fp, tf.float32)  + 1e-20)
-        print(accuracy, recall, precision)
+                print(images.numpy(), tp.numpy(), fp.numpy(), fn.numpy(), all_ref.numpy(), errors.numpy())
 
+            tn = all_ref - tp - fp - fn
+
+        accuracy = tf.cast(tp + tn, tf.float32) / (tf.cast(all_ref, tf.float32) + 1e-10)
+        recall = tf.cast(tp, tf.float32) / (tf.cast(tp + fn, tf.float32) + 1e-20)
+        precision = tf.cast(tp, tf.float32) / (tf.cast(tp + fp, tf.float32) + 1e-20)
+        print(f'accuracy: {accuracy}, recall: {recall}, precision: {precision}')
 
 
 if __name__ == '__main__':
-    model_conf_file = 'config/models/yolov3/model.yaml'
-    parser = argparse.ArgumentParser()
+    def main():
+        # parser = argparse.ArgumentParser()
+
+        with open('config/detect_config.yaml', 'r') as stream:
+            detect_config = yaml.safe_load(stream)
+
+        tfrecords_dir = detect_config['tfrecords_dir']
+        image_size = detect_config['image_size']
+        classes_name_file = detect_config['classes_name_file']
+        model_config_file = detect_config['model_config_file']
+        input_weights_path = detect_config['input_weights_path']
+        anchors_file = detect_config['anchors_file']
+        nms_iou_threshold = detect_config['nms_iou_threshold']
+        nms_score_threshold = detect_config['nms_score_threshold']
+        yolo_max_boxes = detect_config['yolo_max_boxes']
+
+        anchors_table = tf.cast(get_anchors(anchors_file), tf.float32)
+
+        evaluate_iou_threshold = 0.5
+
+        evaluate = Evaluate(nclasses=7, iou_thresh=evaluate_iou_threshold)
+        evaluate.calc_ap(tfrecords_dir, image_size, classes_name_file, model_config_file, input_weights_path,
+                         anchors_table,
+                         nms_iou_threshold, nms_score_threshold, yolo_max_boxes)
 
 
-    with open('config/detect_config.yaml', 'r') as stream:
-        detect_config = yaml.safe_load(stream)
-
-    tfrecords_dir =  detect_config['tfrecords_dir']
-    image_size =  detect_config['image_size']
-    classes_name_file =  detect_config['classes_name_file']
-    model_config_file =  detect_config['model_config_file']
-    input_weights_path =  detect_config['input_weights_path']
-    anchors_file =  detect_config['anchors_file']
-    nms_iou_threshold =  detect_config['nms_iou_threshold']
-    nms_score_threshold =  detect_config['nms_score_threshold']
-    yolo_max_boxes =  detect_config['yolo_max_boxes']
-
-    anchors_table = tf.cast(get_anchors(anchors_file), tf.float32)
-
-    evaluate_iou_threshold = 0.5
-
-    gt_classes = ['gt_classes', 'ff']
-    evaluate = Evaluate(nclasses=7, iou_thresh=evaluate_iou_threshold)
-    evaluate.calc_ap(gt_classes, tfrecords_dir, evaluate_iou_threshold, image_size, classes_name_file, model_config_file, input_weights_path, anchors_table,
-                nms_iou_threshold, nms_score_threshold, yolo_max_boxes)
-
-
-    count_true_positives ={}
+    main()
