@@ -30,9 +30,8 @@ class Evaluate:
         self.iou_thresh = iou_thresh
 
     @staticmethod
-    # @tf.function
+    @tf.function
     def calc_iou(box_1, box_2):
-
         box_2 = tf.expand_dims(box_2, 0)
 
         overlap_w = tf.maximum(tf.minimum(box_1[..., 2], box_2[..., 2]) - tf.maximum(box_1[..., 0], box_2[..., 0]), 0)
@@ -43,54 +42,9 @@ class Evaluate:
 
         return overlap_area / (box_1_area + box_2_area - overlap_area)
 
-    @staticmethod
-    def find_missing_entries(self, src_list, target_list):
-        value_range = [-1, tf.math.reduce_max(target_list) + 1]
-        nbins = value_range[1]
-        src_hist = tf.histogram_fixed_width(
-            src_list,
-            value_range=value_range,
-            nbins=nbins,
-            dtype=tf.dtypes.int32,
-            name=None
-        )
-        dst_hist = tf.histogram_fixed_width(
-            target_list,
-            value_range=value_range,
-            nbins=nbins,
-            dtype=tf.dtypes.int32,
-            name=None
-        )
-        delta = dst_hist - src_hist
-        indices = tf.where(delta)
-        values = tf.gather(delta, indices)
-        return indices, values
-
-    # @tf.function
-    # todo split the iou func to iou and stats
-    def do_iou(self, p_bboxes, p_classes_indices, ref_y, tp, fp, fn, all_ref, ref_boxes_assigned, errors):
-        ref_bboxes, _, ref_classes_indices = tf.split(ref_y, [4, 1, 1], axis=-1)
-
-        ref_classes_indices = tf.squeeze(tf.cast(ref_classes_indices, tf.int32), axis=-1)
-
-        iou = tf.map_fn(fn=lambda t: self.calc_iou(t, ref_bboxes), elems=p_bboxes, parallel_iterations=3)
-        iou = tf.squeeze(iou, axis=1)
-
-        if tf.equal(tf.size(iou), 0):
-            # singular case: no iou. Count fn for all ref examples and return
-            fn = tf.tensor_scatter_nd_add(fn,  # todo arrange dup counts - + like in start
-                                          tf.expand_dims(
-                                              tf.cast(ref_y[..., 4], tf.int32),
-                                              axis=-1),
-                                          tf.fill(tf.shape(ref_y)[0], 1))
-            all_ref = tf.tensor_scatter_nd_add(all_ref,
-                                               tf.expand_dims(
-                                                   tf.cast(ref_y[..., 4], tf.int32),
-                                                   axis=-1),
-                                               tf.fill(tf.shape(ref_y)[0], 1))
-            return tp, fp, fn, all_ref, errors
-
-        # Each pred box was  iou'd with all image's ref boxes.Select ref boxes with max iou:
+    @tf.function
+    def extract_stats(self, iou, ref_classes_indices, p_classes_indices, ref_boxes_assigned, tp, fp, fn, all_ref,
+                      errors):
         selected_ref_indices = tf.math.argmax(iou, axis=-1, output_type=tf.int32)
 
         # Each detection passed through 3 qualifications
@@ -144,6 +98,28 @@ class Evaluate:
         all_ref = tf.tensor_scatter_nd_add(all_ref, indices, updates)
         return tp, fp, fn, all_ref, errors
 
+    @tf.function
+    # todo split the iou func to iou and stats
+    def do_iou(self, p_bboxes, p_classes_indices, ref_y, tp, fp, fn, all_ref, ref_boxes_assigned, errors):
+        ref_bboxes, _, ref_classes_indices = tf.split(ref_y, [4, 1, 1], axis=-1)
+
+        ref_classes_indices = tf.squeeze(tf.cast(ref_classes_indices, tf.int32), axis=-1)
+
+        iou = tf.map_fn(fn=lambda t: self.calc_iou(t, ref_bboxes), elems=p_bboxes, parallel_iterations=3)
+        iou = tf.squeeze(iou, axis=1)
+
+        # singular case: no iou, probably no ref boxes. Count fp for all ref examples and return
+        tp, fp, fn, all_ref, errors = tf.cond(tf.equal(tf.size(iou), 0), true_fn=lambda:
+        (tp, tf.tensor_scatter_nd_add(fp,  # todo arrange dup counts - + like in start
+                                      tf.expand_dims(
+                                          tf.cast(p_classes_indices, tf.int32),
+                                          axis=-1),
+                                      tf.fill([tf.size(p_classes_indices)], 1)), fn, all_ref, errors),
+                                              false_fn=lambda: self.extract_stats(iou, ref_classes_indices,
+                                                                                  p_classes_indices, ref_boxes_assigned,
+                                                                                  tp, fp, fn, all_ref, errors))
+        return tp, fp, fn, all_ref, errors
+
     @staticmethod
     def gather_valid_detections_results(bboxes_padded, class_indices_padded, scores_padded,
                                         selected_indices_padded, num_valid_detections):
@@ -173,13 +149,12 @@ class Evaluate:
         model = Model(inputs, nms_output, name="yolo_nms")
         return model
 
-    def calc_ap(self, tfrecords_dir, image_size, batch_size, classes_name_file, model_config_file, input_weights_path,
+    def evaluate(self, tfrecords_dir, image_size, batch_size, classes_name_file, model_config_file, input_weights_path,
                 anchors_table,
                 nms_iou_threshold, nms_score_threshold, yolo_max_boxes=100):
 
         class_names = [c.strip() for c in open(classes_name_file).readlines()]
-        nclasses = len(class_names)  # todo
-        nclasses = 7
+        nclasses = len(class_names)
 
         # create model:
         model = self.create_model(model_config_file, nclasses, anchors_table, nms_score_threshold, nms_iou_threshold,
@@ -275,7 +250,7 @@ if __name__ == '__main__':
         evaluate_iou_threshold = 0.5
 
         evaluate = Evaluate(nclasses=7, iou_thresh=evaluate_iou_threshold)
-        evaluate.calc_ap(tfrecords_dir, image_size, batch_size, classes_name_file, model_config_file,
+        evaluate.evaluate(tfrecords_dir, image_size, batch_size, classes_name_file, model_config_file,
                          input_weights_path,
                          anchors_table,
                          nms_iou_threshold, nms_score_threshold, yolo_max_boxes)
