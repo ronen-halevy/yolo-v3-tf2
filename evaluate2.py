@@ -35,17 +35,13 @@ class Evaluate:
 
         box_2 = tf.expand_dims(box_2, 0)
 
-        int_w = tf.maximum(tf.minimum(box_1[..., 2], box_2[..., 2]) -
-                           tf.maximum(box_1[..., 0], box_2[..., 0]), 0)
-        int_h = tf.maximum(tf.minimum(box_1[..., 3], box_2[..., 3]) -
-                           tf.maximum(box_1[..., 1], box_2[..., 1]), 0)
-        int_area = int_w * int_h
-        box_1_area = (box_1[..., 2] - box_1[..., 0]) * \
-                     (box_1[..., 3] - box_1[..., 1])
-        box_2_area = (box_2[..., 2] - box_2[..., 0]) * \
-                     (box_2[..., 3] - box_2[..., 1])
+        overlap_w = tf.maximum(tf.minimum(box_1[..., 2], box_2[..., 2]) - tf.maximum(box_1[..., 0], box_2[..., 0]), 0)
+        overlap_h = tf.maximum(tf.minimum(box_1[..., 3], box_2[..., 3]) - tf.maximum(box_1[..., 1], box_2[..., 1]), 0)
+        overlap_area = overlap_w * overlap_h
+        box_1_area = (box_1[..., 2] - box_1[..., 0]) * (box_1[..., 3] - box_1[..., 1])
+        box_2_area = (box_2[..., 2] - box_2[..., 0]) * (box_2[..., 3] - box_2[..., 1])
 
-        return int_area / (box_1_area + box_2_area - int_area)
+        return overlap_area / (box_1_area + box_2_area - overlap_area)
 
     @staticmethod
     def find_missing_entries(self, src_list, target_list):
