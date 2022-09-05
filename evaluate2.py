@@ -49,7 +49,8 @@ class Evaluate:
         return counter
 
     def update_counters(self, p_classes_indices, ref_classes_indices, detect_decisions, selected_ref_indices,
-                        ref_boxes_assigned, tp, fp, fn, all_ref, all_preds, errors):
+                        ref_boxes_assigned, preds, refs, tp, fp, fn, errors, images_cnt):
+
         tp = self.update_counter(tp, p_classes_indices, tf.cast(detect_decisions, dtype=tf.int32))
         fp = self.update_counter(fp, p_classes_indices, tf.cast(tf.math.logical_not(detect_decisions), dtype=tf.int32))
         try:
@@ -59,17 +60,15 @@ class Evaluate:
             print(
                 f'!!!Exception!!:  {e} probably negative  class id in dataset!! Skipping to next data sample!!')  # todo check where -1 class come from
             errors = tf.math.add(errors, 1)
-            return tp, fp, fn, all_ref, all_preds, errors
-        all_ref = self.update_counter(all_ref, ref_classes_indices,
-                                      tf.ones(tf.size(ref_classes_indices), dtype=tf.int32))
-        all_preds = self.update_counter(all_preds, p_classes_indices,
-                                        tf.ones(tf.size(p_classes_indices), dtype=tf.int32))
-        return tp, fp, fn, all_ref, all_preds, errors
+            return preds, refs, tp, fp, fn, errors, images_cnt
+        refs = self.update_counter(refs, ref_classes_indices,
+                                   tf.ones(tf.size(ref_classes_indices), dtype=tf.int32))
+        preds = self.update_counter(preds, p_classes_indices,
+                                    tf.ones(tf.size(p_classes_indices), dtype=tf.int32))
+        return preds, refs, tp, fp, fn, errors, images_cnt
 
     @tf.function
-    def calc_stats(self, iou, ref_classes_indices, p_classes_indices, ref_boxes_assigned, tp, fp, fn, all_ref,
-                   all_preds,
-                   errors):
+    def calc_stats(self, iou, ref_classes_indices, p_classes_indices, ref_boxes_assigned, counters):
         selected_ref_indices = tf.math.argmax(iou, axis=-1, output_type=tf.int32)
 
         # Each detection passed through 3 qualifications
@@ -99,37 +98,26 @@ class Evaluate:
         indices = tf.expand_dims(selected_ref_indices, axis=-1)
         ref_boxes_assigned = tf.tensor_scatter_nd_update(ref_boxes_assigned, indices, detect_decisions)
 
-        tp, fp, fn, all_ref, all_preds, errors = self.update_counters(p_classes_indices, ref_classes_indices,
-                                                                      detect_decisions, selected_ref_indices,
-                                                                      ref_boxes_assigned, tp, fp, fn, all_ref,
-                                                                      all_preds, errors)
+        preds, refs, tp, fp, fn, errors, images_cnt = self.update_counters(p_classes_indices, ref_classes_indices,
+                                                                           detect_decisions, selected_ref_indices,
+                                                                           ref_boxes_assigned, **counters)
 
-        return tp, fp, fn, all_ref, all_preds, errors
+        return {'preds': preds, 'refs': refs, 'tp': tp, 'fp': fp, 'fn': fn, 'errors': errors, 'images_cnt': images_cnt}
 
     @tf.function
-    def calc_iou_and_stats(self, p_bboxes, p_classes_indices, ref_y, tp, fp, fn, all_ref, all_preds, ref_boxes_assigned,
-                           errors):
+    def calc_iou_and_stats(self, p_bboxes, p_classes_indices, ref_y, ref_boxes_assigned, counters):
         ref_bboxes, _, ref_classes_indices = tf.split(ref_y, [4, 1, 1], axis=-1)
 
         ref_classes_indices = tf.squeeze(tf.cast(ref_classes_indices, tf.int32), axis=-1)
 
         iou = tf.map_fn(fn=lambda t: self.calc_iou(t, ref_bboxes), elems=p_bboxes, parallel_iterations=3)
-        # iou shape = p_boxes x ref_boxes
+        # note: iou shape is (p_boxes x ref_boxes)
         iou = tf.squeeze(iou, axis=1)
-
-        # singular case: no iou, probably no ref boxes. Count fp for all ref examples and return
-        tp, fp, fn, all_ref, all_preds, errors = tf.cond(tf.equal(tf.size(iou), 0), true_fn=lambda:
-        (tp, tf.tensor_scatter_nd_add(fp,
-                                      tf.expand_dims(
-                                          tf.cast(p_classes_indices, tf.int32),
-                                          axis=-1),
-                                      tf.fill([tf.size(p_classes_indices)], 1)), fn, all_ref, all_preds, errors),
-                                                         false_fn=lambda: self.calc_stats(iou, ref_classes_indices,
-                                                                                          p_classes_indices,
-                                                                                          ref_boxes_assigned,
-                                                                                          tp, fp, fn, all_ref,
-                                                                                          all_preds, errors))
-        return tp, fp, fn, all_ref, all_preds, errors
+        counters = self.calc_stats(iou, ref_classes_indices,
+                                   p_classes_indices,
+                                   ref_boxes_assigned,
+                                   counters)
+        return counters
 
     @staticmethod
     def gather_valid_detections_results(bboxes_padded, class_indices_padded, scores_padded,
@@ -181,14 +169,15 @@ class Evaluate:
         dataset = dataset.map(lambda img, y: (resize_image(img, image_size, image_size), y))
 
         # clear stats counters:
-        tp = tf.convert_to_tensor([0] * nclasses)
-        fp = tf.convert_to_tensor([0] * nclasses)
-        fn = tf.convert_to_tensor([0] * nclasses)
-        all_ref = tf.convert_to_tensor([0] * nclasses)
-        all_preds = tf.convert_to_tensor([0] * nclasses)
-
-        errors = tf.Variable(0)
-        images_cnt = tf.Variable(0)
+        counters = {
+            'preds': tf.convert_to_tensor([0] * nclasses),
+            'refs': tf.convert_to_tensor([0] * nclasses),
+            'tp': tf.convert_to_tensor([0] * nclasses),
+            'fp': tf.convert_to_tensor([0] * nclasses),
+            'fn': tf.convert_to_tensor([0] * nclasses),
+            'errors': tf.Variable(0),
+            'images_cnt': tf.Variable(0)
+        }
 
         # main loop on dataset: predict, evaluate, update stats
         for batch_images, batch_ref_y in dataset:
@@ -215,37 +204,30 @@ class Evaluate:
 
                 # run iou, if ref_y had any box. Otherwise, increment fp according to pred_classes.
                 # Anyway, return the various stats counters
-                tp, fp, fn, all_ref, all_preds, errors = tf.cond(tf.shape(batch_ref_y)[0] != 0,
-                                                                 true_fn=lambda: self.calc_iou_and_stats(pred_bboxes,
-                                                                                                         pred_classes,
-                                                                                                         ref_y, tp,
-                                                                                                         fp, fn,
-                                                                                                         all_ref,
-                                                                                                         all_preds,
-                                                                                                         ref_boxes_assigned,
-                                                                                                         errors),
-                                                                 false_fn=lambda: (tp,
-                                                                                   tf.tensor_scatter_nd_add(fp,
-                                                                                                            tf.expand_dims(
-                                                                                                                tf.cast(
-                                                                                                                    pred_classes,
-                                                                                                                    tf.int32),
-                                                                                                                axis=-1),
-                                                                                                            tf.fill(
-                                                                                                                tf.shape(
-                                                                                                                    pred_classes)[
-                                                                                                                    0],
-                                                                                                                1)),
-                                                                                   fn, all_ref, all_preds, errors)
+                counters = tf.cond(tf.shape(batch_ref_y)[0] != 0,
+                                   true_fn=lambda: self.calc_iou_and_stats(pred_bboxes,
+                                                                           pred_classes, ref_y, ref_boxes_assigned,
+                                                                           counters),
+                                   false_fn=lambda: counters.update({'tp':
+                                                                         tf.tensor_scatter_nd_add(counters['fp'],
+                                                                                                  tf.expand_dims(
+                                                                                                      tf.cast(
+                                                                                                          pred_classes,
+                                                                                                          tf.int32),
+                                                                                                      axis=-1),
+                                                                                                  tf.fill(
+                                                                                                      tf.shape(
+                                                                                                          pred_classes)[
+                                                                                                          0],
+                                                                                                      1))}))
 
-                                                                 )  # rone todo fix inc_arg
-                images_cnt = tf.math.add(images_cnt, 1)
+                for counter in counters:
+                    print(f' {counter}: {counters[counter]}', end='')
+                print('')
 
-                print(
-                    f'{images_cnt.numpy()}, tp:{tp.numpy()}, fp:{fp.numpy()}, fn:{fn.numpy()}, preds:{all_preds.numpy()}, refs:{all_ref.numpy()}, err:{errors.numpy()}')
         # Resultant Stats:
-        recall = tf.cast(tp, tf.float32) / (tf.cast(tp + fn, tf.float32) + 1e-20)
-        precision = tf.cast(tp, tf.float32) / (tf.cast(tp + fp, tf.float32) + 1e-20)
+        recall = tf.cast(counters['tp'], tf.float32) / (tf.cast(counters['tp'] + counters['fn'], tf.float32) + 1e-20)
+        precision = tf.cast(counters['tp'], tf.float32) / (tf.cast(counters['tp'] + counters['fp'], tf.float32) + 1e-20)
         print(f'recall: {recall}, precision: {precision}')
         return recall, precision
 
@@ -280,7 +262,7 @@ if __name__ == '__main__':
                                                  input_weights_path,
                                                  anchors_table,
                                                  nms_iou_threshold, nms_score_threshold, yolo_max_boxes)
-            results.append(recal, precision)
+            results.append((recal, precision))
 
 
     main()
