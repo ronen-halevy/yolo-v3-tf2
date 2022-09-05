@@ -65,7 +65,7 @@ class Evaluate:
                                    tf.ones(tf.size(ref_classes_indices), dtype=tf.int32))
         preds = self.update_counter(preds, p_classes_indices,
                                     tf.ones(tf.size(p_classes_indices), dtype=tf.int32))
-        return preds, refs, tp, fp, fn, errors, images_cnt
+        return {'preds': preds, 'refs': refs, 'tp': tp, 'fp': fp, 'fn': fn, 'errors': errors, 'images_cnt': images_cnt}
 
     @tf.function
     def calc_stats(self, iou, ref_classes_indices, p_classes_indices, ref_boxes_assigned, counters):
@@ -104,7 +104,65 @@ class Evaluate:
 
         return {'preds': preds, 'refs': refs, 'tp': tp, 'fp': fp, 'fn': fn, 'errors': errors, 'images_cnt': images_cnt}
 
-    @tf.function
+
+    def make_decisions(self,thresh_qualified_ious, p_classes_indices, selected_ref_indices, selected_classes, ref_boxes_assigned):
+                       # thresh_qualified_ious, p_classes_indices, ref_classes_indices, selected_ref_indices, ref_boxes_assigned):
+
+        ###
+        ######
+
+
+        # Each detection passed through 3 qualifications
+        # 1. iou exceeds thresh,
+        # 2. class match with ref
+        # 3. matched ref is not assigned already by another detection
+        # If all quals passed, then inc tp. Otherwise inc fp
+
+        # 1. Per box, gather max iou of the 3 grids values:
+        # iou shape = p_boxes x ref_boxes
+
+        # 2. check if class id match with ref:
+        # selected_classes = tf.gather(ref_classes_indices, selected_ref_indices)
+        # # tf.cond(selected_classes == tf.cast(p_classes_indices, tf.int32)), true_fn: (tf.gather(ref_classes_indices, selected_ref_indices), fp)lambda false_fn:
+        # # tf.cond(selected_classes == tf.cast(p_classes_indices, tf.int32)), true_fn: (tf.gather(ref_classes_indices, selected_ref_indices), fp)lambda false_fn:
+        # detect_matched_classes = selected_classes == tf.cast(p_classes_indices, tf.int32)
+        # detect_decisions = tf.math.logical_and(detect_matched_classes, thresh_qualified_ious)
+        #
+        # # 3. Check if matched ref boxes already assigned to predictions (of current image ofcpourse):
+        # is_ref_assigned = tf.gather(ref_boxes_assigned, selected_ref_indices)
+        # # a decision is set True if 3 qualifications passe (detect_decisions size ia (selected_ref_indices)
+        # detect_decisions = tf.math.logical_and(detect_decisions, tf.math.logical_not(is_ref_assigned))
+        #
+        # # update ref_boxes_assigned with recent tp's
+        # indices = tf.expand_dims(selected_ref_indices, axis=-1)
+        # ref_boxes_assigned = tf.tensor_scatter_nd_update(ref_boxes_assigned, indices, detect_decisions)
+
+        ######
+        # return thresh_qualified_ious
+
+        ####
+
+
+
+
+        # tf.cond(selected_classes == tf.cast(p_classes_indices, tf.int32)), true_fn: (tf.gather(ref_classes_indices, selected_ref_indices), fp)lambda false_fn:
+        detect_matched_classes = selected_classes == tf.cast(p_classes_indices, tf.int32)
+        detect_decisions = tf.math.logical_and(detect_matched_classes, thresh_qualified_ious)
+
+        # 3. Check if matched ref boxes already assigned to predictions (of current image ofcpourse):
+        is_ref_assigned = tf.gather(ref_boxes_assigned, selected_ref_indices)
+        # a decision is set True if 3 qualifications passe (detect_decisions size ia (selected_ref_indices)
+        detect_decisions = tf.math.logical_and(detect_decisions, tf.math.logical_not(is_ref_assigned))
+
+        # update ref_boxes_assigned with recent tp's
+        indices = tf.expand_dims(selected_ref_indices, axis=-1)
+        ref_boxes_assigned = tf.tensor_scatter_nd_update(ref_boxes_assigned, indices, detect_decisions)
+
+        return detect_decisions, ref_boxes_assigned
+
+
+
+    # @tf.function
     def calc_iou_and_stats(self, p_bboxes, p_classes_indices, ref_y, ref_boxes_assigned, counters):
         ref_bboxes, _, ref_classes_indices = tf.split(ref_y, [4, 1, 1], axis=-1)
 
@@ -113,10 +171,28 @@ class Evaluate:
         iou = tf.map_fn(fn=lambda t: self.calc_iou(t, ref_bboxes), elems=p_bboxes, parallel_iterations=3)
         # note: iou shape is (p_boxes x ref_boxes)
         iou = tf.squeeze(iou, axis=1)
-        counters = self.calc_stats(iou, ref_classes_indices,
-                                   p_classes_indices,
-                                   ref_boxes_assigned,
-                                   counters)
+
+        selected_ref_indices = tf.math.argmax(iou, axis=-1, output_type=tf.int32)
+        selected_classes = tf.gather(ref_classes_indices, selected_ref_indices)
+
+        best_iou_index_2d = tf.stack([tf.range(tf.size(p_classes_indices)), selected_ref_indices], axis=-1)
+        sel_iou = tf.gather_nd(iou, best_iou_index_2d)
+        thresh_qualified_ious = sel_iou > self.iou_thresh
+
+
+        detect_decisions, ref_boxes_assigned = self.make_decisions(thresh_qualified_ious, p_classes_indices, selected_ref_indices, selected_classes, ref_boxes_assigned)
+
+
+
+
+        counters = self.update_counters(p_classes_indices, ref_classes_indices, detect_decisions, selected_ref_indices,
+                        ref_boxes_assigned, **counters)
+
+
+        # counters = self.calc_stats(iou, ref_classes_indices,
+        #                            p_classes_indices,
+        #                            ref_boxes_assigned,
+        #                            counters)
         return counters
 
     @staticmethod
@@ -204,25 +280,20 @@ class Evaluate:
 
                 # run iou, if ref_y had any box. Otherwise, increment fp according to pred_classes.
                 # Anyway, return the various stats counters
-                counters = tf.cond(tf.shape(batch_ref_y)[0] != 0,
-                                   true_fn=lambda: self.calc_iou_and_stats(pred_bboxes,
-                                                                           pred_classes, ref_y, ref_boxes_assigned,
-                                                                           counters),
-                                   false_fn=lambda: counters.update({'tp':
-                                                                         tf.tensor_scatter_nd_add(counters['fp'],
-                                                                                                  tf.expand_dims(
-                                                                                                      tf.cast(
-                                                                                                          pred_classes,
+                if tf.shape(batch_ref_y)[0] != 0:
+                    counters = self.calc_iou_and_stats(pred_bboxes, pred_classes, ref_y, ref_boxes_assigned, counters)
+                else:
+                    counters.update({'fp': tf.tensor_scatter_nd_add(counters['fp'], tf.expand_dims(tf.cast(pred_classes,
                                                                                                           tf.int32),
                                                                                                       axis=-1),
                                                                                                   tf.fill(
                                                                                                       tf.shape(
                                                                                                           pred_classes)[
                                                                                                           0],
-                                                                                                      1))}))
+                                                                                                      1))})
 
                 for counter in counters:
-                    print(f' {counter}: {counters[counter]}', end='')
+                    print(f' {counter}: {counters[counter].numpy()}', end='')
                 print('')
 
         # Resultant Stats:
