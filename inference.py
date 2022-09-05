@@ -102,7 +102,8 @@ class Inference:
         sub_models_configs = model_config['sub_models_configs']
         output_stage = model_config['output_stage']
         model = parse_model.build_model(inputs, sub_models_configs, output_stage, nclasses=nclasses)
-        model.load_weights(input_weights_path)
+        # Note:.expect_partial() prevents warnings at exit time, since save model generates extra keys.
+        model.load_weights(input_weights_path).expect_partial()
         print('weights loaded')
 
         model = model(inputs)
