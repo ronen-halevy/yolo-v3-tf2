@@ -16,7 +16,6 @@ import tensorflow as tf
 
 class PreprocessDataset:
 
-    @tf.function
     def _produce_grid_scale_indices(self, boxes, grid_shape, best_anchor_indices, max_bboxes):
         box_center_xy = (boxes[..., 0:2] + boxes[..., 2:4]) / 2
         box_center_xy = tf.reverse(box_center_xy, axis=[-1])
@@ -30,7 +29,6 @@ class PreprocessDataset:
             [batch_indices, box_center_xy_grid_indices, best_anchor_indices], axis=-1)
         return grid_indices
 
-    @tf.function
     def _find_max_iou_anchors(self, bboxes, anchors):
         anchors = tf.reshape(anchors, [-1, 2])
         grid_anchors = tf.cast(anchors, tf.float32)
@@ -46,7 +44,6 @@ class PreprocessDataset:
             iou, axis=-1, output_type=tf.int32)
         return best_anchor_indices
 
-    # @tf.function
     def _arrange_in_grid(self, y_train, anchors, grid_index, output_shape, max_bboxes):
         """
         :param y_train:
@@ -60,14 +57,14 @@ class PreprocessDataset:
         :return:
         :rtype:
         """
-
         iou_selected_anchors = self._find_max_iou_anchors(y_train, anchors)
         grid_scaled_boxes_indices = self._produce_grid_scale_indices(
-            y_train, output_shape, tf.cast(tf.expand_dims(iou_selected_anchors, axis=-1) / anchors.shape[1], tf.int32), max_bboxes)
+            y_train, output_shape, tf.cast(tf.expand_dims(iou_selected_anchors, axis=-1) / anchors.shape[1], tf.int32),
+            max_bboxes)
 
         # Find best_iou_grid_index - iou_selected_anchors's related grid index:
         best_iou_grid_index = tf.histogram_fixed_width_bins(
-            values=tf.cast(iou_selected_anchors, tf.float32), #tf.cast(iou_selected_anchors, tf.float32),
+            values=tf.cast(iou_selected_anchors, tf.float32),  # tf.cast(iou_selected_anchors, tf.float32),
             value_range=[0., tf.size(anchors, tf.dtypes.float32)],
             nbins=anchors.shape[0],
             dtype=tf.dtypes.float32,
@@ -92,11 +89,15 @@ class PreprocessDataset:
 
     def preprocess_dataset_debug(self, dataset, batch_size, image_size, anchors_table, grid_sizes, max_bboxes):
         # TODO check that again!!
-        # Important note: Since drop_remainder=True is set, dataset size must be at least batch_size, otherwise, dataset will be empty.
-        # Reason for setting drop_remainder=True: This preprocess scatters data on a batch_size*grid_size*grid_size cube.
-        # Implementation is vectorized oriented, so the batch dimennsion indices valuess are taken as [0:batch_size], assuming
-        # batch_size entries in a batch. If drop_remainder was not true, last batch in an epoch might have less examples. In this
+        # Important note: Since drop_remainder=True is set, dataset size must be at least batch_size, otherwise, dataset
+        # will be empty.
+        # Also if the reminder of dataset end is less then batch size, it is drop. E.g if batch size is 8, dataset of
+        # length 7 or length 33 drops 7 samples
+        # Reason for setting drop_remainder=True is the requirement for a predictable batch size.
+        # The preprocessed data is scattered to a batch_size*grid_size*grid_size cube. So batch_size must be predicted.
+        # If drop_remainder was not true, last batch in an epoch might have less examples. In this
         # case, since number of examples would be less than batc_size indices, the program will fail.
+        # Alternative implementation: Set batch size to 1, to avoid any drop.
 
         dataset = dataset.batch(batch_size, drop_remainder=True)
         downsize_strides = image_size / grid_sizes

@@ -49,75 +49,75 @@ class Evaluate:
         return counter
 
     @tf.function
-    def update_counters(self, p_classes_indices, ref_classes_indices, detect_decisions, selected_ref_indices,
-                        ref_boxes_assigned, preds, refs, tp, fp, fn, errors, examples):
+    def update_counters(self, p_classes_indices, gt_classes_indices, detect_decisions, max_iou_args_indices,
+                        gt_boxes_assigned, preds, gts, tp, fp, fn, errors, examples):
         # tp per-class counter is incremented if pred's detect_decisions is set
         tp = self.update_counter(tp, p_classes_indices, tf.cast(detect_decisions, dtype=tf.int32))
         # fp per-class counter is incremented if pred's detect_decision is not set
         fp = self.update_counter(fp, p_classes_indices, tf.cast(tf.math.logical_not(detect_decisions), dtype=tf.int32))
         try:
-            # fn per class counter is set if ref entry was not assigned to a pred box
-            fn = self.update_counter(fn, ref_classes_indices,
-                                     tf.cast(tf.math.logical_not(ref_boxes_assigned), tf.int32))
+            # fn per class counter is set if gt entry was not assigned to a pred box
+            fn = self.update_counter(fn, gt_classes_indices,
+                                     tf.cast(tf.math.logical_not(gt_boxes_assigned), tf.int32))
         except Exception as e:
             print(
                 f'!!!Exception!!:  {e} probably negative  class id in dataset!! Skipping to next data sample!!')  # todo check where -1 class come from
             errors = tf.math.add(errors, 1)
-            return preds, refs, tp, fp, fn, errors, examples
-        # count all ref boxes - per class:
-        refs = self.update_counter(refs, ref_classes_indices,
-                                   tf.ones(tf.size(ref_classes_indices), dtype=tf.int32))
+            return preds, gts, tp, fp, fn, errors, examples
+        # count all gt boxes - per class:
+        gts = self.update_counter(gts, gt_classes_indices,
+                                   tf.ones(tf.size(gt_classes_indices), dtype=tf.int32))
         # count all preds boxes - per class:
         preds = self.update_counter(preds, p_classes_indices,
                                     tf.ones(tf.size(p_classes_indices), dtype=tf.int32))
         examples = tf.math.add(examples, 1)
-        return {'preds': preds, 'refs': refs, 'tp': tp, 'fp': fp, 'fn': fn, 'errors': errors, 'examples': examples}
+        return {'preds': preds, 'gts': gts, 'tp': tp, 'fp': fp, 'fn': fn, 'errors': errors, 'examples': examples}
 
     @tf.function
-    def process_decisions(self, max_iou, preds_classes, selected_ref_indices, ref_classes_indices, ref_boxes_assigned):
+    def process_decisions(self, max_iou, preds_classes, max_iou_args_indices, gt_classes_indices, gt_boxes_assigned):
 
-        # Following iou between each pred box and all ref boxes, and selection of iou max ref entry per each pred box,
+        # Following iou between each pred box and all gt boxes, and selection of iou max gt entry per each pred box,
         # the results will here pass through 3 qualifications:
         # 1. Thresholding: Max iou should exceed a static thresh,
-        # 2. Class matching: Pred class matched with selected ref class
-        # 3. Availability: Selected ref entry was not assigned already by another pred box
+        # 2. Class matching: Pred class matched with selected gt class
+        # 3. Availability: Selected gt entry was not assigned already by another pred box
 
         # A. If all quals passed, then related entry in detect_decisions list is set
-        # B. Set ref_boxes_assigned per-ref entry list,  according to recent decisions
+        # B. Set gt_boxes_assigned per-gt entry list,  according to recent decisions
 
         # 1. Thresholding:
         thresh_qualified_ious = max_iou > self.iou_thresh
 
-        # 2. Class matching: check if pred class matches with iou selected ref class:
-        selected_classes = tf.gather(ref_classes_indices, selected_ref_indices)
+        # 2. Class matching: check if pred class matches with iou selected gt class:
+        selected_classes = tf.gather(gt_classes_indices, max_iou_args_indices)
         detect_matched_classes = selected_classes == tf.cast(preds_classes, tf.int32)
         detect_decisions = tf.math.logical_and(detect_matched_classes, thresh_qualified_ious)
 
-        # 3. Availability: Check if Selected ref entry was not assigned already by another pred box
-        is_ref_assigned = tf.gather(ref_boxes_assigned, selected_ref_indices)
+        # 3. Availability: Check if Selected gt entry was not assigned already by another pred box
+        is_gt_assigned = tf.gather(gt_boxes_assigned, max_iou_args_indices)
 
         # A. If all 3 quals passed, then related entry in detect_decisions list is set
-        # shape(detect_decisions) equals number of selected_ref_indices, so each entry relates to a p pred and a ref box
-        detect_decisions = tf.math.logical_and(detect_decisions, tf.math.logical_not(is_ref_assigned))
+        # shape(detect_decisions) equals number of max_iou_args_indices, so each entry relates to a p pred and a gt box
+        detect_decisions = tf.math.logical_and(detect_decisions, tf.math.logical_not(is_gt_assigned))
 
-        # B. Set ref_boxes_assigned per-ref entry list, according to recent decisions
-        indices = tf.expand_dims(selected_ref_indices, axis=-1)
-        ref_boxes_assigned = tf.tensor_scatter_nd_update(ref_boxes_assigned, indices, detect_decisions)
+        # B. Set gt_boxes_assigned per-gt entry list, according to recent decisions
+        indices = tf.expand_dims(max_iou_args_indices, axis=-1)
+        gt_boxes_assigned = tf.tensor_scatter_nd_update(gt_boxes_assigned, indices, detect_decisions)
 
-        return detect_decisions, ref_boxes_assigned
+        return detect_decisions, gt_boxes_assigned
 
     @tf.function
-    def calc_iou(self, p_bboxes, preds_classes, ref_bboxes):
-        # Select max iou between each image's pred_box and each of ref_boxes. iou shape = p_boxes x ref_boxes
-        iou = tf.map_fn(fn=lambda t: self.iou_alg(t, ref_bboxes), elems=p_bboxes, parallel_iterations=3)
+    def calc_iou(self, p_bboxes, preds_classes, gt_bboxes):
+        # Select max iou between each image's pred_box and each of gt_boxes. iou shape = p_boxes x gt_boxes
+        iou = tf.map_fn(fn=lambda t: self.iou_alg(t, gt_bboxes), elems=p_bboxes, parallel_iterations=3)
         iou = tf.squeeze(iou, axis=1)
-        # Select the indices of the best matching ref entry per each pred box:
-        selected_ref_indices = tf.math.argmax(iou, axis=-1, output_type=tf.int32)
-        best_iou_index_2d = tf.stack([tf.range(tf.size(preds_classes)), selected_ref_indices],
+        # Select the indices of the best matching gt entry per each pred box:
+        max_iou_args_indices = tf.math.argmax(iou, axis=-1, output_type=tf.int32)
+        best_iou_index_2d = tf.stack([tf.range(tf.size(preds_classes)), max_iou_args_indices],
                                      axis=-1)
         max_iou = tf.gather_nd(iou, best_iou_index_2d)
 
-        return max_iou, selected_ref_indices
+        return max_iou, max_iou_args_indices
 
     @staticmethod
     def gather_nms_output(bboxes_padded, class_indices_padded, scores_padded,
@@ -171,7 +171,7 @@ class Evaluate:
         # clear stats counters:
         counters = {
             'preds': tf.convert_to_tensor([0] * nclasses),
-            'refs': tf.convert_to_tensor([0] * nclasses),
+            'gts': tf.convert_to_tensor([0] * nclasses),
             'tp': tf.convert_to_tensor([0] * nclasses),
             'fp': tf.convert_to_tensor([0] * nclasses),
             'fn': tf.convert_to_tensor([0] * nclasses),
@@ -180,7 +180,7 @@ class Evaluate:
         }
 
         # main loop on dataset: predict, evaluate, update stats
-        for batch_images, batch_ref_y in dataset:
+        for batch_images, batch_gt_y in dataset:
             # prediction outputs padded results - bboxes, class indices, scores indices.
             # batch_selected_indices_padded - a list of indices to prediction nms outputs
             # batch_num_valid_detections - number of valid batch_selected_indices_padded indices. (taken from bottom)
@@ -194,10 +194,10 @@ class Evaluate:
             # evaluate predictions results using iou: batches loop
             for image_index, \
                 (bboxes_padded, class_indices_padded, scores_padded, selected_indices_padded, num_valid_detections,
-                 image, ref_y) \
+                 image, gt_y) \
                     in enumerate(zip(batch_bboxes_padded, batch_class_indices_padded, batch_scores_padded,
                                      batch_selected_indices_padded, batch_num_valid_detections,
-                                     batch_images, batch_ref_y)):
+                                     batch_images, batch_gt_y)):
                 # gather padded nms results using selected_indices_padded. Indices were 'padded', so take num_valid_detections indices from top:
                 pred_bboxes, pred_classes, pred_scores = self.gather_nms_output(bboxes_padded,
                                                                                 class_indices_padded,
@@ -205,28 +205,28 @@ class Evaluate:
                                                                                 selected_indices_padded,
                                                                                 num_valid_detections)
 
-                # Init track fp per image: List size is number of ref boxes. Init val 1 is set to 0 when ref box is matched with a pred box
-                ref_boxes_assigned = tf.fill(tf.shape(ref_y[..., 1]), False)
+                # Init track fp per image: List size is number of gt boxes. Init val 1 is set to 0 when gt box is matched with a pred box
+                gt_boxes_assigned = tf.fill(tf.shape(gt_y[..., 1]), False)
 
-                # run iou, if ref_y had any box. Otherwise, increment fp according to pred_classes.
+                # run iou, if gt_y had any box. Otherwise, increment fp according to pred_classes.
                 # Anyway, return the various stats counters
 
-                ref_bboxes, _, ref_classes_indices = tf.split(ref_y, [4, 1, 1], axis=-1)
+                gt_bboxes, _, gt_classes_indices = tf.split(gt_y, [4, 1, 1], axis=-1)
 
-                # if tf.shape(ref_bboxes)[0] != 0:
-                ref_classes_indices = tf.squeeze(tf.cast(ref_classes_indices, tf.int32), axis=-1)
+                # if tf.shape(gt_bboxes)[0] != 0:
+                gt_classes_indices = tf.squeeze(tf.cast(gt_classes_indices, tf.int32), axis=-1)
 
-                max_iou, selected_ref_indices = self.calc_iou(pred_bboxes, pred_classes, ref_bboxes)
+                max_iou, max_iou_args_indices = self.calc_iou(pred_bboxes, pred_classes, gt_bboxes)
 
-                detect_decisions, ref_boxes_assigned = self.process_decisions(max_iou,
+                detect_decisions, gt_boxes_assigned = self.process_decisions(max_iou,
                                                                               pred_classes,
-                                                                              selected_ref_indices,
-                                                                              ref_classes_indices,
-                                                                              ref_boxes_assigned)
+                                                                              max_iou_args_indices,
+                                                                              gt_classes_indices,
+                                                                              gt_boxes_assigned)
 
-                counters = self.update_counters(pred_classes, ref_classes_indices, detect_decisions,
-                                                selected_ref_indices,
-                                                ref_boxes_assigned, **counters)
+                counters = self.update_counters(pred_classes, gt_classes_indices, detect_decisions,
+                                                max_iou_args_indices,
+                                                gt_boxes_assigned, **counters)
 
                 # else:
                 #     counters.update({'fp': tf.tensor_scatter_nd_add(counters['fp'], tf.expand_dims(tf.cast(pred_classes,
@@ -242,6 +242,7 @@ class Evaluate:
                     print(f' {counter}: {counters[counter].numpy()}', end='')
                 print('')
 
+        plt.bar(index, data[row], bar_width, bottom=y_offset, color=colors[row])
         # Resultant Stats:
         recall = tf.cast(counters['tp'], tf.float32) / (tf.cast(counters['tp'] + counters['fn'], tf.float32) + 1e-20)
         precision = tf.cast(counters['tp'], tf.float32) / (tf.cast(counters['tp'] + counters['fp'], tf.float32) + 1e-20)
@@ -282,3 +283,5 @@ if __name__ == '__main__':
 
 
     main()
+
+
