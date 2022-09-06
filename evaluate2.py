@@ -50,7 +50,7 @@ class Evaluate:
 
     @tf.function
     def update_counters(self, p_classes_indices, ref_classes_indices, detect_decisions, selected_ref_indices,
-                        ref_boxes_assigned, preds, refs, tp, fp, fn, errors, images_cnt):
+                        ref_boxes_assigned, preds, refs, tp, fp, fn, errors, examples):
         # tp per-class counter is incremented if pred's detect_decisions is set
         tp = self.update_counter(tp, p_classes_indices, tf.cast(detect_decisions, dtype=tf.int32))
         # fp per-class counter is incremented if pred's detect_decision is not set
@@ -63,14 +63,15 @@ class Evaluate:
             print(
                 f'!!!Exception!!:  {e} probably negative  class id in dataset!! Skipping to next data sample!!')  # todo check where -1 class come from
             errors = tf.math.add(errors, 1)
-            return preds, refs, tp, fp, fn, errors, images_cnt
+            return preds, refs, tp, fp, fn, errors, examples
         # count all ref boxes - per class:
         refs = self.update_counter(refs, ref_classes_indices,
                                    tf.ones(tf.size(ref_classes_indices), dtype=tf.int32))
         # count all preds boxes - per class:
         preds = self.update_counter(preds, p_classes_indices,
                                     tf.ones(tf.size(p_classes_indices), dtype=tf.int32))
-        return {'preds': preds, 'refs': refs, 'tp': tp, 'fp': fp, 'fn': fn, 'errors': errors, 'images_cnt': images_cnt}
+        examples = tf.math.add(examples, 1)
+        return {'preds': preds, 'refs': refs, 'tp': tp, 'fp': fp, 'fn': fn, 'errors': errors, 'examples': examples}
 
     @tf.function
     def process_decisions(self, max_iou, preds_classes, selected_ref_indices, ref_classes_indices, ref_boxes_assigned):
@@ -175,7 +176,7 @@ class Evaluate:
             'fp': tf.convert_to_tensor([0] * nclasses),
             'fn': tf.convert_to_tensor([0] * nclasses),
             'errors': tf.Variable(0),
-            'images_cnt': tf.Variable(0)
+            'examples': tf.Variable(0)
         }
 
         # main loop on dataset: predict, evaluate, update stats
