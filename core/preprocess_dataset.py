@@ -17,7 +17,7 @@ import tensorflow as tf
 class PreprocessDataset:
 
     @tf.function
-    def _extract_boxes_indices_on_grid(self, boxes, grid_shape, best_anchor_indices, max_bboxes):
+    def _scale_boxes_to_grid_indices(self, boxes, grid_shape, best_anchor_indices, max_bboxes):
         box_center_xy = (boxes[..., 0:2] + boxes[..., 2:4]) / 2
         box_center_xy = tf.reverse(box_center_xy, axis=[-1])
         box_center_xy_grid_indices = tf.cast(
@@ -31,7 +31,7 @@ class PreprocessDataset:
         return grid_indices
 
     @tf.function
-    def _calc_best_iou_anchor_per_box(self, bboxes, anchors):
+    def _find_max_iou_anchors(self, bboxes, anchors):
         anchors = tf.reshape(anchors, [-1, 2])
         grid_anchors = tf.cast(anchors, tf.float32)
         anchor_area = grid_anchors[..., 0] * grid_anchors[..., 1]
@@ -42,11 +42,11 @@ class PreprocessDataset:
         intersection = tf.minimum(
             box_wh[..., 0], grid_anchors[..., 0]) * tf.minimum(box_wh[..., 1], grid_anchors[..., 1])
         iou = intersection / (box_area + anchor_area - intersection)
-        best_anchor_indices = tf.expand_dims(tf.math.argmax(
-            iou, axis=-1, output_type=tf.int32), axis=-1)
+        best_anchor_indices = tf.math.argmax(
+            iou, axis=-1, output_type=tf.int32)
         return best_anchor_indices
 
-    @tf.function
+    # @tf.function
     def _arrange_in_grid(self, y_train, anchors, grid_index, output_shape, max_bboxes):
         """
         :param y_train:
@@ -61,27 +61,32 @@ class PreprocessDataset:
         :rtype:
         """
 
-        best_anchor_indices = self._calc_best_iou_anchor_per_box(y_train, anchors)
-        grid_indices = self._extract_boxes_indices_on_grid(
-            y_train, output_shape, tf.cast(best_anchor_indices / anchors.shape[1], tf.int32), max_bboxes)
+        iou_selected_anchors = self._find_max_iou_anchors(y_train, anchors)
+        grid_scaled_boxes_indices = self._scale_boxes_to_grid_indices(
+            y_train, output_shape, tf.cast(tf.expand_dims(iou_selected_anchors, axis=-1) / anchors.shape[1], tf.int32), max_bboxes)
 
-        # Ignore zero boxes:
-        best_anchor_indices = tf.squeeze(best_anchor_indices, axis=-1)
-        mask_selected_anchor_index_above_grid_sclae_min = tf.greater_equal(best_anchor_indices,
-                                                                           tf.constant(grid_index * anchors.shape[0]))
-        mask_selected_anchor_index_below_grid_sclae_max = tf.less(best_anchor_indices,
-                                                                  tf.constant((grid_index + 1) * anchors.shape[0]))
+        # Find best_iou_grid_index - iou_selected_anchors's related grid index:
+        best_iou_grid_index = tf.histogram_fixed_width_bins(
+            values=tf.cast(iou_selected_anchors, tf.float32), #tf.cast(iou_selected_anchors, tf.float32),
+            value_range=[0., tf.size(anchors, tf.dtypes.float32)],
+            nbins=anchors.shape[0],
+            dtype=tf.dtypes.float32,
+            name=None
+        )
+        # if best_iou_grid_index is not equal to current loop's pass grid_index- mask box off:
+        grid_index_mask = best_iou_grid_index == grid_index
 
+        # Mask off boxes if valid indication a.k.a obj is not set :
         mask_valid_bbox = y_train[..., 4] != 0  # obj val
-        mask = tf.math.logical_and(mask_valid_bbox, mask_selected_anchor_index_above_grid_sclae_min)
-        mask = tf.math.logical_and(mask, mask_selected_anchor_index_below_grid_sclae_max)
+        # Integrate masks:
+        mask = tf.math.logical_and(mask_valid_bbox, grid_index_mask)
 
         y_train = y_train[mask]
-        grid_indices = grid_indices[mask]
+        grid_scaled_boxes_indices = grid_scaled_boxes_indices[mask]
         dataset_in_grid = tf.zeros(output_shape)
 
         dataset_in_grid = tf.tensor_scatter_nd_update(
-            dataset_in_grid, grid_indices, y_train)
+            dataset_in_grid, grid_scaled_boxes_indices, y_train)
 
         return dataset_in_grid
 
