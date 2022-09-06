@@ -17,7 +17,7 @@ import tensorflow as tf
 class PreprocessDataset:
 
     @tf.function
-    def _scale_boxes_to_grid_indices(self, boxes, grid_shape, best_anchor_indices, max_bboxes):
+    def _produce_grid_scale_indices(self, boxes, grid_shape, best_anchor_indices, max_bboxes):
         box_center_xy = (boxes[..., 0:2] + boxes[..., 2:4]) / 2
         box_center_xy = tf.reverse(box_center_xy, axis=[-1])
         box_center_xy_grid_indices = tf.cast(
@@ -62,7 +62,7 @@ class PreprocessDataset:
         """
 
         iou_selected_anchors = self._find_max_iou_anchors(y_train, anchors)
-        grid_scaled_boxes_indices = self._scale_boxes_to_grid_indices(
+        grid_scaled_boxes_indices = self._produce_grid_scale_indices(
             y_train, output_shape, tf.cast(tf.expand_dims(iou_selected_anchors, axis=-1) / anchors.shape[1], tf.int32), max_bboxes)
 
         # Find best_iou_grid_index - iou_selected_anchors's related grid index:
