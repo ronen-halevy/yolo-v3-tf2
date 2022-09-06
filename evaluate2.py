@@ -49,7 +49,7 @@ class Evaluate:
         return counter
 
     @tf.function
-    def update_counters(self, p_classes_indices, gt_classes_indices, detect_decisions, max_iou_args_indices,
+    def update_counters(self, p_classes_indices, gt_classes_indices, detect_decisions,
                         gt_boxes_assigned, preds, gts, tp, fp, fn, errors, examples):
         # tp per-class counter is incremented if pred's detect_decisions is set
         tp = self.update_counter(tp, p_classes_indices, tf.cast(detect_decisions, dtype=tf.int32))
@@ -66,7 +66,7 @@ class Evaluate:
             return preds, gts, tp, fp, fn, errors, examples
         # count all gt boxes - per class:
         gts = self.update_counter(gts, gt_classes_indices,
-                                   tf.ones(tf.size(gt_classes_indices), dtype=tf.int32))
+                                  tf.ones(tf.size(gt_classes_indices), dtype=tf.int32))
         # count all preds boxes - per class:
         preds = self.update_counter(preds, p_classes_indices,
                                     tf.ones(tf.size(p_classes_indices), dtype=tf.int32))
@@ -198,14 +198,16 @@ class Evaluate:
                     in enumerate(zip(batch_bboxes_padded, batch_class_indices_padded, batch_scores_padded,
                                      batch_selected_indices_padded, batch_num_valid_detections,
                                      batch_images, batch_gt_y)):
-                # gather padded nms results using selected_indices_padded. Indices were 'padded', so take num_valid_detections indices from top:
+                # gather padded nms results using selected_indices_padded. Indices were 'padded',
+                # so take num_valid_detections indices from top:
                 pred_bboxes, pred_classes, pred_scores = self.gather_nms_output(bboxes_padded,
                                                                                 class_indices_padded,
                                                                                 scores_padded,
                                                                                 selected_indices_padded,
                                                                                 num_valid_detections)
 
-                # Init track fp per image: List size is number of gt boxes. Init val 1 is set to 0 when gt box is matched with a pred box
+                # Init track fp per image: List size is number of gt boxes.
+                # Init val 1 is set to 0 when gt box is matched with a pred box
                 gt_boxes_assigned = tf.fill(tf.shape(gt_y[..., 1]), False)
 
                 # run iou, if gt_y had any box. Otherwise, increment fp according to pred_classes.
@@ -219,30 +221,18 @@ class Evaluate:
                 max_iou, max_iou_args_indices = self.calc_iou(pred_bboxes, pred_classes, gt_bboxes)
 
                 detect_decisions, gt_boxes_assigned = self.process_decisions(max_iou,
-                                                                              pred_classes,
-                                                                              max_iou_args_indices,
-                                                                              gt_classes_indices,
-                                                                              gt_boxes_assigned)
+                                                                             pred_classes,
+                                                                             max_iou_args_indices,
+                                                                             gt_classes_indices,
+                                                                             gt_boxes_assigned)
 
-                counters = self.update_counters(pred_classes, gt_classes_indices, detect_decisions,
-                                                max_iou_args_indices,
-                                                gt_boxes_assigned, **counters)
-
-                # else:
-                #     counters.update({'fp': tf.tensor_scatter_nd_add(counters['fp'], tf.expand_dims(tf.cast(pred_classes,
-                #                                                                                            tf.int32),
-                #                                                                                    axis=-1),
-                #                                                     tf.fill(
-                #                                                         tf.shape(
-                #                                                             pred_classes)[
-                #                                                             0],
-                #                                                         1))})
+                counters = self.update_counters(pred_classes, gt_classes_indices, detect_decisions, gt_boxes_assigned,
+                                                **counters)
 
                 for counter in counters:
                     print(f' {counter}: {counters[counter].numpy()}', end='')
                 print('')
 
-        plt.bar(index, data[row], bar_width, bottom=y_offset, color=colors[row])
         # Resultant Stats:
         recall = tf.cast(counters['tp'], tf.float32) / (tf.cast(counters['tp'] + counters['fn'], tf.float32) + 1e-20)
         precision = tf.cast(counters['tp'], tf.float32) / (tf.cast(counters['tp'] + counters['fp'], tf.float32) + 1e-20)
@@ -283,5 +273,3 @@ if __name__ == '__main__':
 
 
     main()
-
-
