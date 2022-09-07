@@ -19,9 +19,9 @@ import numpy as np
 # plt.rcParams["figure.autolayout"] = True
 
 
-def barh_multiple_plots(ypos, ylables, vals_lst,  width, shift_bar, xlim, colors, opacity, title, xlabel, legend):
+def barh_multiple_plots(ypos, ylables, vals_lst,  width, y_offsets, xlim, colors, opacity, title, xlabel, legend):
     fig, ax = plt.subplots()
-    barhs = [ax.barh(y_pos+shift, vals, width,  color=color, alpha=opacity) for idx, (vals, shift, color) in enumerate(zip(vals_lst, shift_bar, colors))]
+    barhs = [ax.barh(y_pos+y_offset, vals, width,  color=color, alpha=opacity) for idx, (vals, y_offset, color) in enumerate(zip(vals_lst, y_offsets, colors))]
     ax.set_yticks(y_pos, labels=ylables)
     ax.invert_yaxis()  # labels read top-to-bottom
     ax.set_xlabel(xlabel)
@@ -44,13 +44,12 @@ if __name__ == '__main__':
     ylables = ('c1', 'c2', 'c3', 'c4', 'c5', 'c6', 'c7', 'c8')
     legend = ylables
     vals_lst = [tp, fp,fn,gt,pred]
-    shift_bar = [0,0,0,1,2]
+    y_offsets = [0,0,0,1,2]
     xlim = np.amax(vals_lst) * 1.1
     colors = ['red', 'blue', 'green', 'orange', 'black']
     opacity = 0.5
     gap = 0.1
     width = (1. - gap)
-    y_pos = np.arange(len(ylables))*(np.count_nonzero(shift_bar)+1)
-
-    barh_multiple_plots(y_pos, ylables, vals_lst, width, shift_bar, xlim, colors, opacity, title, xlabel, legend)
+    y_pos = np.arange(len(ylables))*(np.max(y_offsets)+1)
+    barh_multiple_plots(y_pos, ylables, vals_lst, width, y_offsets, xlim, colors, opacity, title, xlabel, legend)
 
