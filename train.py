@@ -30,7 +30,7 @@ from core.loss_func import get_loss_func
 from core.parse_model import ParseModel
 
 from core.load_tfrecords import parse_tfrecords
-from core.load_dataset import load_dataset, load_debug_dataset
+from core.load_dataset_from_files import load_dataset_from_files, load_debug_dataset
 from core.transfer_learning import do_transfer_learning
 
 class Train:
@@ -153,7 +153,7 @@ class Train:
             dataset = self.get_data_from_tfrecords(train_tfrecords, val_tfrecords, image_size, max_bboxes,
                                                    classes_name_file)
         elif input_data_source == 'images_dir_annot_file':
-            train_dataset, val_dataset, test_dataset, train_size, val_size = load_dataset(images_dir, annotations_path,
+            train_dataset, val_dataset, test_dataset, train_size, val_size = load_dataset_from_files(images_dir, annotations_path,
                                                                                           classes_name_file, image_size,
                                                                                           dataset_cuttof_size=
                                                                                           dataset_cuttof_size,
