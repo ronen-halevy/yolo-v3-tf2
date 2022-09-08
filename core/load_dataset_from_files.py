@@ -41,7 +41,6 @@ def concat_box_obj_with_classes(bboxes_and_obj, classes):
 
 def concat_box_and_obj(bboxes, positive_objectiveness, pad_size):
     bboxes_and_obj = tf.concat((tf.convert_to_tensor(bboxes), positive_objectiveness), axis=-1)
-    # pad_size = max_bboxes - len(bboxes)
     padded_bboxes_and_obj = tf.pad(bboxes_and_obj, ((0, pad_size), (0, 0)), 'constant')
     return padded_bboxes_and_obj
 
@@ -54,7 +53,7 @@ def decode_and_resize_image(filename, size, y):
     return img, y
 
 
-def load_dataset(images_dir, annotations_path, classes_name_file, image_size=416, dataset_cuttof_size=None,
+def load_dataset_from_files(images_dir, annotations_path, classes_name_file, image_size=416, dataset_cuttof_size=None,
                  max_bboxes=100, train_split=0.7, val_split=0.2):
     class_table = tf.lookup.StaticHashTable(tf.lookup.TextFileInitializer(
         filename=classes_name_file, key_dtype=tf.string, key_index=0, value_dtype=tf.int64,
@@ -111,5 +110,5 @@ if __name__ == '__main__':
     images_dir = '/datasets/shapes/three_circles/input/images_and_annotations_file/images/'
     annotations_path = '/datasets/shapes/three_circles/input/images_and_annotations_file/annotations/annotations.json'
 
-    load_dataset(images_dir, annotations_path)
+    load_dataset_from_files(images_dir, annotations_path)
     pass
