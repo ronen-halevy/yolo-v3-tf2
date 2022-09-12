@@ -112,9 +112,17 @@ class Evaluate:
 
         # B. Set gt_boxes_assigned per-gt entry list, according to recent decisions
         indices = tf.expand_dims(max_iou_args_indices, axis=-1)
-        gt_boxes_assigned = tf.tensor_scatter_nd_update(gt_boxes_assigned, indices, detect_decisions)
+        # Use tensor_scatter_nd_add - if at least one decision entry hits an index - set it true:
+        # So cast to int, add, and then cast back to bool. If indices = [0, 1, 1] and detect_decisions:
+        # [True, True Fasle] result still [True , True]
+        gt_boxes_assigned = \
+            tf.tensor_scatter_nd_add(tf.cast(gt_boxes_assigned, tf.int32), indices, tf.cast(detect_decisions, tf.int32))
+        gt_boxes_assigned = tf.cast(gt_boxes_assigned, tf.bool)
+        detect_decisions = tf.cast(detect_decisions, tf.bool)
+
 
         return detect_decisions, gt_boxes_assigned
+
     @staticmethod
     def prepare_dataset(tfrecords_dir, batch_size, image_size, yolo_max_boxes, classes_name_file):
         # prepare test dataset:
@@ -194,7 +202,8 @@ class Evaluate:
             batch_num_valid_detections = model.predict(
                 batch_images)
 
-            # evaluate predictions results using iou: batches loop
+            # Loop on prediction batched results: boxes, classes, scores, num_valid_detections, and images and gt_y.
+            # Evaluate iou between predictions and gt:
             for image_index, \
                 (bboxes_padded, class_indices_padded, scores_padded, selected_indices_padded, num_valid_detections,
                  image, gt_y) \
@@ -216,10 +225,7 @@ class Evaluate:
                 # Anyway, return the various stats counters
 
                 gt_bboxes, _, gt_classes_indices = tf.split(gt_y, [4, 1, 1], axis=-1)
-
-                # if tf.shape(gt_bboxes)[0] != 0:
                 gt_classes_indices = tf.squeeze(tf.cast(gt_classes_indices, tf.int32), axis=-1)
-
                 max_iou, max_iou_args_indices = self.calc_iou(pred_bboxes, pred_classes, gt_bboxes)
 
                 detect_decisions, gt_boxes_assigned = self.process_decisions(max_iou,
@@ -228,16 +234,19 @@ class Evaluate:
                                                                              gt_classes_indices,
                                                                              gt_boxes_assigned)
 
-                self.counters = self.update_counters(pred_classes, gt_classes_indices, detect_decisions, gt_boxes_assigned,
-                                                **self.counters)
+                self.counters = self.update_counters(pred_classes, gt_classes_indices, detect_decisions,
+                                                     gt_boxes_assigned,
+                                                     **self.counters)
 
                 for counter in self.counters:
                     print(f' {counter}: {self.counters[counter].numpy()}', end='')
                 print('')
 
         # Resultant Stats:
-        recall = tf.cast(self.counters['tp'], tf.float32) / (tf.cast(self.counters['tp'] + self.counters['fn'], tf.float32) + 1e-20)
-        precision = tf.cast(self.counters['tp'], tf.float32) / (tf.cast(self.counters['tp'] + self.counters['fp'], tf.float32) + 1e-20)
+        recall = tf.cast(self.counters['tp'], tf.float32) / (
+                    tf.cast(self.counters['tp'] + self.counters['fn'], tf.float32) + 1e-20)
+        precision = tf.cast(self.counters['tp'], tf.float32) / (
+                    tf.cast(self.counters['tp'] + self.counters['fp'], tf.float32) + 1e-20)
         print(f'recall: {recall}, precision: {precision}')
         return recall, precision
 
@@ -266,12 +275,16 @@ if __name__ == '__main__':
         evaluate = Evaluate(nclasses=7, iou_thresh=evaluate_iou_threshold)
         results = []
         for nms_score_threshold in evaluate_nms_score_thresholds:
-            recal, precision = evaluate.evaluate(tfrecords_dir, image_size, batch_size, classes_name_file,
+            recall, precision = evaluate.evaluate(tfrecords_dir,
+                                                 image_size,
+                                                 batch_size,
+                                                 classes_name_file,
                                                  model_config_file,
                                                  input_weights_path,
                                                  anchors_table,
                                                  nms_iou_threshold, nms_score_threshold, yolo_max_boxes)
-            results.append((recal, precision))
+            results.append((recall, precision))
         print(results)
+
 
     main()
