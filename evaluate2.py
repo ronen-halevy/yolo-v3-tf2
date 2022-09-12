@@ -28,6 +28,16 @@ class Evaluate:
     def __init__(self, nclasses, iou_thresh):
         self.nclasses = nclasses
         self.iou_thresh = iou_thresh
+        # clear stats counters:
+        self.counters = {
+            'preds': tf.convert_to_tensor([0] * nclasses),
+            'gts': tf.convert_to_tensor([0] * nclasses),
+            'tp': tf.convert_to_tensor([0] * nclasses),
+            'fp': tf.convert_to_tensor([0] * nclasses),
+            'fn': tf.convert_to_tensor([0] * nclasses),
+            'errors': tf.Variable(0),
+            'examples': tf.Variable(0)
+        }
 
     @staticmethod
     @tf.function
@@ -105,6 +115,16 @@ class Evaluate:
         gt_boxes_assigned = tf.tensor_scatter_nd_update(gt_boxes_assigned, indices, detect_decisions)
 
         return detect_decisions, gt_boxes_assigned
+    @staticmethod
+    def prepare_dataset(tfrecords_dir, batch_size, image_size, yolo_max_boxes, classes_name_file):
+        # prepare test dataset:
+        dataset = parse_tfrecords(tfrecords_dir, image_size=image_size, max_bboxes=yolo_max_boxes,
+                                  class_file=classes_name_file)
+
+        dataset = dataset.map(lambda x, y: (x, y[y[..., 4] == 1]))  # todo verify this
+        dataset = dataset.batch(batch_size)
+        dataset = dataset.map(lambda img, y: (resize_image(img, image_size, image_size), y))
+        return dataset
 
     @tf.function
     def calc_iou(self, p_bboxes, preds_classes, gt_bboxes):
@@ -160,24 +180,7 @@ class Evaluate:
         model = self.create_model(model_config_file, nclasses, anchors_table, nms_score_threshold, nms_iou_threshold,
                                   yolo_max_boxes, input_weights_path)
 
-        # prepare test dataset:
-        dataset = parse_tfrecords(tfrecords_dir, image_size=image_size, max_bboxes=yolo_max_boxes,
-                                  class_file=classes_name_file)
-
-        dataset = dataset.map(lambda x, y: (x, y[y[..., 4] == 1]))  # todo verify this
-        dataset = dataset.batch(batch_size)
-        dataset = dataset.map(lambda img, y: (resize_image(img, image_size, image_size), y))
-
-        # clear stats counters:
-        counters = {
-            'preds': tf.convert_to_tensor([0] * nclasses),
-            'gts': tf.convert_to_tensor([0] * nclasses),
-            'tp': tf.convert_to_tensor([0] * nclasses),
-            'fp': tf.convert_to_tensor([0] * nclasses),
-            'fn': tf.convert_to_tensor([0] * nclasses),
-            'errors': tf.Variable(0),
-            'examples': tf.Variable(0)
-        }
+        dataset = self.prepare_dataset(tfrecords_dir, batch_size, image_size, yolo_max_boxes, classes_name_file)
 
         # main loop on dataset: predict, evaluate, update stats
         for batch_images, batch_gt_y in dataset:
@@ -209,7 +212,6 @@ class Evaluate:
                 # Init track fp per image: List size is number of gt boxes.
                 # Init val 1 is set to 0 when gt box is matched with a pred box
                 gt_boxes_assigned = tf.fill(tf.shape(gt_y[..., 1]), False)
-
                 # run iou, if gt_y had any box. Otherwise, increment fp according to pred_classes.
                 # Anyway, return the various stats counters
 
@@ -226,16 +228,16 @@ class Evaluate:
                                                                              gt_classes_indices,
                                                                              gt_boxes_assigned)
 
-                counters = self.update_counters(pred_classes, gt_classes_indices, detect_decisions, gt_boxes_assigned,
-                                                **counters)
+                self.counters = self.update_counters(pred_classes, gt_classes_indices, detect_decisions, gt_boxes_assigned,
+                                                **self.counters)
 
-                for counter in counters:
-                    print(f' {counter}: {counters[counter].numpy()}', end='')
+                for counter in self.counters:
+                    print(f' {counter}: {self.counters[counter].numpy()}', end='')
                 print('')
 
         # Resultant Stats:
-        recall = tf.cast(counters['tp'], tf.float32) / (tf.cast(counters['tp'] + counters['fn'], tf.float32) + 1e-20)
-        precision = tf.cast(counters['tp'], tf.float32) / (tf.cast(counters['tp'] + counters['fp'], tf.float32) + 1e-20)
+        recall = tf.cast(self.counters['tp'], tf.float32) / (tf.cast(self.counters['tp'] + self.counters['fn'], tf.float32) + 1e-20)
+        precision = tf.cast(self.counters['tp'], tf.float32) / (tf.cast(self.counters['tp'] + self.counters['fp'], tf.float32) + 1e-20)
         print(f'recall: {recall}, precision: {precision}')
         return recall, precision
 
@@ -256,20 +258,20 @@ if __name__ == '__main__':
         nms_score_threshold = detect_config['nms_score_threshold']
         yolo_max_boxes = detect_config['yolo_max_boxes']
         batch_size = detect_config['batch_size']
-
+        evaluate_nms_score_thresholds = detect_config['evaluate_nms_score_thresholds']
         anchors_table = tf.cast(get_anchors(anchors_file), tf.float32)
 
         evaluate_iou_threshold = 0.5
 
         evaluate = Evaluate(nclasses=7, iou_thresh=evaluate_iou_threshold)
         results = []
-        for nms_score_threshold in [0.004, 0.1, 0.2, 0.5, 0.9]:
+        for nms_score_threshold in evaluate_nms_score_thresholds:
             recal, precision = evaluate.evaluate(tfrecords_dir, image_size, batch_size, classes_name_file,
                                                  model_config_file,
                                                  input_weights_path,
                                                  anchors_table,
                                                  nms_iou_threshold, nms_score_threshold, yolo_max_boxes)
             results.append((recal, precision))
-
+        print(results)
 
     main()

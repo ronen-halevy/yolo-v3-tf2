@@ -29,3 +29,11 @@ output_dir: datasets/coco2012/output
 
 #inference_input:
 input_weights_path: checkpoints/keras_coco_yolov3.tf # /home/ronen/PycharmProjects/yolov3-tf2/checkpoints/yolov3.tf # weights/coco/girl/yolov3_train_girl.tf # weights/coco/girl/yolov3_train_coco_25.tf # checkpoints/yolov3_train_rb_circles4.tf
+
+#evaluation only:
+evaluate_nms_score_thresholds: # run recall/precision for each score threshold (thresholding of score detection done by nms):
+  - 0.004
+  - 0.1
+  - 0.2
+  - 0.5
+  - 0.9
