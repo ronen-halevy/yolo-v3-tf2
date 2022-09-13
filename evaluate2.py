@@ -25,11 +25,11 @@ from core.utils import get_anchors, resize_image
 
 from evaluate_detections import EvaluateDetections
 
-def arrange_yolov3_predict_output(batch_bboxes_padded, batch_class_indices_padded,
+
+def arrange_predict_output(batch_bboxes_padded, batch_class_indices_padded,
                                   batch_scores_padded,
                                   batch_selected_indices_padded, \
                                   batch_num_valid_detections, batch_gt_y):
-
     bboxes_batch = []
     classes_batch = []
     scores_batch = []
@@ -54,49 +54,12 @@ def arrange_yolov3_predict_output(batch_bboxes_padded, batch_class_indices_padde
 
         gt_bboxes_batch.append(gt_bboxes)
         gt_classes_batch.append(gt_classes)
+    # ragged batch. reason: nom-uniform number of detections/boxes.
     bboxes_batch = tf.ragged.stack(bboxes_batch)
     classes_batch = tf.ragged.stack(classes_batch)
     gt_bboxes_batch = tf.stack(gt_bboxes_batch)
     gt_classes_batch = tf.stack(gt_classes_batch)
     return bboxes_batch, classes_batch, gt_bboxes_batch, gt_classes_batch,
-    #
-
-def measure_performance(model, dataset, nclasses, iou_thresh):
-
-    eval_dets = EvaluateDetections(nclasses, iou_thresh)
-
-    # main loop on dataset: predict, evaluate, update stats
-    for batch_images, batch_gt_y in dataset:
-        # prediction outputs padded results - bboxes, class indices, scores indices.
-        # batch_selected_indices_padded - a list of indices to prediction nms outputs
-        # batch_num_valid_detections - number of valid batch_selected_indices_padded indices. (taken from bottom)
-        # shape of batch_bboxes_padded: batch*N*6
-        # shape of batch_selected_indices_padded: batch*max_nms_boxes
-        # shape of batch_num_valid_detections: batch * valid_boxes
-
-        batch_bboxes_padded, batch_class_indices_padded, batch_scores_padded, batch_selected_indices_padded, \
-        batch_num_valid_detections = model.predict(
-            batch_images)
-
-        bboxes_batch, classes_batch, gt_bboxes_batch, gt_classes_batch = arrange_yolov3_predict_output(batch_bboxes_padded, batch_class_indices_padded, batch_scores_padded, batch_selected_indices_padded, \
-        batch_num_valid_detections, batch_gt_y)
-
-
-        for image_index, \
-            (pred_bboxes, pred_classes, gt_bboxes, gt_classes) in enumerate(zip(bboxes_batch, classes_batch, gt_bboxes_batch, gt_classes_batch)):
-
-            counters = eval_dets.evaluate(pred_bboxes, pred_classes, gt_bboxes, gt_classes)
-        for counter in counters:
-                print(f' {counter}: {counters[counter].numpy()}', end='')
-        print('\n')
-    #
-    # Resultant Stats:
-    recall = tf.cast(counters['tp'], tf.float32) / (
-                tf.cast(counters['tp'] + counters['fn'], tf.float32) + 1e-20)
-    precision = tf.cast(counters['tp'], tf.float32) / (
-                tf.cast(counters['tp'] + counters['fp'], tf.float32) + 1e-20)
-    print(f'recall: {recall}, precision: {precision}')
-    return recall, precision
 
 
 def prepare_dataset(tfrecords_dir, batch_size, image_size, yolo_max_boxes, classes_name_file):
@@ -108,6 +71,7 @@ def prepare_dataset(tfrecords_dir, batch_size, image_size, yolo_max_boxes, class
     dataset = dataset.batch(batch_size)
     dataset = dataset.map(lambda img, y: (resize_image(img, image_size, image_size), y))
     return dataset
+
 
 def create_model(model_config_file, nclasses, anchors_table, nms_score_threshold, nms_iou_threshold, yolo_max_boxes,
                  input_weights_path):
@@ -128,6 +92,15 @@ def create_model(model_config_file, nclasses, anchors_table, nms_score_threshold
 
     model = Model(inputs, nms_output, name="yolo_nms")
     return model
+
+
+def calc_recal_precision(counters):
+    recall = tf.cast(counters['tp'], tf.float32) / (
+            tf.cast(counters['tp'] + counters['fn'], tf.float32) + 1e-20)
+    precision = tf.cast(counters['tp'], tf.float32) / (
+            tf.cast(counters['tp'] + counters['fp'], tf.float32) + 1e-20)
+    print(f'recall: {recall}, precision: {precision}')
+    return recall, precision
 
 
 if __name__ == '__main__':
@@ -153,15 +126,53 @@ if __name__ == '__main__':
         nclasses = len(class_names)
 
         dataset = prepare_dataset(tfrecords_dir, batch_size, image_size, yolo_max_boxes, classes_name_file)
-
         evaluate_iou_threshold = 0.5
-
         results = []
         for nms_score_threshold in evaluate_nms_score_thresholds:
             model = create_model(model_config_file, nclasses, anchors_table, nms_score_threshold, nms_iou_threshold,
                                  yolo_max_boxes, input_weights_path)
-            recall, precision = measure_performance(model, dataset, nclasses=7, iou_thresh=evaluate_iou_threshold)
 
+            eval_dets = EvaluateDetections(nclasses, evaluate_iou_threshold)
+            eval_dets_oneclass = EvaluateDetections(nclasses, evaluate_iou_threshold)
+
+            # main loop on dataset: predict, evaluate, update stats
+            for batch_images, batch_gt_y in dataset:
+                # prediction outputs padded results - bboxes, class indices, scores indices.
+                # batch_selected_indices_padded - a list of indices to prediction nms outputs
+                # batch_num_valid_detections - number of valid batch_selected_indices_padded indices. (taken from bottom)
+                # shape of batch_bboxes_padded: batch*N*6
+                # shape of batch_selected_indices_padded: batch*max_nms_boxes
+                # shape of batch_num_valid_detections: batch * valid_boxes
+
+                batch_bboxes_padded, batch_class_indices_padded, batch_scores_padded, batch_selected_indices_padded, \
+                batch_num_valid_detections = model.predict(
+                    batch_images)
+
+                bboxes_batch, classes_batch, gt_bboxes_batch, gt_classes_batch = arrange_predict_output(
+                    batch_bboxes_padded, batch_class_indices_padded, batch_scores_padded, batch_selected_indices_padded, \
+                    batch_num_valid_detections, batch_gt_y)
+
+                for image_index, \
+                    (pred_bboxes, pred_classes, gt_bboxes, gt_classes) in enumerate(
+                    zip(bboxes_batch, classes_batch, gt_bboxes_batch, gt_classes_batch)):
+                    counters = eval_dets.evaluate(pred_bboxes, pred_classes, gt_bboxes, gt_classes)
+
+                    # Degenerate class predictions - evaluate for bboxes only:
+                    gt_classes_oneclass = tf.zeros(tf.shape(gt_classes), dtype=tf.int32)
+                    pred_classes_oneclass = tf.zeros(tf.shape(pred_classes), dtype=tf.int64)
+                    counters_oneclass = eval_dets_oneclass.evaluate(pred_bboxes, pred_classes_oneclass, gt_bboxes,
+                                                                    gt_classes_oneclass)
+
+                    for counter in counters:
+                        print(f' {counter}: {counters[counter].numpy()}', end='')
+                    print('\nSingle Class:')
+
+                    for counter_oneclass in counters_oneclass:
+                        print(f' {counter_oneclass}: {counters_oneclass[counter_oneclass].numpy()}', end='')
+                print('\n')
+
+            recall, precision = calc_recal_precision(counters)
+            print(f'recall: {recall}, precision: {precision}')  #
             results.append((recall, precision))
         print(results)
 
