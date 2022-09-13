@@ -124,9 +124,7 @@ class Evaluate:
 
 
         return detect_decisions, gt_boxes_assigned
-    #
-    # def arrange_yolov3_predict_output(batch_bboxes_padded, batch_class_indices_padded, batch_scores_padded, batch_selected_indices_padded, \
-    #         batch_num_valid_detections):
+
 
 
     # @tf.function # todo bring back
@@ -141,6 +139,26 @@ class Evaluate:
         max_iou = tf.gather_nd(iou, best_iou_index_2d)
 
         return max_iou, max_iou_args_indices
+    def evaluate(self, pred_bboxes, pred_classes, gt_bboxes, gt_classes):
+        gt_boxes_assigned = tf.fill(tf.shape(gt_classes), False)
+
+        max_iou, max_iou_args_indices = self.calc_iou(pred_bboxes.to_tensor(), pred_classes, gt_bboxes)
+
+        detect_decisions, gt_boxes_assigned = self.process_decisions(max_iou,
+                                                                     pred_classes,
+                                                                     max_iou_args_indices,
+                                                                     gt_classes,
+                                                                     gt_boxes_assigned)
+
+        self.counters = self.update_counters(pred_classes, gt_classes, detect_decisions,
+                                             gt_boxes_assigned,
+                                             **self.counters)
+
+        for counter in self.counters:
+            print(f' {counter}: {self.counters[counter].numpy()}', end='')
+        print('\n')
+        return self.counters
+
 
     @staticmethod
     def gather_nms_output(bboxes_padded, class_indices_padded, scores_padded,
@@ -150,12 +168,44 @@ class Evaluate:
         classes = tf.gather(class_indices_padded, selected_indices_padded[:num_valid_detections], axis=0)
         scores = tf.gather(scores_padded, selected_indices_padded[:num_valid_detections], axis=0)
         return bboxes, classes, scores
+    @staticmethod
+    def arrange_yolov3_predict_output(batch_bboxes_padded, batch_class_indices_padded,
+                                      batch_scores_padded,
+                                      batch_selected_indices_padded, \
+                                      batch_num_valid_detections, batch_gt_y):
 
-    #
-    # def evaluate(self, tfrecords_dir, image_size, batch_size, classes_name_file, model_config_file, input_weights_path,
-    #              anchors_table,
-    #              nms_iou_threshold, nms_score_threshold, yolo_max_boxes=100):
-    def evaluate(self, model, dataset):
+        bboxes_batch = []
+        classes_batch = []
+        scores_batch = []
+        gt_bboxes_batch = []
+        gt_classes_batch = []
+
+        for image_index, \
+            (bboxes_padded, class_indices_padded, scores_padded, selected_indices_padded, num_valid_detections,
+             gt_y) \
+                in enumerate(zip(batch_bboxes_padded, batch_class_indices_padded, batch_scores_padded,
+                                 batch_selected_indices_padded, batch_num_valid_detections,
+                                 batch_gt_y)):
+            bboxes = tf.gather(bboxes_padded, selected_indices_padded[:num_valid_detections], axis=0)
+            classes = tf.gather(class_indices_padded, selected_indices_padded[:num_valid_detections], axis=0)
+            scores = tf.gather(scores_padded, selected_indices_padded[:num_valid_detections], axis=0)
+            bboxes_batch.append(bboxes)
+            classes_batch.append(classes)
+            scores_batch.append(scores)
+
+            gt_bboxes, _, gt_classes = tf.split(gt_y, [4, 1, 1], axis=-1)
+            gt_classes = tf.squeeze(tf.cast(gt_classes, tf.int32), axis=-1)
+
+            gt_bboxes_batch.append(gt_bboxes)
+            gt_classes_batch.append(gt_classes)
+        bboxes_batch = tf.ragged.stack(bboxes_batch)
+        classes_batch = tf.ragged.stack(classes_batch)
+        gt_bboxes_batch = tf.stack(gt_bboxes_batch)
+        gt_classes_batch = tf.stack(gt_classes_batch)
+        return bboxes_batch, classes_batch, gt_bboxes_batch, gt_classes_batch,
+        #
+
+    def measure_performance(self, model, dataset):
 
         # main loop on dataset: predict, evaluate, update stats
         for batch_images, batch_gt_y in dataset:
@@ -170,62 +220,14 @@ class Evaluate:
             batch_num_valid_detections = model.predict(
                 batch_images)
 
-            # bboxes_batch, classes_batch, gt_bboxes_batch, gt_classes_batch = arrange_yolov3_predict_output(batch_bboxes_padded, batch_class_indices_padded, batch_scores_padded, batch_selected_indices_padded, \
-            # batch_num_valid_detections)
-
-            bboxes_batch = []
-            classes_batch = []
-            scores_batch = []
-            gt_bboxes_batch = []
-            gt_classes_batch = []
-
-            for image_index, \
-                (bboxes_padded, class_indices_padded, scores_padded, selected_indices_padded, num_valid_detections,
-                 gt_y) \
-                    in enumerate(zip(batch_bboxes_padded, batch_class_indices_padded, batch_scores_padded,
-                                     batch_selected_indices_padded, batch_num_valid_detections,
-                                     batch_gt_y)):
-                bboxes = tf.gather(bboxes_padded, selected_indices_padded[:num_valid_detections], axis=0)
-                classes = tf.gather(class_indices_padded, selected_indices_padded[:num_valid_detections], axis=0)
-                scores = tf.gather(scores_padded, selected_indices_padded[:num_valid_detections], axis=0)
-                bboxes_batch.append(bboxes)
-                classes_batch.append(classes)
-                scores_batch.append(scores)
-
-                gt_bboxes, _, gt_classes = tf.split(gt_y, [4, 1, 1], axis=-1)
-                gt_classes = tf.squeeze(tf.cast(gt_classes, tf.int32), axis=-1)
-
-                gt_bboxes_batch.append(gt_bboxes)
-                gt_classes_batch.append(gt_classes)
-            bboxes_batch = tf.ragged.stack(bboxes_batch)
-            classes_batch = tf.ragged.stack(classes_batch)
-            gt_bboxes_batch = tf.stack(gt_bboxes_batch)
-            gt_classes_batch = tf.stack(gt_classes_batch)
+            bboxes_batch, classes_batch, gt_bboxes_batch, gt_classes_batch = self.arrange_yolov3_predict_output(batch_bboxes_padded, batch_class_indices_padded, batch_scores_padded, batch_selected_indices_padded, \
+            batch_num_valid_detections, batch_gt_y)
 
 
-            # Loop on prediction batched results: boxes, classes, scores, num_valid_detections, and images and gt_y.
-            # Evaluate iou between predictions and gt:
             for image_index, \
                 (pred_bboxes, pred_classes, gt_bboxes, gt_classes) in enumerate(zip(bboxes_batch, classes_batch, gt_bboxes_batch, gt_classes_batch)):
 
-                # Init gt_boxes_assigned: True/False if a gt_box is matched/unmatched to a pred box. Needed for fn count
-                gt_boxes_assigned = tf.fill(tf.shape(gt_classes), False)
-
-                max_iou, max_iou_args_indices = self.calc_iou(pred_bboxes.to_tensor(), pred_classes, gt_bboxes)
-
-                detect_decisions, gt_boxes_assigned = self.process_decisions(max_iou,
-                                                                             pred_classes,
-                                                                             max_iou_args_indices,
-                                                                             gt_classes,
-                                                                             gt_boxes_assigned)
-
-                self.counters = self.update_counters(pred_classes, gt_classes, detect_decisions,
-                                                     gt_boxes_assigned,
-                                                     **self.counters)
-
-                for counter in self.counters:
-                    print(f' {counter}: {self.counters[counter].numpy()}', end='')
-                print('')
+                self.evaluate(pred_bboxes, pred_classes, gt_bboxes, gt_classes)
 
         # Resultant Stats:
         recall = tf.cast(self.counters['tp'], tf.float32) / (
@@ -234,6 +236,7 @@ class Evaluate:
                     tf.cast(self.counters['tp'] + self.counters['fp'], tf.float32) + 1e-20)
         print(f'recall: {recall}, precision: {precision}')
         return recall, precision
+
 
 def prepare_dataset(tfrecords_dir, batch_size, image_size, yolo_max_boxes, classes_name_file):
     # prepare test dataset:
@@ -298,7 +301,7 @@ if __name__ == '__main__':
         for nms_score_threshold in evaluate_nms_score_thresholds:
             model = create_model(model_config_file, nclasses, anchors_table, nms_score_threshold, nms_iou_threshold,
                                  yolo_max_boxes, input_weights_path)
-            recall, precision = evaluate.evaluate(model, dataset)
+            recall, precision = evaluate.measure_performance(model, dataset)
 
             results.append((recall, precision))
         print(results)
