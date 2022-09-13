@@ -101,6 +101,8 @@ class Evaluate:
         # 2. Class matching: check if pred class matches with iou selected gt class:
         selected_classes = tf.gather(gt_classes_indices, max_iou_args_indices)
         detect_matched_classes = selected_classes == tf.cast(preds_classes, tf.int32)
+
+
         detect_decisions = tf.math.logical_and(detect_matched_classes, thresh_qualified_ious)
 
         # 3. Availability: Check if Selected gt entry was not assigned already by another pred box
@@ -123,16 +125,6 @@ class Evaluate:
 
         return detect_decisions, gt_boxes_assigned
 
-    @staticmethod
-    def prepare_dataset(tfrecords_dir, batch_size, image_size, yolo_max_boxes, classes_name_file):
-        # prepare test dataset:
-        dataset = parse_tfrecords(tfrecords_dir, image_size=image_size, max_bboxes=yolo_max_boxes,
-                                  class_file=classes_name_file)
-
-        dataset = dataset.map(lambda x, y: (x, y[y[..., 4] == 1]))  # todo verify this
-        dataset = dataset.batch(batch_size)
-        dataset = dataset.map(lambda img, y: (resize_image(img, image_size, image_size), y))
-        return dataset
 
     @tf.function
     def calc_iou(self, p_bboxes, preds_classes, gt_bboxes):
@@ -156,39 +148,11 @@ class Evaluate:
         scores = tf.gather(scores_padded, selected_indices_padded[:num_valid_detections], axis=0)
         return bboxes, classes, scores
 
-    @staticmethod
-    def create_model(model_config_file, nclasses, anchors_table, nms_score_threshold, nms_iou_threshold, yolo_max_boxes,
-                     input_weights_path):
-        with open(model_config_file, 'r') as _stream:
-            model_config = yaml.safe_load(_stream)
-        parse_model = ParseModel()
-        inputs = Input(shape=(None, None, 3))
-        model = parse_model.build_model(inputs, nclasses=nclasses, **model_config)
-
-        # Note:.expect_partial() prevents warnings at exit time, since save model generates extra keys.
-        model.load_weights(input_weights_path).expect_partial()
-        print('weights loaded')
-        model = model(inputs)
-
-        decoded_output = YoloDecoderLayer(nclasses, anchors_table)(model)
-        nms_output = YoloNmsLayer(yolo_max_boxes, nms_iou_threshold,
-                                  nms_score_threshold)(decoded_output)
-
-        model = Model(inputs, nms_output, name="yolo_nms")
-        return model
-
-    def evaluate(self, tfrecords_dir, image_size, batch_size, classes_name_file, model_config_file, input_weights_path,
-                 anchors_table,
-                 nms_iou_threshold, nms_score_threshold, yolo_max_boxes=100):
-
-        class_names = [c.strip() for c in open(classes_name_file).readlines()]
-        nclasses = len(class_names)
-
-        # create model:
-        model = self.create_model(model_config_file, nclasses, anchors_table, nms_score_threshold, nms_iou_threshold,
-                                  yolo_max_boxes, input_weights_path)
-
-        dataset = self.prepare_dataset(tfrecords_dir, batch_size, image_size, yolo_max_boxes, classes_name_file)
+    #
+    # def evaluate(self, tfrecords_dir, image_size, batch_size, classes_name_file, model_config_file, input_weights_path,
+    #              anchors_table,
+    #              nms_iou_threshold, nms_score_threshold, yolo_max_boxes=100):
+    def evaluate(self, model, dataset):
 
         # main loop on dataset: predict, evaluate, update stats
         for batch_images, batch_gt_y in dataset:
@@ -226,6 +190,7 @@ class Evaluate:
 
                 gt_bboxes, _, gt_classes_indices = tf.split(gt_y, [4, 1, 1], axis=-1)
                 gt_classes_indices = tf.squeeze(tf.cast(gt_classes_indices, tf.int32), axis=-1)
+
                 max_iou, max_iou_args_indices = self.calc_iou(pred_bboxes, pred_classes, gt_bboxes)
 
                 detect_decisions, gt_boxes_assigned = self.process_decisions(max_iou,
@@ -250,6 +215,36 @@ class Evaluate:
         print(f'recall: {recall}, precision: {precision}')
         return recall, precision
 
+def prepare_dataset(tfrecords_dir, batch_size, image_size, yolo_max_boxes, classes_name_file):
+    # prepare test dataset:
+    dataset = parse_tfrecords(tfrecords_dir, image_size=image_size, max_bboxes=yolo_max_boxes,
+                              class_file=classes_name_file)
+
+    dataset = dataset.map(lambda x, y: (x, y[y[..., 4] == 1]))
+    dataset = dataset.batch(batch_size)
+    dataset = dataset.map(lambda img, y: (resize_image(img, image_size, image_size), y))
+    return dataset
+
+def create_model(model_config_file, nclasses, anchors_table, nms_score_threshold, nms_iou_threshold, yolo_max_boxes,
+                 input_weights_path):
+    with open(model_config_file, 'r') as _stream:
+        model_config = yaml.safe_load(_stream)
+    parse_model = ParseModel()
+    inputs = Input(shape=(None, None, 3))
+    model = parse_model.build_model(inputs, nclasses=nclasses, **model_config)
+
+    # Note:.expect_partial() prevents warnings at exit time, since save model generates extra keys.
+    model.load_weights(input_weights_path).expect_partial()
+    print('weights loaded')
+    model = model(inputs)
+
+    decoded_output = YoloDecoderLayer(nclasses, anchors_table)(model)
+    nms_output = YoloNmsLayer(yolo_max_boxes, nms_iou_threshold,
+                              nms_score_threshold)(decoded_output)
+
+    model = Model(inputs, nms_output, name="yolo_nms")
+    return model
+
 
 if __name__ == '__main__':
     def main():
@@ -270,19 +265,21 @@ if __name__ == '__main__':
         evaluate_nms_score_thresholds = detect_config['evaluate_nms_score_thresholds']
         anchors_table = tf.cast(get_anchors(anchors_file), tf.float32)
 
+        class_names = [c.strip() for c in open(classes_name_file).readlines()]
+        nclasses = len(class_names)
+
+        dataset = prepare_dataset(tfrecords_dir, batch_size, image_size, yolo_max_boxes, classes_name_file)
+
+
         evaluate_iou_threshold = 0.5
 
         evaluate = Evaluate(nclasses=7, iou_thresh=evaluate_iou_threshold)
         results = []
         for nms_score_threshold in evaluate_nms_score_thresholds:
-            recall, precision = evaluate.evaluate(tfrecords_dir,
-                                                 image_size,
-                                                 batch_size,
-                                                 classes_name_file,
-                                                 model_config_file,
-                                                 input_weights_path,
-                                                 anchors_table,
-                                                 nms_iou_threshold, nms_score_threshold, yolo_max_boxes)
+            model = create_model(model_config_file, nclasses, anchors_table, nms_score_threshold, nms_iou_threshold,
+                                 yolo_max_boxes, input_weights_path)
+            recall, precision = evaluate.evaluate(model, dataset)
+
             results.append((recall, precision))
         print(results)
 
