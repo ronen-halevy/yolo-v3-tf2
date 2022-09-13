@@ -30,6 +30,28 @@ def arrange_predict_output(batch_bboxes_padded, batch_class_indices_padded,
                                   batch_scores_padded,
                                   batch_selected_indices_padded, \
                                   batch_num_valid_detections, batch_gt_y):
+    """
+                    # prediction outputs padded results - bboxes, class indices, scores indices.
+                # batch_selected_indices_padded - a list of indices to prediction nms outputs
+                # batch_num_valid_detections - number of valid batch_selected_indices_padded indices. (taken from bottom)
+                # shape of batch_bboxes_padded: batch*N*6
+                # shape of batch_selected_indices_padded: batch*max_nms_boxes
+                # shape of batch_num_valid_detections: batch * valid_boxes
+    :param batch_bboxes_padded:
+    :type batch_bboxes_padded:
+    :param batch_class_indices_padded:
+    :type batch_class_indices_padded:
+    :param batch_scores_padded:
+    :type batch_scores_padded:
+    :param batch_selected_indices_padded:
+    :type batch_selected_indices_padded:
+    :param batch_num_valid_detections:
+    :type batch_num_valid_detections:
+    :param batch_gt_y:
+    :type batch_gt_y:
+    :return:
+    :rtype:
+    """
     bboxes_batch = []
     classes_batch = []
     scores_batch = []
@@ -104,8 +126,30 @@ def calc_recal_precision(counters):
 
 
 if __name__ == '__main__':
-    def main():
-        # parser = argparse.ArgumentParser()
+    def evaluate():
+        """
+        1. Arrange configs
+        2.  Prepare Dataset
+        3. Loop on nms_score thresholds to obtain recall/precision curve:
+        3.1 create model
+        3.2 prepare 2 evaluate_detections objects: one for regular evaluation the other for a single class execution, i.e.
+        ignore classification results, consider only bbox results evaluation.
+        3.3 Iterate on dataset batches:
+        3.3.1. do batch predicitions
+        3.3.2 Arrange prediction outputs - post process the nms output, produce an output of pred bbox, pred classes,
+         gt_bbox, gt_classes batches
+        3.3.3 Iterate on pred bbox, pred classes, gt_bbox, gt_classes batches batches:
+        3.3.3.1 Produce performance counters
+        3.3.3.2 Produce 'one-class' performance counters, i.e. ignore class pred, consider bbox pred performance only.
+        3.4 Calculate recall and precision
+    
+    
+        :return: 
+        :rtype: 
+        """
+
+
+        # 1.Arrange configs
         with open('config/detect_config.yaml', 'r') as stream:
             detect_config = yaml.safe_load(stream)
 
@@ -124,41 +168,40 @@ if __name__ == '__main__':
 
         class_names = [c.strip() for c in open(classes_name_file).readlines()]
         nclasses = len(class_names)
-
+        # 2.  Prepare Dataset
         dataset = prepare_dataset(tfrecords_dir, batch_size, image_size, yolo_max_boxes, classes_name_file)
         evaluate_iou_threshold = 0.5
         results = []
+        # 3. Loop on nms_score thresholds to obtain recall/precision curve:
         for nms_score_threshold in evaluate_nms_score_thresholds:
+            # 3.1 create model
             model = create_model(model_config_file, nclasses, anchors_table, nms_score_threshold, nms_iou_threshold,
                                  yolo_max_boxes, input_weights_path)
 
+            # 3.2 prepare 2 evaluate_detections objects: one for regular evaluation the other for a single class
+            # execution, i.e. ignore classification results, consider only bbox results evaluation.
             eval_dets = EvaluateDetections(nclasses, evaluate_iou_threshold)
             eval_dets_oneclass = EvaluateDetections(nclasses, evaluate_iou_threshold)
 
-            # main loop on dataset: predict, evaluate, update stats
+            # 3.3 Iterate on dataset batches:
             for batch_images, batch_gt_y in dataset:
-                # prediction outputs padded results - bboxes, class indices, scores indices.
-                # batch_selected_indices_padded - a list of indices to prediction nms outputs
-                # batch_num_valid_detections - number of valid batch_selected_indices_padded indices. (taken from bottom)
-                # shape of batch_bboxes_padded: batch*N*6
-                # shape of batch_selected_indices_padded: batch*max_nms_boxes
-                # shape of batch_num_valid_detections: batch * valid_boxes
-
+                # 3.3.1.do batch predicitions
                 batch_bboxes_padded, batch_class_indices_padded, batch_scores_padded, batch_selected_indices_padded, \
                 batch_num_valid_detections = model.predict(
                     batch_images)
-
+                # 3.3.2 Arrange predictio outputs - post process the nms output, produce an output of pred bbox,
+                # pred classes, gt_bbox, gt_classes batches
                 bboxes_batch, classes_batch, gt_bboxes_batch, gt_classes_batch = arrange_predict_output(
                     batch_bboxes_padded, batch_class_indices_padded, batch_scores_padded, batch_selected_indices_padded, \
                     batch_num_valid_detections, batch_gt_y)
-
-                for image_index, \
-                    (pred_bboxes, pred_classes, gt_bboxes, gt_classes) in enumerate(
-                    zip(bboxes_batch, classes_batch, gt_bboxes_batch, gt_classes_batch)):
+                # 3.3.3 Iterate on pred bbox, pred classes, gt_bbox, gt_classes batches batches:
+                for  pred_bboxes, pred_classes, gt_bboxes, gt_classes in \
+                        zip(bboxes_batch, classes_batch, gt_bboxes_batch, gt_classes_batch):
+                    # 3.3.3.1 Produce performance counters
                     counters = eval_dets.evaluate(pred_bboxes, pred_classes, gt_bboxes, gt_classes)
-
-                    # Degenerate class predictions - evaluate for bboxes only:
                     gt_classes_oneclass = tf.zeros(tf.shape(gt_classes), dtype=tf.int32)
+                    # 3.3.3.2 Produce 'one-class' performance counters, i.e.ignore class pred, consider
+                    # bbox pred performance only.
                     pred_classes_oneclass = tf.zeros(tf.shape(pred_classes), dtype=tf.int64)
                     counters_oneclass = eval_dets_oneclass.evaluate(pred_bboxes, pred_classes_oneclass, gt_bboxes,
                                                                     gt_classes_oneclass)
@@ -169,12 +212,12 @@ if __name__ == '__main__':
 
                     for counter_oneclass in counters_oneclass:
                         print(f' {counter_oneclass}: {counters_oneclass[counter_oneclass].numpy()}', end='')
-                print('\n')
-
+                    print('\n')
+            # 3.4 Calculate recall and precision
             recall, precision = calc_recal_precision(counters)
             print(f'recall: {recall}, precision: {precision}')  #
             results.append((recall, precision))
         print(results)
 
 
-    main()
+    evaluate()
