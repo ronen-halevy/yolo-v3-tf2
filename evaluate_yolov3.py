@@ -14,6 +14,8 @@ import tensorflow as tf
 from tensorflow.keras import Input, Model
 
 import yaml
+import numpy as np
+
 import matplotlib.pyplot as plt
 
 from core.load_tfrecords import parse_tfrecords
@@ -126,6 +128,7 @@ def calc_recal_precision(counters):
 
 
 if __name__ == '__main__':
+
     def evaluate():
         """
         1. Arrange configs
@@ -148,7 +151,6 @@ if __name__ == '__main__':
         :rtype: 
         """
 
-
         # 1.Arrange configs
         with open('config/detect_config.yaml', 'r') as stream:
             detect_config = yaml.safe_load(stream)
@@ -170,10 +172,17 @@ if __name__ == '__main__':
         nclasses = len(class_names)
         # 2.  Prepare Dataset
         dataset = prepare_dataset(tfrecords_dir, batch_size, image_size, yolo_max_boxes, classes_name_file)
+        dataset = dataset.take(20) # todo!!!
         evaluate_iou_threshold = 0.5
         results = []
         # 3. Loop on nms_score thresholds to obtain recall/precision curve:
         for nms_score_threshold in evaluate_nms_score_thresholds:
+            preds_histo = []
+            gt_histo = []
+            tp_histo = []
+            fp_histo = []
+            fn_histo = []
+
             # 3.1 create model
             model = create_model(model_config_file, nclasses, anchors_table, nms_score_threshold, nms_iou_threshold,
                                  yolo_max_boxes, input_weights_path)
@@ -195,6 +204,7 @@ if __name__ == '__main__':
                     batch_bboxes_padded, batch_class_indices_padded, batch_scores_padded, batch_selected_indices_padded, \
                     batch_num_valid_detections, batch_gt_y)
                 # 3.3.3 Iterate on pred bbox, pred classes, gt_bbox, gt_classes batches batches:
+                old_counters = None
                 for  pred_bboxes, pred_classes, gt_bboxes, gt_classes in \
                         zip(bboxes_batch, classes_batch, gt_bboxes_batch, gt_classes_batch):
                     # 3.3.3.1 Produce performance counters
@@ -205,9 +215,24 @@ if __name__ == '__main__':
                     pred_classes_oneclass = tf.zeros(tf.shape(pred_classes), dtype=tf.int64)
                     counters_oneclass = eval_dets_oneclass.evaluate(pred_bboxes, pred_classes_oneclass, gt_bboxes,
                                                                     gt_classes_oneclass)
+                    if old_counters:
+                        preds_histo.append(counters['preds']-old_counters['preds'])
+                        gt_histo.append(counters['gts']-old_counters['gts'])
+
+                        tp_histo.append(counters['tp']-old_counters['tp'])
+                        fp_histo.append(counters['fp']-old_counters['fp'])
+                        fn_histo.append(counters['fn']-old_counters['fn'])
+                    else: # f.time:
+                        fp_histo.append(counters['preds'])
+                        tp_histo.append(counters['gts'])
+                        fp_histo.append(counters['tp'])
+                        tp_histo.append(counters['tp'])
+                        fp_histo.append(counters['fn'])
+
 
                     for counter in counters:
                         print(f' {counter}: {counters[counter].numpy()}', end='')
+                    old_counters = counters
                     print('\nSingle Class:')
 
                     for counter_oneclass in counters_oneclass:
@@ -217,6 +242,18 @@ if __name__ == '__main__':
             recall, precision = calc_recal_precision(counters)
             print(f'recall: {recall}, precision: {precision}')  #
             results.append((recall, precision))
+            preds_histo_save = tf.stack(preds_histo, axis=0).numpy()
+            gt_histo_save = tf.stack(gt_histo, axis=0).numpy()
+            tp_histo_save = tf.stack(tp_histo, axis=0).numpy()
+            fp_histo_save = tf.stack(fp_histo, axis=0).numpy()
+            fn_histo_save = tf.stack(fn_histo, axis=0).numpy()
+            np.save(f'preds_{nms_score_threshold}.txt', preds_histo_save)
+            np.save(f'gts_{nms_score_threshold}.txt', gt_histo_save)
+            np.save(f'tp_{nms_score_threshold}.txt', tp_histo_save)
+            np.save(f'fp_{nms_score_threshold}.txt', fp_histo_save)
+            np.save(f'fn_{nms_score_threshold}.txt', fn_histo_save)
+
+
         print(results)
 
 

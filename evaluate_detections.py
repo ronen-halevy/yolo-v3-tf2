@@ -27,9 +27,8 @@ class EvaluateDetections:
             'errors': tf.Variable(0),
             'examples': tf.Variable(0)
         }
-
     @staticmethod
-    # @tf.function  # todo bring back
+    @tf.function
     def iou_alg(box_1, box_2):
         box_2 = tf.expand_dims(box_2, 0)
 
@@ -51,12 +50,13 @@ class EvaluateDetections:
     def update_counters(self, p_classes_indices, gt_classes, detect_decisions,
                         gt_boxes_assigned, preds, gts, tp, fp, fn, errors, examples):
         # tp per-class counter is incremented if pred's detect_decisions is set
-        tp = self.update_counter(tp, p_classes_indices, tf.cast(detect_decisions, dtype=tf.int32))
+
+        tp_updated = self.update_counter(tp, p_classes_indices, tf.cast(detect_decisions, dtype=tf.int32))
         # fp per-class counter is incremented if pred's detect_decision is not set
-        fp = self.update_counter(fp, p_classes_indices, tf.cast(tf.math.logical_not(detect_decisions), dtype=tf.int32))
+        fp_updated = self.update_counter(fp, p_classes_indices, tf.cast(tf.math.logical_not(detect_decisions), dtype=tf.int32))
         try:
             # fn per class counter is set if gt entry was not assigned to a pred box
-            fn = self.update_counter(fn, gt_classes,
+            fn_updated = self.update_counter(fn, gt_classes,
                                      tf.cast(tf.math.logical_not(gt_boxes_assigned), tf.int32))
         except Exception as e:
             print(
@@ -64,15 +64,15 @@ class EvaluateDetections:
             errors = tf.math.add(errors, 1)
             return preds, gts, tp, fp, fn, errors, examples
         # count all gt boxes - per class:
-        gts = self.update_counter(gts, gt_classes,
+        gts_updated = self.update_counter(gts, gt_classes,
                                   tf.ones(tf.size(gt_classes), dtype=tf.int32))
         # count all preds boxes - per class:
-        preds = self.update_counter(preds, p_classes_indices,
+        preds_updated = self.update_counter(preds, p_classes_indices,
                                     tf.ones(tf.size(p_classes_indices), dtype=tf.int32))
         examples = tf.math.add(examples, 1)
-        return {'preds': preds, 'gts': gts, 'tp': tp, 'fp': fp, 'fn': fn, 'errors': errors, 'examples': examples}
+        return {'preds': preds_updated, 'gts': gts_updated, 'tp': tp_updated, 'fp': fp_updated, 'fn': fn_updated, 'errors': errors, 'examples': examples}
 
-    # @tf.function
+    @tf.function
     def process_decisions(self, max_iou, preds_classes, max_iou_args_indices, gt_classes, gt_boxes_assigned):
 
         # Following iou between each pred box and all gt boxes, and selection of iou max gt entry per each pred box,
@@ -110,13 +110,11 @@ class EvaluateDetections:
             tf.tensor_scatter_nd_add(tf.cast(gt_boxes_assigned, tf.int32), indices, tf.cast(detect_decisions, tf.int32))
         gt_boxes_assigned = tf.cast(gt_boxes_assigned, tf.bool)
         detect_decisions = tf.cast(detect_decisions, tf.bool)
-
-
         return detect_decisions, gt_boxes_assigned
 
 
 
-    # @tf.function # todo bring back
+    @tf.function
     def calc_iou(self, p_bboxes, preds_classes, gt_bboxes):
         # Select max iou between each image's pred_box and each of gt_boxes. iou shape = p_boxes x gt_boxes
         iou = tf.map_fn(fn=lambda t: self.iou_alg(t, gt_bboxes), elems=p_bboxes, parallel_iterations=3)
