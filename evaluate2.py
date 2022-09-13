@@ -40,7 +40,7 @@ class Evaluate:
         }
 
     @staticmethod
-    @tf.function
+    # @tf.function  # todo bring back
     def iou_alg(box_1, box_2):
         box_2 = tf.expand_dims(box_2, 0)
 
@@ -59,7 +59,7 @@ class Evaluate:
         return counter
 
     @tf.function
-    def update_counters(self, p_classes_indices, gt_classes_indices, detect_decisions,
+    def update_counters(self, p_classes_indices, gt_classes, detect_decisions,
                         gt_boxes_assigned, preds, gts, tp, fp, fn, errors, examples):
         # tp per-class counter is incremented if pred's detect_decisions is set
         tp = self.update_counter(tp, p_classes_indices, tf.cast(detect_decisions, dtype=tf.int32))
@@ -67,7 +67,7 @@ class Evaluate:
         fp = self.update_counter(fp, p_classes_indices, tf.cast(tf.math.logical_not(detect_decisions), dtype=tf.int32))
         try:
             # fn per class counter is set if gt entry was not assigned to a pred box
-            fn = self.update_counter(fn, gt_classes_indices,
+            fn = self.update_counter(fn, gt_classes,
                                      tf.cast(tf.math.logical_not(gt_boxes_assigned), tf.int32))
         except Exception as e:
             print(
@@ -75,16 +75,16 @@ class Evaluate:
             errors = tf.math.add(errors, 1)
             return preds, gts, tp, fp, fn, errors, examples
         # count all gt boxes - per class:
-        gts = self.update_counter(gts, gt_classes_indices,
-                                  tf.ones(tf.size(gt_classes_indices), dtype=tf.int32))
+        gts = self.update_counter(gts, gt_classes,
+                                  tf.ones(tf.size(gt_classes), dtype=tf.int32))
         # count all preds boxes - per class:
         preds = self.update_counter(preds, p_classes_indices,
                                     tf.ones(tf.size(p_classes_indices), dtype=tf.int32))
         examples = tf.math.add(examples, 1)
         return {'preds': preds, 'gts': gts, 'tp': tp, 'fp': fp, 'fn': fn, 'errors': errors, 'examples': examples}
 
-    @tf.function
-    def process_decisions(self, max_iou, preds_classes, max_iou_args_indices, gt_classes_indices, gt_boxes_assigned):
+    # @tf.function
+    def process_decisions(self, max_iou, preds_classes, max_iou_args_indices, gt_classes, gt_boxes_assigned):
 
         # Following iou between each pred box and all gt boxes, and selection of iou max gt entry per each pred box,
         # the results will here pass through 3 qualifications:
@@ -99,7 +99,7 @@ class Evaluate:
         thresh_qualified_ious = max_iou > self.iou_thresh
 
         # 2. Class matching: check if pred class matches with iou selected gt class:
-        selected_classes = tf.gather(gt_classes_indices, max_iou_args_indices)
+        selected_classes = tf.gather(gt_classes, max_iou_args_indices)
         detect_matched_classes = selected_classes == tf.cast(preds_classes, tf.int32)
 
 
@@ -124,9 +124,12 @@ class Evaluate:
 
 
         return detect_decisions, gt_boxes_assigned
+    #
+    # def arrange_yolov3_predict_output(batch_bboxes_padded, batch_class_indices_padded, batch_scores_padded, batch_selected_indices_padded, \
+    #         batch_num_valid_detections):
 
 
-    @tf.function
+    # @tf.function # todo bring back
     def calc_iou(self, p_bboxes, preds_classes, gt_bboxes):
         # Select max iou between each image's pred_box and each of gt_boxes. iou shape = p_boxes x gt_boxes
         iou = tf.map_fn(fn=lambda t: self.iou_alg(t, gt_bboxes), elems=p_bboxes, parallel_iterations=3)
@@ -167,40 +170,56 @@ class Evaluate:
             batch_num_valid_detections = model.predict(
                 batch_images)
 
+            # bboxes_batch, classes_batch, gt_bboxes_batch, gt_classes_batch = arrange_yolov3_predict_output(batch_bboxes_padded, batch_class_indices_padded, batch_scores_padded, batch_selected_indices_padded, \
+            # batch_num_valid_detections)
+
+            bboxes_batch = []
+            classes_batch = []
+            scores_batch = []
+            gt_bboxes_batch = []
+            gt_classes_batch = []
+
+            for image_index, \
+                (bboxes_padded, class_indices_padded, scores_padded, selected_indices_padded, num_valid_detections,
+                 gt_y) \
+                    in enumerate(zip(batch_bboxes_padded, batch_class_indices_padded, batch_scores_padded,
+                                     batch_selected_indices_padded, batch_num_valid_detections,
+                                     batch_gt_y)):
+                bboxes = tf.gather(bboxes_padded, selected_indices_padded[:num_valid_detections], axis=0)
+                classes = tf.gather(class_indices_padded, selected_indices_padded[:num_valid_detections], axis=0)
+                scores = tf.gather(scores_padded, selected_indices_padded[:num_valid_detections], axis=0)
+                bboxes_batch.append(bboxes)
+                classes_batch.append(classes)
+                scores_batch.append(scores)
+
+                gt_bboxes, _, gt_classes = tf.split(gt_y, [4, 1, 1], axis=-1)
+                gt_classes = tf.squeeze(tf.cast(gt_classes, tf.int32), axis=-1)
+
+                gt_bboxes_batch.append(gt_bboxes)
+                gt_classes_batch.append(gt_classes)
+            bboxes_batch = tf.ragged.stack(bboxes_batch)
+            classes_batch = tf.ragged.stack(classes_batch)
+            gt_bboxes_batch = tf.stack(gt_bboxes_batch)
+            gt_classes_batch = tf.stack(gt_classes_batch)
+
+
             # Loop on prediction batched results: boxes, classes, scores, num_valid_detections, and images and gt_y.
             # Evaluate iou between predictions and gt:
             for image_index, \
-                (bboxes_padded, class_indices_padded, scores_padded, selected_indices_padded, num_valid_detections,
-                 image, gt_y) \
-                    in enumerate(zip(batch_bboxes_padded, batch_class_indices_padded, batch_scores_padded,
-                                     batch_selected_indices_padded, batch_num_valid_detections,
-                                     batch_images, batch_gt_y)):
-                # gather padded nms results using selected_indices_padded. Indices were 'padded',
-                # so take num_valid_detections indices from top:
-                pred_bboxes, pred_classes, pred_scores = self.gather_nms_output(bboxes_padded,
-                                                                                class_indices_padded,
-                                                                                scores_padded,
-                                                                                selected_indices_padded,
-                                                                                num_valid_detections)
-                gt_bboxes, _, gt_classes_indices = tf.split(gt_y, [4, 1, 1], axis=-1)
-                gt_classes_indices = tf.squeeze(tf.cast(gt_classes_indices, tf.int32), axis=-1)
+                (pred_bboxes, pred_classes, gt_bboxes, gt_classes) in enumerate(zip(bboxes_batch, classes_batch, gt_bboxes_batch, gt_classes_batch)):
 
-                # Init track fp per image: List size is number of gt boxes.
-                # Init val 1 is set to 0 when gt box is matched with a pred box
-                gt_boxes_assigned = tf.fill(tf.shape(gt_y[..., 1]), False)
-                # run iou, if gt_y had any box. Otherwise, increment fp according to pred_classes.
-                # Anyway, return the various stats counters
+                # Init gt_boxes_assigned: True/False if a gt_box is matched/unmatched to a pred box. Needed for fn count
+                gt_boxes_assigned = tf.fill(tf.shape(gt_classes), False)
 
-
-                max_iou, max_iou_args_indices = self.calc_iou(pred_bboxes, pred_classes, gt_bboxes)
+                max_iou, max_iou_args_indices = self.calc_iou(pred_bboxes.to_tensor(), pred_classes, gt_bboxes)
 
                 detect_decisions, gt_boxes_assigned = self.process_decisions(max_iou,
                                                                              pred_classes,
                                                                              max_iou_args_indices,
-                                                                             gt_classes_indices,
+                                                                             gt_classes,
                                                                              gt_boxes_assigned)
 
-                self.counters = self.update_counters(pred_classes, gt_classes_indices, detect_decisions,
+                self.counters = self.update_counters(pred_classes, gt_classes, detect_decisions,
                                                      gt_boxes_assigned,
                                                      **self.counters)
 
