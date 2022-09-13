@@ -162,6 +162,7 @@ class Evaluate:
             # shape of batch_bboxes_padded: batch*N*6
             # shape of batch_selected_indices_padded: batch*max_nms_boxes
             # shape of batch_num_valid_detections: batch * valid_boxes
+
             batch_bboxes_padded, batch_class_indices_padded, batch_scores_padded, batch_selected_indices_padded, \
             batch_num_valid_detections = model.predict(
                 batch_images)
@@ -181,6 +182,8 @@ class Evaluate:
                                                                                 scores_padded,
                                                                                 selected_indices_padded,
                                                                                 num_valid_detections)
+                gt_bboxes, _, gt_classes_indices = tf.split(gt_y, [4, 1, 1], axis=-1)
+                gt_classes_indices = tf.squeeze(tf.cast(gt_classes_indices, tf.int32), axis=-1)
 
                 # Init track fp per image: List size is number of gt boxes.
                 # Init val 1 is set to 0 when gt box is matched with a pred box
@@ -188,8 +191,6 @@ class Evaluate:
                 # run iou, if gt_y had any box. Otherwise, increment fp according to pred_classes.
                 # Anyway, return the various stats counters
 
-                gt_bboxes, _, gt_classes_indices = tf.split(gt_y, [4, 1, 1], axis=-1)
-                gt_classes_indices = tf.squeeze(tf.cast(gt_classes_indices, tf.int32), axis=-1)
 
                 max_iou, max_iou_args_indices = self.calc_iou(pred_bboxes, pred_classes, gt_bboxes)
 
