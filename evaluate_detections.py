@@ -27,6 +27,13 @@ class EvaluateDetections:
             'errors': tf.Variable(0),
             'examples': tf.Variable(0)
         }
+        self.preds_histo = []
+        self.gt_histo = []
+        self.tp_histo = []
+        self.fp_histo = []
+        self.fn_histo = []
+        self.old_counters = None
+
     @staticmethod
     @tf.function
     def iou_alg(box_1, box_2):
@@ -140,6 +147,21 @@ class EvaluateDetections:
         self.counters = self.update_counters(pred_classes, gt_classes, detect_decisions,
                                              gt_boxes_assigned,
                                              **self.counters)
+
+        if self.old_counters:
+            self.preds_histo.append(self.counters['preds'] - self.old_counters['preds'])
+            self.gt_histo.append(self.counters['gts'] - self.old_counters['gts'])
+
+            self.tp_histo.append(self.counters['tp'] - self.old_counters['tp'])
+            self.fp_histo.append(self.counters['fp'] - self.old_counters['fp'])
+            self.fn_histo.append(self.counters['fn'] - self.old_counters['fn'])
+        else:  # if first time:
+            self.fp_histo.append(self.counters['preds'])
+            self.tp_histo.append(self.counters['gts'])
+            self.fp_histo.append(self.counters['tp'])
+            self.tp_histo.append(self.counters['tp'])
+            self.fp_histo.append(self.counters['fn'])
+        self.old_counters = self.counters
 
         return self.counters
 
