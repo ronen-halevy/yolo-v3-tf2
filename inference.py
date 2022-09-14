@@ -7,7 +7,7 @@ import argparse
 import matplotlib.pyplot as plt
 
 from core.utils import get_anchors, resize_image, dir_filelist
-from core.render_utils import render_bboxes, annotate_detections, render_annotated_bboxes
+from core.render_utils import render_bboxes, annotate_detections, render_text_annotated_bboxes
 
 from core.load_tfrecords import parse_tfrecords
 from core.parse_model import ParseModel
@@ -129,9 +129,9 @@ class Inference:
                                                                                    selected_indices_padded,
                                                                                    num_valid_detections)
                     classes_names = [class_names[idx] for idx in classes]
-                    text_annotated_image, detections_string = render_annotated_bboxes(image, bboxes,
-                                                                                          classes_names, scores,
-                                                                                          bbox_color, font_size)
+                    text_annotated_image, detections_string = render_text_annotated_bboxes(image, bboxes,
+                                                                                           classes_names, scores,
+                                                                                           bbox_color, font_size)
                     self.results_display_and_save(display_result_images, text_annotated_image, detections_string,
                                              output_dir,
                                              detections_list_outfile, image_index)
@@ -163,9 +163,9 @@ class Inference:
                                                                                    num_valid_detections)
                     classes_names = [class_names[idx] for idx in classes]
 
-                    text_annotated_image, detections_string = render_annotated_bboxes(image, bboxes,
-                                                                                          classes_names, scores,
-                                                                                          bbox_color, font_size)
+                    text_annotated_image, detections_string = render_text_annotated_bboxes(image, bboxes,
+                                                                                           classes_names, scores,
+                                                                                           bbox_color, font_size)
                     self.results_display_and_save(display_result_images, text_annotated_image, detections_string, detections_list_outfile, image_index)
 
         return

@@ -96,7 +96,7 @@ def annotate_detections(image, class_names, bboxes, scores, bbox_color, font_siz
         detections.append(detection)
     return annotated_image, detections
 
-def render_annotated_bboxes(image, bboxes, classes_names, scores, bbox_color, font_size):#, image_index,
+def render_text_annotated_bboxes(image, bboxes, classes_names, scores, bbox_color, font_size):#, image_index,
                           # image_output_dir, detections_list_outfile, display_result_images=False):
     rendered_image = render_bboxes(tf.expand_dims(image, axis=0), tf.expand_dims(bboxes, axis=0),
                                        colors=[bbox_color])
