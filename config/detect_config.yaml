@@ -34,11 +34,3 @@ input_weights_path:   checkpoints/yolov3_train_three_circles_thin_heads_short.tf
 # datasets/shapes/colors_circles_triangles_trapezoid_2sizes/input/tfrecords/test
 # datasets/shapes/two_colors/input/tfrecords/test
 # datasets/shapes/three_mixed_shapes/blue/input/tfrecords/test
-
-#evaluation only:
-evaluate_nms_score_thresholds: # run recall/precision for each score threshold (thresholding of score detection done by nms):
-  - 0.004
-  - 0.1
-  - 0.2
-  - 0.5
-  - 0.9

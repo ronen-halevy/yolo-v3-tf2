@@ -152,6 +152,10 @@ if __name__ == '__main__':
         """
 
         # 1.Arrange configs
+        with open('config/evaluate_config.yaml', 'r') as stream:
+            evaluation_config = yaml.safe_load(stream)
+        evaluate_nms_score_thresholds = evaluation_config['evaluate_nms_score_thresholds']
+
         with open('config/detect_config.yaml', 'r') as stream:
             detect_config = yaml.safe_load(stream)
 
@@ -165,7 +169,6 @@ if __name__ == '__main__':
         nms_score_threshold = detect_config['nms_score_threshold']
         yolo_max_boxes = detect_config['yolo_max_boxes']
         batch_size = detect_config['batch_size']
-        evaluate_nms_score_thresholds = detect_config['evaluate_nms_score_thresholds']
         anchors_table = tf.cast(get_anchors(anchors_file), tf.float32)
 
         class_names = [c.strip() for c in open(classes_name_file).readlines()]
@@ -209,14 +212,14 @@ if __name__ == '__main__':
                     pred_classes_oneclass = tf.zeros(tf.shape(pred_classes), dtype=tf.int64)
                     counters_oneclass = eval_dets_oneclass.evaluate(pred_bboxes, pred_classes_oneclass, gt_bboxes,
                                                                     gt_classes_oneclass)
-
+                    print('Results Bbox and Classes:')
                     for counter in counters:
                         print(f' {counter}: {counters[counter].numpy()}', end='')
-                    print('\nSingle Class:')
+                    print('\nResults Bobox Only (Single Class):')
 
                     for counter_oneclass in counters_oneclass:
                         print(f' {counter_oneclass}: {counters_oneclass[counter_oneclass].numpy()}', end='')
-                    print('\n')
+                    # print('\n')
             # 3.4 Calculate recall and precision
             recall, precision = calc_recal_precision(counters)
             print(f'recall: {recall}, precision: {precision}')  #
