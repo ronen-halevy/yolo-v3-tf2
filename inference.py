@@ -7,7 +7,7 @@ import argparse
 import matplotlib.pyplot as plt
 
 from core.utils import get_anchors, resize_image, dir_filelist
-from core.render_utils import render_bboxes, annotate_detections
+from core.render_utils import render_bboxes, annotate_detections, render_annotated_bboxes
 
 from core.load_tfrecords import parse_tfrecords
 from core.parse_model import ParseModel
@@ -19,21 +19,6 @@ from core.exceptions import NoDetectionsFound
 
 
 class Inference:
-
-    def render_detections(self, image, bboxes, classes_names, scores, bbox_color, font_size, image_index,
-                          image_output_dir, detections_list_outfile, display_result_images=False):
-        rendered_image = render_bboxes(tf.expand_dims(image, axis=0), tf.expand_dims(bboxes, axis=0),
-                                       colors=[bbox_color])
-        rendered_image = tf.squeeze(rendered_image, axis=0)
-        text_annotated_image, detections_string = annotate_detections(rendered_image, classes_names, bboxes,
-                                                                      scores, bbox_color, font_size)
-
-        if display_result_images:
-            plt.imshow(text_annotated_image)
-            plt.show()
-        self._dump_detections_text(detections_string, detections_list_outfile)
-        outfile_path = f'{image_output_dir}/detect_{image_index}.jpg'
-        text_annotated_image.save(outfile_path)
 
     @staticmethod
     def gather_valid_detections_results(bboxes_padded, class_indices_padded, scores_padded,
@@ -56,6 +41,15 @@ class Inference:
     def _dump_detections_text(image_detections_result, detections_list_outfile):
         detections_list_outfile.write(f'{image_detections_result}\n')
         detections_list_outfile.flush()
+
+    def results_display_and_save(self, display_result_images, text_annotated_image, detections_string, output_dir,
+                                 detections_list_outfile, image_index):
+        if display_result_images:
+            plt.imshow(text_annotated_image)
+            plt.show()
+        self._dump_detections_text(detections_string, detections_list_outfile)
+        outfile_path = f'{output_dir}/detect_{image_index}.jpg'
+        text_annotated_image.save(outfile_path)
 
     def __call__(self,
                  model_config_file,
@@ -135,9 +129,12 @@ class Inference:
                                                                                    selected_indices_padded,
                                                                                    num_valid_detections)
                     classes_names = [class_names[idx] for idx in classes]
-                    self.render_detections(image, bboxes, classes_names, scores, bbox_color, font_size, image_index,
-                                           output_dir,
-                                           detections_list_outfile, display_result_images)
+                    text_annotated_image, detections_string = render_annotated_bboxes(image, bboxes,
+                                                                                          classes_names, scores,
+                                                                                          bbox_color, font_size)
+                    self.results_display_and_save(display_result_images, text_annotated_image, detections_string,
+                                             output_dir,
+                                             detections_list_outfile, image_index)
 
         else:
             if input_data_source == 'image_file':
@@ -166,9 +163,10 @@ class Inference:
                                                                                    num_valid_detections)
                     classes_names = [class_names[idx] for idx in classes]
 
-                    self.render_detections(image, bboxes, classes_names, scores, bbox_color, font_size, image_index,
-                                           output_dir,
-                                           detections_list_outfile, display_result_images)
+                    text_annotated_image, detections_string = render_annotated_bboxes(image, bboxes,
+                                                                                          classes_names, scores,
+                                                                                          bbox_color, font_size)
+                    self.results_display_and_save(display_result_images, text_annotated_image, detections_string, detections_list_outfile, image_index)
 
         return
 
