@@ -11,7 +11,7 @@ image_file_path: datasets/shapes/circle_and_triangle/input/images_and_annotation
 tfrecords_dir: datasets/shapes/three_circles/input/tfrecords/test #  # datasets/shapes/three_mixed_shapes/red/input/tfrecords/test  datasets/shapes/three_mixed_shapes/red/input/tfrecords/test
 classes_name_file: datasets/shapes/three_circles/class.names #datasets/shapes/two_colors/class.names  #./datasets/shapes/class.names
 anchors_file: datasets/shapes/anchors/shapes_yolov3_anchors.txt
-batch_size: 1 # currentrly for tfrecords data only
+batch_size: 8 # currentrly for tfrecords data only
 #infrece_nms_params:
 yolo_max_boxes: 100
 nms_iou_threshold: 0.5
