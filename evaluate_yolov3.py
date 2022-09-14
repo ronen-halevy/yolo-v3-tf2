@@ -60,12 +60,10 @@ def arrange_predict_output(batch_bboxes_padded, batch_class_indices_padded,
     gt_bboxes_batch = []
     gt_classes_batch = []
 
-    for image_index, \
-        (bboxes_padded, class_indices_padded, scores_padded, selected_indices_padded, num_valid_detections,
-         gt_y) \
-            in enumerate(zip(batch_bboxes_padded, batch_class_indices_padded, batch_scores_padded,
+    for bboxes_padded, class_indices_padded, scores_padded, selected_indices_padded, num_valid_detections, gt_y in \
+            zip(batch_bboxes_padded, batch_class_indices_padded, batch_scores_padded,
                              batch_selected_indices_padded, batch_num_valid_detections,
-                             batch_gt_y)):
+                             batch_gt_y):
         bboxes = tf.gather(bboxes_padded, selected_indices_padded[:num_valid_detections], axis=0)
         classes = tf.gather(class_indices_padded, selected_indices_padded[:num_valid_detections], axis=0)
         scores = tf.gather(scores_padded, selected_indices_padded[:num_valid_detections], axis=0)
