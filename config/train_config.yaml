@@ -19,7 +19,7 @@ val_tfrecords: datasets/shapes/new_test2/input/tfrecords/val #/home/ronen/Pychar
 #plain_dataset:
 images_dir: datasets/shapes/three_circles/input/images_and_annotations_file/images #datasets/shapes/three_mixed_shapes/red/input/images_and_annotations/images # directory location of input images used in non-tfrecords_keep mode
 annotations_path: ddatasets/shapes/three_circles/input/images_and_annotations_file/annotations.yaml
-classes_name_file: datasets/shapes/new_test2/class.names # datasets/shapes/three_circles/class.names #   datasets/shapes/circle_and_triangle/class.names # 'datasets/shapes/class.names'
+classes_name_file: datasets/shapes/new_test2/input/tfrecords/class.names # datasets/shapes/three_circles/class.names #   datasets/shapes/circle_and_triangle/class.names # 'datasets/shapes/class.names'
 anchors_file: datasets/shapes/anchors/shapes_yolov3_anchors.txt
 dataset_cuttof_size: null # null or size limit value
 
