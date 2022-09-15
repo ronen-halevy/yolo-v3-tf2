@@ -62,7 +62,7 @@ transfer_learning_config:
 #    - neck
 #    - head
 
-input_weights_path:  checkpoints/yolov3_train_circle_and_triangle_thin_heads.tf # checkpoints/yolov3_train_circle_and_triangle.tf # checkpoints/yolov3_train_rb_circles.tf #'checkpoints/yolov3_train_newclass5.tf' #path to pretrained weights file
+  input_weights_path:  checkpoints/yolov3_train_circle_and_triangle_thin_heads.tf # checkpoints/yolov3_train_circle_and_triangle.tf # checkpoints/yolov3_train_rb_circles.tf #'checkpoints/yolov3_train_newclass5.tf' #path to pretrained weights file
 
 #checkpoints/yolov3_train_circle_and_triangle.tf
 #training_etc_config:

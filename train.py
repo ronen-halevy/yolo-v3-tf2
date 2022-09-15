@@ -196,10 +196,11 @@ class Train:
             model.summary(print_fn=lambda x: file1.write(x + '\n'))
 
         if transfer_learning_config and transfer_learning_config.get('transfer_list'):
-            input_weights_path = transfer_learning_config['input_weights_path']
             if 'all' in transfer_learning_config['transfer_list']:
+                input_weights_path = transfer_learning_config['input_weights_path']
                 model.load_weights(input_weights_path)
             elif 'none' not in transfer_learning_config['transfer_list']:
+                input_weights_path = transfer_learning_config['input_weights_path']
                 do_transfer_learning(model, model_config, transfer_learning_config, input_weights_path)
 
         optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
