@@ -12,15 +12,15 @@
 import tensorflow as tf
 
 
-# @tf.function
+@tf.function
 def yolo_nms(outputs, yolo_max_boxes, nms_iou_threshold, nms_score_threshold):
     bboxes, confidence, class_probs = outputs
     class_indices = tf.argmax(class_probs, axis=-1)
     # select class from class probs array
     class_probs = tf.reduce_max(class_probs, axis=-1)
-    class_probs1 = tf.expand_dims(class_probs, axis=-1)
+    class_probs = tf.expand_dims(class_probs, axis=-1)
 
-    scores = confidence * class_probs1
+    scores = confidence * class_probs
     scores = tf.squeeze(scores, axis=-1)
     bboxes = tf.reshape(bboxes, (tf.shape(bboxes)[0], -1, 4))
     selected_indices_padded, num_valid_detections = tf.image.non_max_suppression_padded(
