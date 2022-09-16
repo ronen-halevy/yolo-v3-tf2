@@ -18,7 +18,8 @@ class PreprocessDataset:
 
     def _produce_grid_scale_indices(self, boxes, grid_shape, best_anchor_indices, max_bboxes):
         # box contains: x,y,w,h
-        box_center_xy = (boxes[..., 0:2] + boxes[..., 2:4]/2)
+        box_center_xy = (boxes[..., 0:2] + boxes[..., 2:4]) / 2
+
         # why reverse - scatter indices constructed here point on (row, col), while before reverse x,y are (col, row)
         box_center_xy = tf.reverse(box_center_xy, axis=[-1])
         box_center_xy_grid_indices = tf.cast(
@@ -36,6 +37,7 @@ class PreprocessDataset:
         grid_anchors = tf.cast(anchors, tf.float32)
         anchor_area = grid_anchors[..., 0] * grid_anchors[..., 1]
         box_wh = bboxes[..., 2:4]
+        box_wh = bboxes[..., 2:4] - bboxes[..., 0:2]
         box_wh = tf.tile(tf.expand_dims(box_wh, -2),
                          (1, 1, tf.shape(grid_anchors)[0], 1))
         box_area = box_wh[..., 0] * box_wh[..., 1]
