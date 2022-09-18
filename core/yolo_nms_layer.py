@@ -24,8 +24,9 @@ class YoloNmsLayer(tf.keras.layers.Layer):
 
 
     def call(self, decoded_outputs, **kwargs):
-        bboxes, class_indices, scores, selected_indices_padded, num_valid_detections = \
+        (selected_boxes, selected_scores, selected_classes, num_of_valid_detections) = \
             yolo_nms(decoded_outputs, self.yolo_max_boxes, self.nms_iou_threshold, self.nms_score_threshold)
-        return bboxes, class_indices, scores, selected_indices_padded, num_valid_detections
+        return (selected_boxes, selected_scores, selected_classes, num_of_valid_detections)
+
 
 
