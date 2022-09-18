@@ -31,4 +31,4 @@ def yolo_nms(outputs, yolo_max_boxes, nms_iou_threshold, nms_score_threshold):
         score_threshold=nms_score_threshold,
         pad_to_max_output_size=True
     )
-    return bboxes, class_indices, scores, selected_indices_padded, num_valid_detections
+    return (bboxes, class_indices, scores, selected_indices_padded, num_valid_detections)
