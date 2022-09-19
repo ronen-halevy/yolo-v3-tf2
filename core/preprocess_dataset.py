@@ -96,14 +96,27 @@ class PreprocessDataset:
 
         # Ignore zero boxes:
         best_anchor_indices = tf.squeeze(best_anchor_indices, axis=-1)
+        ###old
+
         # mask_selected_anchor_index_above_grid_sclae_min = tf.greater_equal(best_anchor_indices,
         #                                                                    tf.constant(grid_index * anchors.shape[0]))
         # mask_selected_anchor_index_below_grid_sclae_max = tf.less(best_anchor_indices,
         #                                                           tf.constant((grid_index + 1) * anchors.shape[0]))
+
+        # mask_valid_bbox = y_train[..., 4] != 0  # obj val
+        # mask1 = tf.math.logical_and(mask_valid_bbox, mask_selected_anchor_index_above_grid_sclae_min)
+        # mask2 = tf.math.logical_and(mask1, mask_selected_anchor_index_below_grid_sclae_max)
+        # mask3 = tf.math.logical_and(mask_selected_anchor_index_above_grid_sclae_min, mask_selected_anchor_index_below_grid_sclae_max)
+
+
         ###??
+        # dd =  value_range=[0., tf.size(anchors, tf.dtypes.float32)]
+        # de =  value_range=[0., tf.cast(anchors.shape[0]* anchors.shape[1], tf.dtypes.float32)]
+
         best_iou_grid_index = tf.histogram_fixed_width_bins(
             values=tf.cast(best_anchor_indices, tf.float32),  # tf.cast(iou_selected_anchors, tf.float32),
-            value_range=[0., tf.size(anchors, tf.dtypes.float32)],
+            # value_range=[0., tf.size(anchors, tf.dtypes.float32)],
+            value_range=[0., tf.cast(anchors.shape[0] * anchors.shape[1], tf.dtypes.float32)],
             nbins=anchors.shape[0],
             dtype=tf.dtypes.float32,
             name=None
