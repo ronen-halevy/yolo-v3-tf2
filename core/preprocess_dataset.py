@@ -76,7 +76,7 @@ class PreprocessDataset:
             [batch_indices, box_center_xy_grid_indices, best_anchor_indices], axis=-1)
         return grid_indices
 
-    def _arrange_in_grid(self, y_train, anchors, grid_index, output_shape, max_bboxes):
+    def _arrange_in_grid_to_del(self, y_train, anchors, grid_index, output_shape, max_bboxes):
         """
         :param y_train:
         :type y_train:
@@ -98,10 +98,10 @@ class PreprocessDataset:
         best_anchor_indices = tf.squeeze(best_anchor_indices, axis=-1)
         ###old
 
-        # mask_selected_anchor_index_above_grid_sclae_min = tf.greater_equal(best_anchor_indices,
-        #                                                                    tf.constant(grid_index * anchors.shape[0]))
-        # mask_selected_anchor_index_below_grid_sclae_max = tf.less(best_anchor_indices,
-        #                                                           tf.constant((grid_index + 1) * anchors.shape[0]))
+        mask_selected_anchor_index_above_grid_sclae_min = tf.greater_equal(best_anchor_indices,
+                                                                           tf.constant(grid_index * anchors.shape[0]))
+        mask_selected_anchor_index_below_grid_sclae_max = tf.less(best_anchor_indices,
+                                                                  tf.constant((grid_index + 1) * anchors.shape[0]))
 
         # mask_valid_bbox = y_train[..., 4] != 0  # obj val
         # mask1 = tf.math.logical_and(mask_valid_bbox, mask_selected_anchor_index_above_grid_sclae_min)
@@ -122,15 +122,9 @@ class PreprocessDataset:
             name=None
         )
         grid_index_mask = best_iou_grid_index == grid_index
-
-        ###??
         mask_valid_bbox = y_train[..., 4] != 0  # obj val
 
         mask = tf.math.logical_and(mask_valid_bbox, grid_index_mask)
-
-
-        # mask = tf.math.logical_and(mask_valid_bbox, mask_selected_anchor_index_above_grid_sclae_min)
-        # mask = tf.math.logical_and(mask, mask_selected_anchor_index_below_grid_sclae_max)
 
         y_train = y_train[mask]
         grid_indices = grid_indices[mask]
@@ -140,8 +134,8 @@ class PreprocessDataset:
             dataset_in_grid, grid_indices, y_train)
 
         return dataset_in_grid
-    ######
-    def _arrange_in_grid_orig(self, y_train, anchors, grid_index, output_shape, max_bboxes):
+
+    def _arrange_in_grid(self, y_train, anchors, grid_index, output_shape, max_bboxes):
         """
         :param y_train:
         :type y_train:
@@ -162,7 +156,7 @@ class PreprocessDataset:
         # Find best_iou_grid_index - iou_selected_anchors's related grid index:
         best_iou_grid_index = tf.histogram_fixed_width_bins(
             values=tf.cast(iou_selected_anchors, tf.float32),  # tf.cast(iou_selected_anchors, tf.float32),
-            value_range=[0., tf.size(anchors, tf.dtypes.float32)],
+            value_range=[0., tf.cast(anchors.shape[0] * anchors.shape[1], tf.dtypes.float32)],
             nbins=anchors.shape[0],
             dtype=tf.dtypes.float32,
             name=None
