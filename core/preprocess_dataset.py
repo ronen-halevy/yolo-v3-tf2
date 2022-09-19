@@ -96,14 +96,28 @@ class PreprocessDataset:
 
         # Ignore zero boxes:
         best_anchor_indices = tf.squeeze(best_anchor_indices, axis=-1)
-        mask_selected_anchor_index_above_grid_sclae_min = tf.greater_equal(best_anchor_indices,
-                                                                           tf.constant(grid_index * anchors.shape[0]))
-        mask_selected_anchor_index_below_grid_sclae_max = tf.less(best_anchor_indices,
-                                                                  tf.constant((grid_index + 1) * anchors.shape[0]))
+        # mask_selected_anchor_index_above_grid_sclae_min = tf.greater_equal(best_anchor_indices,
+        #                                                                    tf.constant(grid_index * anchors.shape[0]))
+        # mask_selected_anchor_index_below_grid_sclae_max = tf.less(best_anchor_indices,
+        #                                                           tf.constant((grid_index + 1) * anchors.shape[0]))
+        ###??
+        best_iou_grid_index = tf.histogram_fixed_width_bins(
+            values=tf.cast(best_anchor_indices, tf.float32),  # tf.cast(iou_selected_anchors, tf.float32),
+            value_range=[0., tf.size(anchors, tf.dtypes.float32)],
+            nbins=anchors.shape[0],
+            dtype=tf.dtypes.float32,
+            name=None
+        )
+        grid_index_mask = best_iou_grid_index == grid_index
 
+        ###??
         mask_valid_bbox = y_train[..., 4] != 0  # obj val
-        mask = tf.math.logical_and(mask_valid_bbox, mask_selected_anchor_index_above_grid_sclae_min)
-        mask = tf.math.logical_and(mask, mask_selected_anchor_index_below_grid_sclae_max)
+
+        mask = tf.math.logical_and(mask_valid_bbox, grid_index_mask)
+
+
+        # mask = tf.math.logical_and(mask_valid_bbox, mask_selected_anchor_index_above_grid_sclae_min)
+        # mask = tf.math.logical_and(mask, mask_selected_anchor_index_below_grid_sclae_max)
 
         y_train = y_train[mask]
         grid_indices = grid_indices[mask]
