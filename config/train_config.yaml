@@ -23,6 +23,7 @@ classes_name_file: datasets/shapes/new_test3/input/tfrecords/class.names # datas
 anchors_file: datasets/shapes/anchors/shapes_yolov3_anchors.txt
 dataset_cuttof_size: null # null or size limit value
 
+dataset_bbox_format: xywh_dataset_format # xyxy_dataset_format : In case of  xyxy_dataset_format, it is transformed to xywh_dataset_format
 dataset_repeats: 0
 max_bboxes: 100
 

@@ -114,6 +114,13 @@ class Train:
                 self.model.save_weights(self.output_checkpoints_path)
             self.epoch += 1
 
+    def format_bbox_xyxy_to_xtwh(self, y):
+        bbox = y[...,:4]
+        obj_and_class =y[...,4:]
+        bbox = tf.concat([bbox[...,0:2], bbox[...,2:4] - bbox[...,0:2]], axis=-1)
+        arranged_y = tf.concat([bbox, obj_and_class], axis=-1)
+        return arranged_y
+
     def __call__(self,
                  model_config_file,
                  input_data_source,
@@ -139,6 +146,7 @@ class Train:
                  output_checkpoints_path,
                  early_stopping,
                  weights_save_peroid,
+                 dataset_bbox_format,
                  **kwargs
                  ):
 
@@ -168,10 +176,15 @@ class Train:
             train_dataset = load_debug_dataset()
             val_dataset = load_debug_dataset()
             dataset = [train_dataset, val_dataset]
+        if dataset_bbox_format == 'xyxy_dataset_format':
+            dataset[0] = dataset[0].map(lambda x, y: (x, self.format_bbox_xyxy_to_xtwh(y)))# train
+            dataset[1] = dataset[1].map(lambda x, y: (x, self.format_bbox_xyxy_to_xtwh(y))) # val
 
         if dataset_repeats:  # repeat train and val
-            dataset[0] = dataset[0].repeat(dataset_repeats)
-            dataset[1] = dataset[1].repeat(dataset_repeats)
+            dataset[0] = dataset[0].repeat(dataset_repeats) # train
+            dataset[1] = dataset[1].repeat(dataset_repeats) # val
+
+
 
         anchors_table = get_anchors(anchors_file)
         nclasses = count_file_lines(classes_name_file)
