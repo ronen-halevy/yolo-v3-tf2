@@ -51,7 +51,7 @@ class PreprocessDataset:
         anchors = tf.reshape(anchors, [-1, 2])
         grid_anchors = tf.cast(anchors, tf.float32)
         anchor_area = grid_anchors[..., 0] * grid_anchors[..., 1]
-        box_wh = bboxes[..., 2:4] - bboxes[..., 0:2]
+        box_wh = bboxes[..., 2:4]# - bboxes[..., 0:2]
         box_wh = tf.tile(tf.expand_dims(box_wh, -2),
                          (1, 1, tf.shape(grid_anchors)[0], 1))
         box_area = box_wh[..., 0] * box_wh[..., 1]
@@ -64,7 +64,7 @@ class PreprocessDataset:
 
     # @tf.function
     def _extract_boxes_indices_on_grid(self, boxes, grid_shape, best_anchor_indices, max_bboxes):
-        box_center_xy = (boxes[..., 0:2] + boxes[..., 2:4]) / 2
+        box_center_xy = boxes[..., 0:2] + boxes[..., 2:4] / 2
         box_center_xy = tf.reverse(box_center_xy, axis=[-1])
         box_center_xy_grid_indices = tf.cast(
             box_center_xy * grid_shape[1:3], tf.int32)
