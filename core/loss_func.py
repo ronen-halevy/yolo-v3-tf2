@@ -23,8 +23,10 @@ def get_loss_func(anchors, nclasses, eager_mode):
 
         true_box, true_obj, true_class_idx = tf.split(
             y_true, (4, 1, 1), axis=-1)
-        true_bbox_center_xy = (true_box[..., 0:2] + true_box[..., 2:4]/2)
-        true_wh = true_box[..., 2:4]
+
+        # Next 2 lines: assume format xmin, ymin, xmax, ymax
+        true_bbox_center_xy = (true_box[..., 0:2] + true_box[..., 2:4]) / 2
+        true_wh = true_box[..., 2:4] - true_box[..., 0:2]
 
         # give higher weights to small boxes
         box_loss_scale = 1# 2 - true_wh[..., 0] * true_wh[..., 1]

@@ -12,19 +12,17 @@
 ---
 #training_dataset_config:
 
-input_data_source: debug_data # [tfrecords, images_dir_annot_file, debug_data]
+input_data_source: dataset_from_coco_files # [tfrecords, dataset_from_coco_files, debug_data]
 ##tfrecords:
 train_tfrecords: datasets/shapes/two_colors/input/tfrecords/train
 val_tfrecords: datasets/shapes/two_colors/input/tfrecords/val
 ##plain_dataset:
-images_dir: datasets/coco2012/images
-annotations_path: datasets/coco2012/annotations.json
+images_dir: /home/ronen/fiftyone/coco-2017/validation/data # datasets/coco2012/images
+annotations_path: /home/ronen/fiftyone/coco-2017/validation/labels.json # datasets/coco2012/annotations.json
 
-classes_name_file: datasets/coco2012/coco.names
+classes_name_file: datasets/coco2012/coco-2017/class.names # datasets/coco2012/coco.names
 anchors_file: datasets/coco2012/anchors.txt
-dataset_cuttof_size: null # null or size limit value
-
-dataset_bbox_format: xywh_dataset_format # xyxy_dataset_format : In case of  xyxy_dataset_format, it is transformed to xywh_dataset_format
+max_dataset_examples: null # null or size limit value
 
 dataset_repeats: 11
 max_bboxes: 100
@@ -52,9 +50,9 @@ output_checkpoints_path: 'checkpoints/yolov3_train.tf' # prefix of path checkpoi
 transfer_learning_config:
   transfer_list: # all, none, backbone, or neck (equivalent to listing backbone and neck)
 #    - all
-#    - none
+    - none
 #    - all
-    - backbone
+#    - backbone
 #    - neck
 #    - head
   freeze_train_list: # Can omit. Note: selecting neck does not imply to  backbone

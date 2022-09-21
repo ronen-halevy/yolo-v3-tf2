@@ -30,7 +30,8 @@ from core.loss_func import get_loss_func
 from core.parse_model import ParseModel
 
 from core.load_tfrecords import parse_tfrecords
-from core.load_dataset_from_files import load_dataset_from_files, load_debug_dataset
+from core.create_dataset_from_coco_files import create_dataset_from_coco_files
+from core.create_debug_dataset import load_debug_dataset
 from core.transfer_learning import do_transfer_learning
 
 class Train:
@@ -114,13 +115,6 @@ class Train:
                 self.model.save_weights(self.output_checkpoints_path)
             self.epoch += 1
 
-    def format_bbox_xyxy_to_xtwh(self, y):
-        bbox = y[...,:4]
-        obj_and_class =y[...,4:]
-        bbox = tf.concat([bbox[...,0:2], bbox[...,2:4] - bbox[...,0:2]], axis=-1)
-        arranged_y = tf.concat([bbox, obj_and_class], axis=-1)
-        return arranged_y
-
     def __call__(self,
                  model_config_file,
                  input_data_source,
@@ -135,7 +129,7 @@ class Train:
                  epochs,
                  training_mode,
                  render_dataset_example,
-                 dataset_cuttof_size,
+                 max_dataset_examples,
                  dataset_repeats,
                  transfer_learning_config,
                  images_dir,
@@ -146,7 +140,6 @@ class Train:
                  output_checkpoints_path,
                  early_stopping,
                  weights_save_peroid,
-                 dataset_bbox_format,
                  **kwargs
                  ):
 
@@ -158,16 +151,19 @@ class Train:
         physical_devices = tf.config.experimental.list_physical_devices('GPU')
         dataset = []
         if input_data_source == 'tfrecords':
-            dataset = self.get_data_from_tfrecords(train_tfrecords, val_tfrecords, image_size, max_bboxes,
+            dataset = self.get_data_from_tfrecords(train_tfrecords,
+                                                   val_tfrecords,
+                                                   image_size,
+                                                   max_bboxes,
                                                    classes_name_file)
-        elif input_data_source == 'images_dir_annot_file':
-            train_dataset, val_dataset, test_dataset, train_size, val_size = load_dataset_from_files(images_dir, annotations_path,
-                                                                                          classes_name_file, image_size,
-                                                                                          dataset_cuttof_size=
-                                                                                          dataset_cuttof_size,
-                                                                                          max_bboxes=100,
-                                                                                          train_split=0.7,
-                                                                                          val_split=0.2)
+        elif input_data_source == 'dataset_from_coco_files':
+            train_dataset, val_dataset, test_dataset, train_size, val_size = create_dataset_from_coco_files(images_dir,
+                                                                                                            annotations_path,
+                                                                                                            image_size,
+                                                                                                            max_dataset_examples,
+                                                                                                            max_bboxes=100,
+                                                                                                            train_split=0.7,
+                                                                                                            val_split=0.2)
 
             # Modify batch size, to avoid an empty dataset after batching with drop_remainder=True:
             batch_size = batch_size if (batch_size <= min(train_size, val_size)) else min(train_size, val_size)
@@ -176,23 +172,19 @@ class Train:
             train_dataset = load_debug_dataset()
             val_dataset = load_debug_dataset()
             dataset = [train_dataset, val_dataset]
-        if dataset_bbox_format == 'xyxy_dataset_format':
-            dataset[0] = dataset[0].map(lambda x, y: (x, self.format_bbox_xyxy_to_xtwh(y)))# train
-            dataset[1] = dataset[1].map(lambda x, y: (x, self.format_bbox_xyxy_to_xtwh(y))) # val
 
         if dataset_repeats:  # repeat train and val
-            dataset[0] = dataset[0].repeat(dataset_repeats) # train
-            dataset[1] = dataset[1].repeat(dataset_repeats) # val
-
-
+            dataset[0] = dataset[0].repeat(dataset_repeats)  # train
+            dataset[1] = dataset[1].repeat(dataset_repeats)  # val
 
         anchors_table = get_anchors(anchors_file)
         nclasses = count_file_lines(classes_name_file)
 
         if render_dataset_example:
             x_train, bboxes = next(iter(dataset[0]))
+            bboxes = bboxes[...,0:4]
             image = render_bboxes(x_train[tf.newaxis, ...], bboxes[tf.newaxis, ...], colors=[(255, 255, 255)])
-            plt.imshow(image)
+            plt.imshow(image[0])
             plt.show()
 
         with open(model_config_file, 'r') as _stream:
@@ -235,9 +227,6 @@ class Train:
             ds_preprocessed.append(data)
 
         ds_train, ds_val = ds_preprocessed
-
-
-
 
         if training_mode == 'eager_tf':
             self._train_eager_mode(model, ds_train, ds_val, loss_fn_list, optimizer, batch_size, epochs,
