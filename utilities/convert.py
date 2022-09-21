@@ -135,7 +135,7 @@ def main():
     _ = model(img)
     print('sanity check passed')
     model.save_weights(output_weights_file)
-    print('weights saved')
+    print(f'weights saved to {output_weights_file}')
 
 
 if __name__ == "__main__":
