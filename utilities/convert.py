@@ -126,7 +126,8 @@ def main():
     with open(model_config_file, 'r') as _stream:
         model_config = yaml.safe_load(_stream)
     inputs = Input(shape=(None, None, 3))
-    model = parse_model.build_model(inputs, nclasses, **model_config)
+    model = parse_model.build_model(inputs, nclasses=nclasses, **model_config)
+    # model = parse_model.build_model(inputs, sub_models_configs, output_stage, decay_factor, nclasses)
 
     convert = Convert()
     model = convert.load_darknet_weights(model, weights_file)
