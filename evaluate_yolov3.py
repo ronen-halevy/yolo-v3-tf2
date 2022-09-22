@@ -184,8 +184,8 @@ if __name__ == '__main__':
 
             # 3.2 prepare 2 evaluate_detections objects: one for regular evaluation the other for a single class
             # execution, i.e. ignore classification results, consider only bbox results evaluation.
-            eval_dets = EvaluateDetections(nclasses, evaluate_iou_threshold)
-            eval_dets_oneclass = EvaluateDetections(nclasses, evaluate_iou_threshold)
+            eval_detections = EvaluateDetections(nclasses, evaluate_iou_threshold)
+            eval_detections_oneclass = EvaluateDetections(nclasses, evaluate_iou_threshold)
 
             # 3.3 Iterate on dataset batches:
             for batch_images, batch_gt_y in dataset:
@@ -203,12 +203,12 @@ if __name__ == '__main__':
                 for  pred_bboxes, pred_classes, gt_bboxes, gt_classes in \
                         zip(bboxes_batch, classes_batch, gt_bboxes_batch, gt_classes_batch):
                     # 3.3.3.1 Produce performance counters
-                    counters = eval_dets.evaluate(pred_bboxes, pred_classes, gt_bboxes, gt_classes)
+                    counters = eval_detections.evaluate(pred_bboxes, pred_classes, gt_bboxes, gt_classes)
                     gt_classes_oneclass = tf.zeros(tf.shape(gt_classes), dtype=tf.int32)
                     # 3.3.3.2 Produce 'one-class' performance counters, i.e.ignore class pred, consider
                     # bbox pred performance only.
                     pred_classes_oneclass = tf.zeros(tf.shape(pred_classes), dtype=tf.int64)
-                    counters_oneclass = eval_dets_oneclass.evaluate(pred_bboxes, pred_classes_oneclass, gt_bboxes,
+                    counters_oneclass = eval_detections_oneclass.evaluate(pred_bboxes, pred_classes_oneclass, gt_bboxes,
                                                                     gt_classes_oneclass)
                     print('Results Bbox and Classes:')
                     for counter in counters:
@@ -223,16 +223,16 @@ if __name__ == '__main__':
             print(f'recall: {recall}, precision: {precision}')  #
             results.append((recall, precision))
 
-            preds_histo_save = tf.stack(eval_dets.preds_histo, axis=0).numpy()
-            gt_histo_save = tf.stack(eval_dets.gt_histo, axis=0).numpy()
-            tp_histo_save = tf.stack(eval_dets.tp_histo, axis=0).numpy()
-            fp_histo_save = tf.stack(eval_dets.fp_histo, axis=0).numpy()
-            fn_histo_save = tf.stack(eval_dets.fn_histo, axis=0).numpy()
-            np.save(f'preds_{nms_score_threshold}.txt', preds_histo_save)
-            np.save(f'gts_{nms_score_threshold}.txt', gt_histo_save)
-            np.save(f'tp_{nms_score_threshold}.txt', tp_histo_save)
-            np.save(f'fp_{nms_score_threshold}.txt', fp_histo_save)
-            np.save(f'fn_{nms_score_threshold}.txt', fn_histo_save)
+            preds_histo_save = tf.stack(eval_detections.preds_histo, axis=0).numpy()
+            gt_histo_save = tf.stack(eval_detections.gt_histo, axis=0).numpy()
+            tp_histo_save = tf.stack(eval_detections.tp_histo, axis=0).numpy()
+            fp_histo_save = tf.stack(eval_detections.fp_histo, axis=0).numpy()
+            fn_histo_save = tf.stack(eval_detections.fn_histo, axis=0).numpy()
+            np.save(f'preds_{nms_score_threshold}', preds_histo_save)
+            np.save(f'gts_{nms_score_threshold}', gt_histo_save)
+            np.save(f'tp_{nms_score_threshold}', tp_histo_save)
+            np.save(f'fp_{nms_score_threshold}', fp_histo_save)
+            np.save(f'fn_{nms_score_threshold}', fn_histo_save)
 
 
         print(results)
