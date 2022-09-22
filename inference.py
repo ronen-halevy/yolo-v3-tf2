@@ -7,15 +7,13 @@ import argparse
 import matplotlib.pyplot as plt
 
 from core.utils import get_anchors, resize_image, dir_filelist
-from core.render_utils import render_bboxes, annotate_detections, render_text_annotated_bboxes
+from core.render_utils import annotate_detections, render_text_annotated_bboxes
 
 from core.load_tfrecords import parse_tfrecords
 from core.parse_model import ParseModel
 
 from core.yolo_decode_layer import YoloDecoderLayer
 from core.yolo_nms_layer import YoloNmsLayer
-
-from core.exceptions import NoDetectionsFound
 
 
 class Inference:
@@ -133,8 +131,8 @@ class Inference:
                                                                                            classes_names, scores,
                                                                                            bbox_color, font_size)
                     self.results_display_and_save(display_result_images, text_annotated_image, detections_string,
-                                             output_dir,
-                                             detections_list_outfile, image_index)
+                                                  output_dir,
+                                                  detections_list_outfile, image_index)
 
         else:
             if input_data_source == 'image_file':
@@ -149,7 +147,7 @@ class Inference:
                 image = resize_image(image, image_size, image_size)
                 batch_dataset_image = tf.expand_dims(image, axis=0)
                 batch_bboxes_padded, batch_class_indices_padded, batch_scores_padded, batch_selected_indices_padded, \
-                    batch_num_valid_detections = model.predict(
+                batch_num_valid_detections = model.predict(
                     tf.expand_dims(image, axis=0))
                 for index, (
                         bboxes_padded, class_indices_padded, scores_padded, selected_indices_padded,
@@ -166,7 +164,8 @@ class Inference:
                     text_annotated_image, detections_string = render_text_annotated_bboxes(image, bboxes,
                                                                                            classes_names, scores,
                                                                                            bbox_color, font_size)
-                    self.results_display_and_save(display_result_images, text_annotated_image, detections_string, detections_list_outfile, image_index)
+                    self.results_display_and_save(display_result_images, text_annotated_image, detections_string, output_dir,
+                                                  detections_list_outfile, image_index)
 
         return
 
