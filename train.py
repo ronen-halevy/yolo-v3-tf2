@@ -34,6 +34,7 @@ from core.create_dataset_from_coco_files import create_dataset_from_coco_files
 from core.create_debug_dataset import load_debug_dataset
 from core.transfer_learning import do_transfer_learning
 
+
 class Train:
     @staticmethod
     def get_data_from_tfrecords(train_tfrecords, val_tfrecords, image_size, max_bboxes, classes_name_file):
@@ -66,7 +67,6 @@ class Train:
 
     def _train_eager_mode(self, model, ds_train, ds_val, loss_fn_list, optimizer, batch_size, epochs,
                           checkpoits_path_prefix, weights_save_peroid):
-        global_steps = tf.Variable(1, trainable=False, dtype=tf.int64)
         for epoch in range(1, epochs + 1):
             for batch, (images, labels) in enumerate(ds_train):
                 with tf.GradientTape() as tape:
@@ -153,17 +153,17 @@ class Train:
         if input_data_source == 'tfrecords':
             dataset = self.get_data_from_tfrecords(train_tfrecords,
                                                    val_tfrecords,
-                                                   image_size,
-                                                   max_bboxes,
+                                                   image_size, max_bboxes,
                                                    classes_name_file)
         elif input_data_source == 'dataset_from_coco_files':
-            train_dataset, val_dataset, test_dataset, train_size, val_size = create_dataset_from_coco_files(images_dir,
-                                                                                                            annotations_path,
-                                                                                                            image_size,
-                                                                                                            max_dataset_examples,
-                                                                                                            max_bboxes=100,
-                                                                                                            train_split=0.7,
-                                                                                                            val_split=0.2)
+            train_dataset, val_dataset, test_dataset, train_size, val_size = \
+                create_dataset_from_coco_files(images_dir,
+                                               annotations_path,
+                                               image_size,
+                                               max_dataset_examples,
+                                               max_bboxes=100,
+                                               train_split=0.7,
+                                               val_split=0.2)
 
             # Modify batch size, to avoid an empty dataset after batching with drop_remainder=True:
             batch_size = batch_size if (batch_size <= min(train_size, val_size)) else min(train_size, val_size)
@@ -182,7 +182,7 @@ class Train:
 
         if render_dataset_example:
             x_train, bboxes = next(iter(dataset[0]))
-            bboxes = bboxes[...,0:4]
+            bboxes = bboxes[..., 0:4]
             image = render_bboxes(x_train[tf.newaxis, ...], bboxes[tf.newaxis, ...], colors=[(255, 255, 255)])
             plt.imshow(image[0])
             plt.show()
