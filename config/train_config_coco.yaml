@@ -30,7 +30,7 @@ max_bboxes: 100
 
 # model
 model_config_file: config/models/yolov3/model.yaml
-image_size: 416
+image_size: 416 # preprocess will resize to a square image of this size
 grid_sizes_table:
   - 13
   - 26
