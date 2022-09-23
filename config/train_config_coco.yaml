@@ -12,17 +12,24 @@
 ---
 #training_dataset_config:
 
-input_data_source: tfrecords # dataset_from_coco_files # [tfrecords, dataset_from_coco_files, debug_data]
-##tfrecords:
-train_tfrecords: datasets/coco2012/coco-2017/fiftyone_20/input/tfrecords/train # datasets/shapes/two_colors/input/tfrecords/train
-val_tfrecords: datasets/coco2012/coco-2017/fiftyone_20/input/tfrecords/val # datasets/shapes/two_colors/input/tfrecords/val
-##plain_dataset:
-images_dir: /home/ronen/fiftyone/coco-2017/validation/data # datasets/coco2012/images
-annotations_path: /home/ronen/fiftyone/coco-2017/validation/labels.json # datasets/coco2012/annotations.json
+dataset_config:
+  # select format:   tfrecords, coco_format_files or default: debug single image dataset
+  input_data_source: coco_format_files # tfrecords # coco_format_files # [tfrecords, coco_format_files, debug_data]
+  tfrecords:
+    train: datasets/coco2012/coco-2017/fiftyone_20/input/tfrecords/train # datasets/shapes/two_colors/input/tfrecords/train
+    valid: datasets/coco2012/coco-2017/fiftyone_20/input/tfrecords/train # datasets/shapes/two_colors/input/tfrecords/train
+  coco_format_files:
+    train:
+      images_dir: datasets/Oxford Pets.v1-by-breed.coco/train # /home/ronen/fiftyone/coco-2017/validation/data # datasets/coco2012/images
+      annotations: datasets/Oxford Pets.v1-by-breed.coco/train/_annotations.coco.json #/home/ronen/fiftyone/coco-2017/validation/labels.json # datasets/coco2012/annotations.json
+    valid:
+      images_dir: datasets/Oxford Pets.v1-by-breed.coco/valid # /home/ronen/fiftyone/coco-2017/validation/data # datasets/coco2012/images
+      annotations: datasets/Oxford Pets.v1-by-breed.coco/valid/_annotations.coco.json #/home/ronen/fiftyone/coco-2017/validation/labels.json # datasets/coco2012/annotations.json
 
-classes_name_file: datasets/coco2012/coco-2017/coco.names # datasets/coco2012/coco-2017/class.names # datasets/coco2012/coco.names
+
+classes_name_file: datasets/pets_breed.names # datasets/coco2012/coco-2017/coco.names # datasets/coco2012/coco-2017/class.names # datasets/coco2012/coco.names
 anchors_file: datasets/coco2012/anchors.txt
-max_dataset_examples: null # null or size limit value
+max_dataset_examples: 1 # null # null or size limit value
 
 dataset_repeats: 11
 max_bboxes: 100
@@ -49,20 +56,20 @@ output_checkpoints_path: 'checkpoints/yolov3_train.tf' # prefix of path checkpoi
 
 transfer_learning_config:
   transfer_list: # all, none, backbone, or neck (equivalent to listing backbone and neck)
-    - all
+#    - all
 #    - none
 #    - all
-#    - backbone
-#    - neck
+    - backbone
+    - neck
 #    - head
-  freeze_train_list: # Can omit. Note: selecting neck does not imply to  backbone
-     - none
-#    - backbone
-#    - neck
-  batch_norm_freeze_list:  # Can omit. Note: selecting neck does not imply to  backbone
+  freeze_train_list: # Can select neck or backbone or both or none
+#     - none
+     - backbone
+#     - neck
+  batch_norm_freeze_list:  # Can select neck or backbone or head or any of them or  none
     - none
-#    - backbone
-#    - neck
+    - backbone
+    - neck
 #    - head
 
   input_weights_path: ./checkpoints/keras_coco_yolov3.tf # checkpoints/my_keras_coco_yolov3.tf

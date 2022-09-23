@@ -18,21 +18,6 @@ def bytes_feature_list(value):
     value = [x.encode('utf8') for x in value]
     return tf.train.Feature(bytes_list=tf.train.BytesList(value=value))
 
-
-def split_dataset(ds, ds_size, train_split, val_split):
-    train_size = int(train_split * ds_size)
-    val_size = int(val_split * ds_size)
-    if not train_size * val_size:
-        print('Dataset too small for splits. Duplicating data for all splits')
-        train_ds = val_ds = test_ds = ds
-        train_size = val_size = ds_size
-    else:
-        train_ds = ds.take(train_size)
-        val_ds = ds.skip(train_size).take(val_size)
-        test_ds = ds.skip(train_size).skip(val_size)
-    return train_ds, val_ds, test_ds, train_size, val_size
-
-
 def decode_and_resize_image(filename, size, y):
     img_st = tf.io.read_file(filename)
     img_dec = tf.image.decode_image(img_st, channels=3, expand_animations=False)
@@ -67,8 +52,7 @@ def create_example(image_annotations, sparse_to_dense_category_id, max_bboxes, i
     return padded_example
 
 
-def create_dataset_from_coco_files(images_dir, annotations_path, image_size, max_dataset_examples,
-                                   max_bboxes=100, train_split=0.7, val_split=0.2):
+def create_dataset_from_coco_files(images_dir, annotations_path, image_size, max_dataset_examples, max_bboxes=100):
 
     with open(annotations_path, 'r') as f:
         annotations = json.load(f)
@@ -95,13 +79,12 @@ def create_dataset_from_coco_files(images_dir, annotations_path, image_size, max
     ds = tf.data.Dataset.from_tensor_slices((image_paths, y_train))
     ds = ds.map(lambda x, y: decode_and_resize_image(x, image_size, y))
     ds_size = y_train.shape[0]
-    train_ds, val_ds, test_ds, train_size, val_size = split_dataset(ds, ds_size, train_split, val_split)
-    return train_ds, val_ds, test_ds, train_size, val_size
+    return ds, ds_size
 
 
 if __name__ == '__main__':
-    images_dir = '/datasets/shapes/three_circles/input/images_and_annotations_file/images/'
-    annotations_path = '/datasets/shapes/three_circles/input/images_and_annotations_file/annotations/annotations.json'
+    images_dir = 'datasets/Oxford Pets.v1-by-breed.coco/train' # /home/ronen/fiftyone/coco-2017/validation/data # datasets/coco2012/images
+    annotations_path: 'datasets/Oxford Pets.v1-by-breed.coco/train/_annotations.coco.json' # /home/ronen/fiftyone/coco-2017/validation/labels.json # datasets/coco2012/annotations.json
 
     create_dataset_from_coco_files(images_dir, annotations_path)
-    pass
+
