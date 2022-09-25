@@ -20,18 +20,18 @@ dataset_config:
     valid: datasets/coco2012/coco-2017/fiftyone_20/input/tfrecords/train # datasets/shapes/two_colors/input/tfrecords/train
   coco_format_files:
     train:
-      images_dir: datasets/Oxford Pets.v1-by-breed.coco/train # /home/ronen/fiftyone/coco-2017/validation/data # datasets/coco2012/images
-      annotations: datasets/Oxford Pets.v1-by-breed.coco/train/_annotations.coco.json #/home/ronen/fiftyone/coco-2017/validation/labels.json # datasets/coco2012/annotations.json
+      images_dir: datasets/Oxford Pets.v1-by-breed.coco/short_train # /home/ronen/fiftyone/coco-2017/validation/data # datasets/coco2012/images
+      annotations: datasets/Oxford Pets.v1-by-breed.coco/short_train/_annotations.coco.json #/home/ronen/fiftyone/coco-2017/validation/labels.json # datasets/coco2012/annotations.json
     valid:
-      images_dir: datasets/Oxford Pets.v1-by-breed.coco/valid # /home/ronen/fiftyone/coco-2017/validation/data # datasets/coco2012/images
-      annotations: datasets/Oxford Pets.v1-by-breed.coco/valid/_annotations.coco.json #/home/ronen/fiftyone/coco-2017/validation/labels.json # datasets/coco2012/annotations.json
+      images_dir: datasets/Oxford Pets.v1-by-breed.coco/short_train # /home/ronen/fiftyone/coco-2017/validation/data # datasets/coco2012/images
+      annotations: datasets/Oxford Pets.v1-by-breed.coco/short_train/_annotations.coco.json #/home/ronen/fiftyone/coco-2017/validation/labels.json # datasets/coco2012/annotations.json
 
 
 classes_name_file: datasets/pets_breed.names # datasets/coco2012/coco-2017/coco.names # datasets/coco2012/coco-2017/class.names # datasets/coco2012/coco.names
 anchors_file: datasets/coco2012/anchors.txt
-max_dataset_examples: 1 # null # null or size limit value
+max_dataset_examples: null # null or size limit value
 
-dataset_repeats: 11
+dataset_repeats: 0
 max_bboxes: 100
 
 
@@ -67,7 +67,7 @@ transfer_learning_config:
      - backbone
 #     - neck
   batch_norm_freeze_list:  # Can select neck or backbone or head or any of them or  none
-    - none
+#    - none
     - backbone
     - neck
 #    - head
