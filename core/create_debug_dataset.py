@@ -11,10 +11,11 @@
 # ================================================================
 import tensorflow as tf
 
-def load_debug_dataset():
+def load_debug_dataset(image_size):
     x_train = tf.image.decode_jpeg(
         open('datasets/coco2012/images/girl.png', 'rb').read(), channels=3)
-    x_train = tf.expand_dims(x_train/255, axis=0)
+    x_train = tf.image.resize(x_train/255, [image_size, image_size])
+    x_train = tf.expand_dims(x_train, axis=0)
 
     labels = [
         [0.18494931, 0.03049111, 0.9435849,  0.96302897, 1, 0],
@@ -23,5 +24,5 @@ def load_debug_dataset():
     ] + [[0, 0, 0, 0, 0, 0]] * 97
     y_train = tf.convert_to_tensor(labels, tf.float32)
     y_train = tf.expand_dims(y_train, axis=0)
-
-    return tf.data.Dataset.from_tensor_slices((x_train, y_train))
+    dataset_size = tf.shape(y_train).numpy()[0]
+    return tf.data.Dataset.from_tensor_slices((x_train, y_train)), dataset_size

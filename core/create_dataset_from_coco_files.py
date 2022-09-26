@@ -22,6 +22,7 @@ def decode_and_resize_image(filename, size, y):
     img_st = tf.io.read_file(filename)
     img_dec = tf.image.decode_image(img_st, channels=3, expand_animations=False)
     img = tf.cast(img_dec, tf.float32)
+    # resize w/o keeping aspect ratio - no prob for normal sized images
     img = tf.image.resize(img/255, [size, size])
     return img, y
 

@@ -42,6 +42,7 @@ def parse_tfrecord_fn(record, image_size, max_bboxes, class_table=None):
     example = tf.io.parse_single_example(record, feature_description)
 
     x_train = tf.image.decode_jpeg(example['image/encoded'], channels=3)
+    # resize w/o keeping aspect ratio - no problem for normal image sizes:
     x_train = tf.image.resize(x_train, (image_size, image_size)) / 255
 
     labels = tf.sparse.to_dense(
