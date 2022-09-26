@@ -24,5 +24,5 @@ def load_debug_dataset(image_size):
     ] + [[0, 0, 0, 0, 0, 0]] * 97
     y_train = tf.convert_to_tensor(labels, tf.float32)
     y_train = tf.expand_dims(y_train, axis=0)
-    dataset_size = tf.shape(y_train).numpy()[0]
+    dataset_size = y_train.shape[0]
     return tf.data.Dataset.from_tensor_slices((x_train, y_train)), dataset_size

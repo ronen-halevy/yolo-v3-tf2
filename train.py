@@ -167,9 +167,10 @@ class Train:
             # Modify batch size, to avoid an empty dataset after batching with drop_remainder=True:
             batch_size = min((batch_size, min(dataset_size)))
         else:  # debug_data
-            train_dataset = load_debug_dataset()
-            val_dataset = load_debug_dataset()
+            train_dataset, dataset_size  = load_debug_dataset(image_size)
+            val_dataset, dataset_size = load_debug_dataset(image_size)
             dataset = [train_dataset, val_dataset]
+            batch_size = min((batch_size, dataset_size))
 
         if dataset_repeats:  # repeat train and val
             dataset[0] = dataset[0].repeat(dataset_repeats)  # train
