@@ -14,18 +14,19 @@
 #training_dataset_config:
 dataset_config:
   # select format:   tfrecords, coco_format_files or default: debug single image dataset
-  input_data_source:   tfrecords #   coco_format_files  coco_format_files # tfrecords  # [tfrecords,   coco_format_files, coco_debug_data]
+  input_data_source:   coco_format_files #   coco_format_files  coco_format_files # tfrecords  # [tfrecords,   coco_format_files, coco_debug_data]
   tfrecords:
     train: datasets/shapes/three_mixed_shapes/blue/input/tfrecords/train # /home/ronen/PycharmProjects/create-tfrecords/dataset/tfrecords/train #datasets/shapes/three_circles/input/tfrecords/train #  datasets/shapes/red_circle/input/tfrecords/train # datasets/shapes/circle_and_triangle/input/tfrecords/train
     valid: datasets/shapes/three_mixed_shapes/blue/input/tfrecords/val #/home/ronen/PycharmProjects/create-tfrecords/dataset/tfrecords/test #datasets/shapes/three_circles/input/tfrecords/val # datasets/shapes/red_circle/input/tfrecords/val # datasets/shapes/circle_and_triangle/input/tfrecords/val
 
   coco_format_files:
     train:
-      images_dir: datasets/shapes/three_circles/input/images_and_annotations_file/images #datasets/shapes/three_mixed_shapes/red/input/images_and_annotations/images # directory location of input images used in non-tfrecords_keep mode
-      annotations: datasets/shapes/three_circles/input/images_and_annotations_file/annotations/annotations.json
+      images_dir: datasets/shapes/large_small_circles/input/dataset/test # datasets/shapes/three_circles/input/images_and_annotations_file/images #datasets/shapes/three_mixed_shapes/red/input/images_and_annotations/images # directory location of input images used in non-tfrecords_keep mode
+      annotations: datasets/shapes/large_small_circles/input/dataset/test/annotations.json # datasets/shapes/three_circles/input/images_and_annotations_file/annotations/annotations.json
     valid:
-      images_dir: datasets/shapes/three_circles/input/images_and_annotations_file/images #datasets/shapes/three_mixed_shapes/red/input/images_and_annotations/images # directory location of input images used in non-tfrecords_keep mode
-      annotations: datasets/shapes/three_circles/input/images_and_annotations_file/annotations/annotations.json
+      images_dir: datasets/shapes/large_small_circles/input/dataset/valid # datasets/shapes/three_circles/input/images_and_annotations_file/images #datasets/shapes/three_mixed_shapes/red/input/images_and_annotations/images # directory location of input images used in non-tfrecords_keep mode
+      annotations: datasets/shapes/large_small_circles/input/dataset/valid/annotations.json #datasets/shapes/three_circles/input/images_and_annotations_file/annotations/annotations.json
+
 
 classes_name_file: datasets/shapes/class.names # datasets/shapes/three_circles/class.names #   datasets/shapes/circle_and_triangle/class.names # 'datasets/shapes/class.names'
 anchors_file: datasets/shapes/anchors/shapes_yolov3_anchors.txt
