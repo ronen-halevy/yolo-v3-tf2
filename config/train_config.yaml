@@ -21,8 +21,8 @@ dataset_config:
 
   coco_format_files:
     train:
-      images_dir: datasets/shapes/large_small_circles/input/dataset/test # datasets/shapes/three_circles/input/images_and_annotations_file/images #datasets/shapes/three_mixed_shapes/red/input/images_and_annotations/images # directory location of input images used in non-tfrecords_keep mode
-      annotations: datasets/shapes/large_small_circles/input/dataset/test/annotations.json # datasets/shapes/three_circles/input/images_and_annotations_file/annotations/annotations.json
+      images_dir: datasets/shapes/large_small_circles/input/dataset/train # datasets/shapes/three_circles/input/images_and_annotations_file/images #datasets/shapes/three_mixed_shapes/red/input/images_and_annotations/images # directory location of input images used in non-tfrecords_keep mode
+      annotations: datasets/shapes/large_small_circles/input/dataset/train/annotations.json # datasets/shapes/three_circles/input/images_and_annotations_file/annotations/annotations.json
     valid:
       images_dir: datasets/shapes/large_small_circles/input/dataset/valid # datasets/shapes/three_circles/input/images_and_annotations_file/images #datasets/shapes/three_mixed_shapes/red/input/images_and_annotations/images # directory location of input images used in non-tfrecords_keep mode
       annotations: datasets/shapes/large_small_circles/input/dataset/valid/annotations.json #datasets/shapes/three_circles/input/images_and_annotations_file/annotations/annotations.json
