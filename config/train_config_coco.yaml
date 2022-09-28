@@ -27,7 +27,7 @@ dataset_config:
       annotations: datasets/Oxford Pets.v1-by-breed.coco/short_train/_annotations.coco.json #/home/ronen/fiftyone/coco-2017/validation/labels.json # datasets/coco2012/annotations.json
 
 
-classes_name_file: datasets/coco2012/coco-2017/coco.names # datasets/pets_breed.names # datasets/coco2012/coco-2017/coco.names # datasets/coco2012/coco-2017/class.names # datasets/coco2012/coco.names
+classes_name_file: datasets/coco2012/coco.names # datasets/pets_breed.names # datasets/coco2012/coco-2017/coco.names # datasets/coco2012/coco-2017/class.names # datasets/coco2012/coco.names
 anchors_file: datasets/coco2012/anchors.txt
 max_dataset_examples: null # null or size limit value
 
