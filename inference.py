@@ -94,6 +94,10 @@ class Inference:
         sub_models_configs = model_config['sub_models_configs']
         output_stage = model_config['output_stage']
         model = parse_model.build_model(inputs, sub_models_configs, output_stage, nclasses=nclasses)
+        # for debug:
+        # with open("model_inference_summary.txt", "w") as file1:
+        #     model.summary(print_fn=lambda x: file1.write(x + '\n'))
+
         # Note:.expect_partial() prevents warnings at exit time, since save model generates extra keys.
         model.load_weights(input_weights_path).expect_partial()
         print('weights loaded')
