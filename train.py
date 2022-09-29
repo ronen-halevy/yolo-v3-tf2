@@ -141,9 +141,8 @@ class Train:
 
         grid_sizes_table = np.array(grid_sizes_table)
 
-        logging.basicConfig(level=logging.INFO,
-                            format='%(levelname)s %(message)s',
-                            )
+        logging.getLogger().setLevel(logging.INFO)
+
         physical_devices = tf.config.experimental.list_physical_devices('GPU')
         dataset = []
         if dataset_config['input_data_source'] == 'tfrecords':
