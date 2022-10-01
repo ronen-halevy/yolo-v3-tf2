@@ -61,9 +61,10 @@ class PreprocessDataset:
         :rtype:
         """
         iou_selected_anchors = self._find_max_iou_anchors(y_train, anchors)
-        grid_scaled_boxes_indices = self._produce_grid_scale_indices(
-            y_train, output_shape, tf.cast(tf.expand_dims(iou_selected_anchors, axis=-1) / anchors.shape[1], tf.int32),
-            max_bboxes)
+        best_anchor_indices = tf.cast(iou_selected_anchors, tf.int32) % anchors.shape[1] # anchor index in the grid
+        grid_scaled_boxes_indices = self._produce_grid_scale_indices(y_train, output_shape,
+                                                                     tf.expand_dims(best_anchor_indices, axis=-1),
+                                                                     max_bboxes)
 
         # Find best_iou_grid_index - iou_selected_anchors's related grid index:
         best_iou_grid_index = tf.histogram_fixed_width_bins(
