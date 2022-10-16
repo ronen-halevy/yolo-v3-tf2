@@ -8,8 +8,8 @@ sub_models_configs:
 
   layers_config_file: config/models/yolov3/backbone.yaml
   outputs_layers: # Set outputs layers as a list or as a scalar according to topology
-  - 36
-  - 61
+  - -39 # 37
+  - -14 # 62
   - -1
 
 - name: neck0
