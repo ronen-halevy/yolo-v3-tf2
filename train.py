@@ -139,7 +139,6 @@ class Train:
                  **kwargs
                  ):
 
-        grid_sizes_table = np.array(grid_sizes_table)
 
         logging.getLogger().setLevel(logging.INFO)
 
@@ -166,8 +165,8 @@ class Train:
             # Modify batch size, to avoid an empty dataset after batching with drop_remainder=True:
             batch_size = min((batch_size, min(dataset_size)))
         else:  # debug_data
-            train_dataset, dataset_size  = load_debug_dataset(image_size)
-            val_dataset, dataset_size = load_debug_dataset(image_size)
+            train_dataset, dataset_size  = load_debug_dataset(image_size, batch_size)
+            val_dataset, dataset_size = load_debug_dataset(image_size, batch_size)
             dataset = [train_dataset, val_dataset]
             batch_size = min((batch_size, dataset_size))
 
@@ -214,6 +213,8 @@ class Train:
         model.compile(optimizer=optimizer, loss=loss_fn_list,
                       run_eagerly=(training_mode == 'eager_fit'))
         preprocess_dataset = PreprocessDataset()
+        grid_sizes_table = np.array(grid_sizes_table)
+
         if debug_mode:
             preprocess_dataset.preprocess_dataset_debug(dataset[0], batch_size, image_size, anchors_table,
                                                         grid_sizes_table,

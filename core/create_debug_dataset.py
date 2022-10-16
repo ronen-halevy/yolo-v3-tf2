@@ -11,7 +11,7 @@
 # ================================================================
 import tensorflow as tf
 
-def load_debug_dataset(image_size):
+def load_debug_dataset(image_size, batch_size):
     x_train = tf.image.decode_jpeg(
         open('datasets/coco2012/images/girl.png', 'rb').read(), channels=3)
     x_train = tf.image.resize(x_train/255, [image_size, image_size])
@@ -26,5 +26,5 @@ def load_debug_dataset(image_size):
     y_train = tf.expand_dims(y_train, axis=0)
     dataset_size = y_train.shape[0]
     ds = tf.data.Dataset.from_tensor_slices((x_train, y_train))
-    ds = ds.repeat(8) # repeats permit faster train execution due to batching
+    ds = ds.repeat(batch_size) # repeats permit faster train execution due to batching
     return ds, dataset_size
