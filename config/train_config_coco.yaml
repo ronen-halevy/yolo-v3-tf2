@@ -14,7 +14,7 @@
 
 dataset_config:
   # select format:   tfrecords, coco_format_files or default: debug single image dataset
-  input_data_source: coco_format_files # tfrecords # coco_format_files # [tfrecords, coco_format_files, debug_data]
+  input_data_source: debug_data # tfrecords # coco_format_files # [tfrecords, coco_format_files, debug_data]
   tfrecords:
     train: datasets/coco2012/coco-2017/fiftyone_20/input/tfrecords/train # datasets/shapes/two_colors/input/tfrecords/train
     valid: datasets/coco2012/coco-2017/fiftyone_20/input/tfrecords/train # datasets/shapes/two_colors/input/tfrecords/train
@@ -45,7 +45,7 @@ grid_sizes_table:
 
 training_mode: eager_tf # 'model execution mode. choices=[eager_tf, fit]'
 
-batch_size: 8
+batch_size: 1
 epochs: 1000
 learning_rate: 0.001
 early_stopping: False # enables early_stopping callback
