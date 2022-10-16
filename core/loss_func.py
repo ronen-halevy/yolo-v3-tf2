@@ -16,10 +16,14 @@ from tensorflow.keras.losses import (
 )
 
 
-def get_loss_func(anchors, nclasses, eager_mode):
+def get_loss_func(anchors, nclasses, eager_mode=True):
     def yolo_loss(y_true, y_pred):
         pred_xy, pred_wh, pred_obj, pred_class = tf.split(
             y_pred, (2, 2, 1, nclasses), axis=-1)
+
+        pred_xy = tf.sigmoid(pred_xy)
+        pred_obj = tf.sigmoid(pred_obj)
+        pred_class = tf.sigmoid(pred_class)
 
         true_box, true_obj, true_class_idx = tf.split(
             y_true, (4, 1, 1), axis=-1)
@@ -30,6 +34,7 @@ def get_loss_func(anchors, nclasses, eager_mode):
 
         # give higher weights to small boxes
         box_loss_scale = 1# 2 - true_wh[..., 0] * true_wh[..., 1]
+        box_loss_scale = 2 - true_wh[..., 0] * true_wh[..., 1] # ronen added here to have exact results
 
         grid_size = tf.shape(y_true)[1]
         grid = tf.meshgrid(tf.range(grid_size), tf.range(grid_size))

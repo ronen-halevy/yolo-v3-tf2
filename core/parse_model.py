@@ -177,13 +177,12 @@ class ParseModel:
                                               ngrids,
                                               nclasses + (xy_field + wh_field + obj_field))))(
             x)
-        pred_xy, pred_wh, pred_obj, class_probs = Lambda(lambda xx: tf.split(xx, (2, 2, 1, nclasses), axis=-1))(x)
-        pred_xy = Lambda(lambda xx: tf.sigmoid(xx))(pred_xy)
-        pred_obj = Lambda(lambda xx: tf.sigmoid(xx))(pred_obj)
-        class_probs = Lambda(lambda xx: tf.sigmoid(xx))(class_probs)
-        x = Lambda(lambda xx: tf.concat([xx[0], xx[1], xx[2], xx[3]], axis=-1))((pred_xy, pred_wh, pred_obj,
-                                                                                 class_probs))
-
+        # pred_xy, pred_wh, pred_obj, class_probs = Lambda(lambda xx: tf.split(xx, (2, 2, 1, nclasses), axis=-1))(x)
+        # pred_xy = Lambda(lambda xx: tf.sigmoid(xx))(pred_xy)
+        # pred_obj = Lambda(lambda xx: tf.sigmoid(xx))(pred_obj)
+        # class_probs = Lambda(lambda xx: tf.sigmoid(xx))(class_probs)
+        # x = Lambda(lambda xx: tf.concat([xx[0], xx[1], xx[2], xx[3]], axis=-1))((pred_xy, pred_wh, pred_obj,
+        #                                                                          class_probs))
         layers.append(x)
         return x, layers
 
