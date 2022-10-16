@@ -205,6 +205,7 @@ def main(_argv):
     from config.core.utils import get_anchors, count_file_lines
     from config.core.loss_func import get_loss_func
 
+
     anchors_file = 'core/anchors.txt'
     anchors_table = get_anchors(anchors_file)
 
