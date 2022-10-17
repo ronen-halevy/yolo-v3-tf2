@@ -76,11 +76,15 @@ def annotate_text(image_pil, bbox, class_name, score, font_size=30):
     color = colors[hash(class_name) % len(colors)]
 
     detections_str = "{}: {}%".format(class_name,
-                                   int(100 * score))
+                                      int(100 * score))
+    ymin_text = tf.where(tf.greater(ymin, 0), ymin, font_size)
+    xmin_text = tf.where(tf.greater(xmin, 0), xmin, 0)
+
+
     image_pil = draw_text_on_bounding_box(
         image_pil,
-        ymin,
-        xmin,
+        ymin_text,
+        xmin_text,
         color,
         display_str_list=[detections_str], font_size=font_size)
 
@@ -88,20 +92,20 @@ def annotate_text(image_pil, bbox, class_name, score, font_size=30):
 
 
 def annotate_detections(image, class_names, bboxes, scores, bbox_color, font_size):
-
     annotated_image = Image.fromarray(np.uint8(image * 255)).convert("RGB")
     detections = []
     for idx, (bbox, class_name, score) in enumerate(zip(bboxes, class_names, scores)):
-        detection  = annotate_text(annotated_image, bbox, class_name, score, font_size)
+        detection = annotate_text(annotated_image, bbox, class_name, score, font_size)
         detections.append(detection)
     return annotated_image, detections
 
-def render_text_annotated_bboxes(image, bboxes, classes_names, scores, bbox_color, font_size):#, image_index,
-                          # image_output_dir, detections_list_outfile, display_result_images=False):
+
+def render_text_annotated_bboxes(image, bboxes, classes_names, scores, bbox_color, font_size):  # , image_index,
+    # image_output_dir, detections_list_outfile, display_result_images=False):
     rendered_image = render_bboxes(tf.expand_dims(image, axis=0), tf.expand_dims(bboxes, axis=0),
-                                       colors=[bbox_color])
+                                   colors=[bbox_color])
     rendered_image = tf.squeeze(rendered_image, axis=0)
     text_annotated_image, detections_string = annotate_detections(rendered_image, classes_names, bboxes,
-                                                                      scores, bbox_color, font_size)
-    return text_annotated_image, detections_string
+                                                                  scores, bbox_color, font_size)
 
+    return text_annotated_image, detections_string
