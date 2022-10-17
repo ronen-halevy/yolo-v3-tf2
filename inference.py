@@ -147,8 +147,9 @@ class Inference:
                 filenames = []
 
             for image_index, file in enumerate(filenames):
-                image = tf.image.decode_image(open(file, 'rb').read(), channels=3, dtype=tf.float32)
-                image = resize_image(image, image_size, image_size)
+                orig_image = tf.image.decode_image(open(file, 'rb').read(), channels=3, dtype=tf.float32)
+                image = tf.image.resize(orig_image, (image_size, image_size))
+
                 batch_dataset_image = tf.expand_dims(image, axis=0)
                 batch_bboxes_padded, batch_class_indices_padded, batch_scores_padded, batch_selected_indices_padded, \
                 batch_num_valid_detections = model.predict(
@@ -168,8 +169,14 @@ class Inference:
                     text_annotated_image, detections_string = render_text_annotated_bboxes(image, bboxes,
                                                                                            classes_names, scores,
                                                                                            bbox_color, font_size)
-                    self.results_display_and_save(display_result_images, text_annotated_image, detections_string, output_dir,
+
+                    text_annotated_image = text_annotated_image.resize((orig_image.shape[1], orig_image.shape[0]))
+
+                    self.results_display_and_save(display_result_images, text_annotated_image, detections_string,
+                                                  output_dir,
                                                   detections_list_outfile, image_index)
+        for class_name, bbox, score in zip(classes_names, bboxes.numpy(), scores.numpy()):
+            print(f'{class_name} bbox: {bbox} score: {score}')
 
         return
 
