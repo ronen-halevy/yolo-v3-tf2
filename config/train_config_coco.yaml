@@ -14,7 +14,7 @@
 
 dataset_config:
   # select format:   tfrecords, coco_format_files or default: debug single image dataset
-  input_data_source: debug_data # tfrecords # coco_format_files # [tfrecords, coco_format_files, debug_data]
+  input_data_source: coco_format_files # debug_data # tfrecords # coco_format_files # [tfrecords, coco_format_files, debug_data]
   tfrecords:
     train: datasets/coco2012/coco-2017/fiftyone_20/input/tfrecords/train # datasets/shapes/two_colors/input/tfrecords/train
     valid: datasets/coco2012/coco-2017/fiftyone_20/input/tfrecords/train # datasets/shapes/two_colors/input/tfrecords/train
@@ -27,7 +27,7 @@ dataset_config:
       annotations: datasets/Oxford Pets.v1-by-breed.coco/short_train/_annotations.coco.json #/home/ronen/fiftyone/coco-2017/validation/labels.json # datasets/coco2012/annotations.json
 
 
-classes_name_file: datasets/coco2012/coco.names # datasets/pets_breed.names # datasets/coco2012/coco-2017/coco.names # datasets/coco2012/coco-2017/class.names # datasets/coco2012/coco.names
+classes_name_file: datasets/pets_breed.names #datasets/coco2012/coco.names # datasets/pets_breed.names # datasets/coco2012/coco-2017/coco.names # datasets/coco2012/coco-2017/class.names # datasets/coco2012/coco.names
 anchors_file: datasets/coco2012/anchors.txt
 max_dataset_examples: null # null or size limit value
 
@@ -45,7 +45,7 @@ grid_sizes_table:
 
 training_mode: eager_tf # 'model execution mode. choices=[eager_tf, fit]'
 
-batch_size: 1
+batch_size: 8
 epochs: 1000
 learning_rate: 0.001
 early_stopping: False # enables early_stopping callback
@@ -57,19 +57,19 @@ output_checkpoints_path: 'checkpoints/yolov3_train.tf' # prefix of path checkpoi
 transfer_learning_config:
   transfer_list: # all, none, backbone, or neck (equivalent to listing backbone and neck)
 #    - all
-    - none
+#    - none
 #    - all
-#    - backbone
-#    - neck
+    - backbone
+    - neck
 #    - head
   freeze_train_list: # Can select neck or backbone or both or none
-     - none
-#     - backbone
+#     - none
+     - backbone
 #     - neck
   batch_norm_freeze_list:  # Can select neck or backbone or head or any of them or  none
-    - none
-#    - backbone
-#    - neck
+#    - none
+    - backbone
+    - neck
 #    - head
 
   input_weights_path: ./checkpoints/keras_coco_yolov3.tf # checkpoints/my_keras_coco_yolov3.tf
