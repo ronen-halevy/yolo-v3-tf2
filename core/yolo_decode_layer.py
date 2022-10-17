@@ -56,9 +56,9 @@ class YoloDecoderLayer(tf.keras.layers.Layer):
     def call(self, grids_outputs, **kwargs):
         pred_xy, pred_wh, pred_obj, class_probs = zip(
             *[tf.split(grid_out, (2, 2, 1, self.nclasses), axis=-1) for grid_out in grids_outputs])
-        bboxes_grid0 = self.arrange_bbox(pred_xy[0], tf.exp(pred_wh[0]) * self.anchors_table[2])
+        bboxes_grid0 = self.arrange_bbox(pred_xy[0], tf.exp(pred_wh[0]) * self.anchors_table[0])
         bboxes_grid1 = self.arrange_bbox(pred_xy[1], tf.exp(pred_wh[1]) * self.anchors_table[1])
-        bboxes_grid2 = self.arrange_bbox(pred_xy[2], tf.exp(pred_wh[2]) * self.anchors_table[0])
+        bboxes_grid2 = self.arrange_bbox(pred_xy[2], tf.exp(pred_wh[2]) * self.anchors_table[2])
 
         all_grids_bboxes = tf.concat(
             [tf.reshape(y, [tf.shape(y)[0], -1, tf.shape(y)[-1]]) for y in [bboxes_grid0, bboxes_grid1, bboxes_grid2]],
