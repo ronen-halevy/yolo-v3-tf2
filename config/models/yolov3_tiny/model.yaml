@@ -1,0 +1,74 @@
+---
+decay_factor: 0.0005
+output_stage: head
+
+sub_models_configs:
+- name: backbone
+#  inputs: Edge element uses model's global input
+
+  layers_config_file: config/models/yolov3/backbone.yaml
+  outputs_layers: # Set outputs layers as a list or as a scalar according to topology
+  - -39 # 37
+  - -14 # 62
+  - -1
+
+- name: neck0
+  inputs:  #  a list of sub-model outputs source.
+    source:
+    - name: backbone
+      entry_index: 2 # entry_index field is needed if source is a list instance. Otherwise - filed is redundant
+
+  layers_config_file: config/models/yolov3/neck0.yaml
+  outputs_layers:
+  - -1
+
+- name: head0
+  inputs:
+    source:
+    - name: neck0
+      entry_index: 0 #  entry_index field is needed for a list source. Otherwise - put 0 or omit entire entry_index row
+  layers_config_file: config/models/yolov3/head0.yaml
+  outputs_layers:
+  - -1
+
+- name: neck1
+  inputs:
+    source:
+    - name: backbone
+      entry_index: 1
+    - name: neck0
+      entry_index: 0
+  layers_config_file: config/models/yolov3/neck1.yaml
+  outputs_layers:
+  - -1
+
+
+- name: head1
+  inputs:
+    source:
+    - name: neck1
+      entry_index:  0 #  entry_index field is needed for a list source. Otherwise - put 0 or omit entire entry_index row
+  layers_config_file: config/models/yolov3/head1.yaml
+  outputs_layers:
+  - -1
+
+- name: neck2
+  inputs:
+    source:
+    - name: neck1
+      entry_index: 0
+    - name: backbone
+      entry_index: 0
+  layers_config_file: config/models/yolov3/neck2.yaml
+  outputs_layers:
+  - -1
+
+- name: head2
+  inputs:
+    source:
+    - name: neck2
+      entry_index: 0
+  layers_config_file: config/models/yolov3/head2.yaml
+  outputs_layers:
+  - -1
+

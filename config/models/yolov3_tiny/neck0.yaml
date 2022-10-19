@@ -1,0 +1,15 @@
+---
+    layers_config:
+
+    - type: route
+      source:
+        inputs:
+        - 0 # btw - if inputs source holds a scalar and not a list, then inputs value is 'don't care'
+
+    - type: convolutional
+      batch_normalize: 1
+      filters: 256
+      size: 1
+      stride: 1
+      pad: 1
+      activation: leaky

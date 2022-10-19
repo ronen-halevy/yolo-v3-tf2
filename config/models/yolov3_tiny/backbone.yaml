@@ -1,0 +1,118 @@
+---
+  layers_config:
+  - type: route
+    source:
+      inputs:
+      - 0 # btw - if inputs source holds a scalar and not a list, then inputs value is actually 'don't care'
+  - type: convolutional
+    batch_normalize: 1
+    filters: 16
+    size: 3
+    stride: 1
+    pad: 1
+    activation: leaky
+
+  - type: MaxPool2D
+    size_xy:
+        - 2
+        - 2
+    stride_xy:
+        - 2
+        - 2
+    padding: same
+
+  - type: convolutional
+    batch_normalize: 1
+    filters: 32
+    size: 3
+    stride: 1
+    pad: 1
+    activation: leaky
+
+  - type: MaxPool2D
+    size_xy:
+        - 2
+        - 2
+    stride_xy:
+        - 2
+        - 2
+    padding: same
+
+  - type: convolutional
+    batch_normalize: 1
+    filters: 64
+    size: 3
+    stride: 1
+    pad: 1
+    activation: leaky
+
+  - type: MaxPool2D
+    size_xy:
+        - 2
+        - 2
+    stride_xy:
+        - 2
+        - 2
+    padding: same
+
+
+  - type: convolutional
+    batch_normalize: 1
+    filters: 128
+    size: 3
+    stride: 1
+    pad: 1
+    activation: leaky
+
+  - type: MaxPool2D
+    size_xy:
+        - 2
+        - 2
+    stride_xy:
+        - 2
+        - 2
+    padding: same
+
+  - type: convolutional
+    batch_normalize: 1
+    filters: 256
+    size: 3
+    stride: 1
+    pad: 1
+    activation: leaky
+
+  - type: MaxPool2D
+    size_xy:
+        - 2
+        - 2
+    stride_xy:
+        - 2
+        - 2
+    padding: same
+
+  - type: convolutional
+    batch_normalize: 1
+    filters: 512
+    size: 3
+    stride: 1
+    pad: 1
+    activation: leaky
+
+  - type: MaxPool2D
+    size_xy:
+        - 2
+        - 2
+    stride_xy:
+        - 1
+        - 1
+    padding: same
+
+  - type: convolutional
+    batch_normalize: 1
+    filters: 1024
+    size: 3
+    stride: 1
+    pad: 1
+    activation: leaky
+
+
