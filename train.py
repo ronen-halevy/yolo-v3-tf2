@@ -117,7 +117,6 @@ class Train:
                  training_mode,
                  render_dataset_example,
                  max_dataset_examples,
-                 dataset_repeats,
                  transfer_learning_config,
                  dataset_config,
                  classes_name_file,
@@ -171,7 +170,11 @@ class Train:
         model.compile(optimizer=optimizer, loss=loss_fn_list,
                       run_eagerly=(training_mode == 'eager_fit'))
 
-        ds_train, ds_val = create_dataset(dataset_config, image_size, max_dataset_examples, dataset_repeats)
+        ds, ds_size = create_dataset(dataset_config, image_size, max_dataset_examples)
+        if None not in ds_size and min(ds_size) < batch_size:
+            raise ValueError('Dataset size less than batch size!')
+
+        ds_train, ds_val = ds
         preprocess_dataset = PreprocessDataset()
         grid_sizes_table = np.array(grid_sizes_table)
 

@@ -9,12 +9,13 @@
 #   Description :
 #
 # ================================================================
+import tensorflow as tf
 from core.load_tfrecords import parse_tfrecords
 from core.create_dataset_from_coco_files import create_dataset_from_coco_files
 from core.load_tfrecords import parse_tfrecords
 
 
-def load_debug_dataset(image_size, batch_size):
+def load_debug_dataset(image_size):
     x_train = tf.image.decode_jpeg(
         open('datasets/coco2012/images/girl.png', 'rb').read(), channels=3)
     x_train = tf.image.resize(x_train / 255, [image_size, image_size])
@@ -29,7 +30,6 @@ def load_debug_dataset(image_size, batch_size):
     y_train = tf.expand_dims(y_train, axis=0)
     dataset_size = y_train.shape[0]
     ds = tf.data.Dataset.from_tensor_slices((x_train, y_train))
-    ds = ds.repeat(batch_size)  # repeats permit faster train execution due to batching
     return ds, dataset_size
 
 
@@ -44,34 +44,33 @@ def get_data_from_tfrecords(train_tfrecords, val_tfrecords, image_size, max_bbox
     return dataset
 
 
-def create_dataset(dataset_config, image_size, max_dataset_examples, dataset_repeats):
+def create_dataset(dataset_config, image_size, max_dataset_examples):
     dataset = []
     if dataset_config['input_data_source'] == 'tfrecords':
         dataset = self.get_data_from_tfrecords(dataset_config['tfrecords']['train'],
                                                dataset_config['tfrecords']['valid'],
                                                image_size, max_bboxes,
                                                classes_name_file)
+        dataset_size = [None, None] # unknown for tfrecords
     elif dataset_config['input_data_source'] == 'coco_format_files':
-        dataset_size = []
+        splits_dataset_size = []
         for ds_split_config in (dataset_config['coco_format_files']['train'],
                                 dataset_config['coco_format_files']['valid']):
             ds_split, ds_split_size = create_dataset_from_coco_files(ds_split_config['images_dir'],
                                                                      ds_split_config['annotations'],
                                                                      image_size,
                                                                      max_dataset_examples,
-                                                                     max_bboxes=100
-                                                                     )
+                                                                     max_bboxes=100)
 
             dataset.append(ds_split)
-            dataset_size.append(ds_split_size)
-        # Modify batch size, to avoid an empty dataset after batching with drop_remainder=True:
-        batch_size = min((batch_size, min(dataset_size)))
-    else:  # debug_data
-        train_dataset, dataset_size = load_debug_dataset(image_size, batch_size)
-        val_dataset, dataset_size = load_debug_dataset(image_size, batch_size)
-        dataset = [train_dataset, val_dataset]
+            splits_dataset_size.append(ds_split_size)
+            dataset_size = (splits_dataset_size)
 
-    if dataset_repeats:  # repeat train and val
-        dataset[0] = dataset[0].repeat(dataset_repeats)  # train
-        dataset[1] = dataset[1].repeat(dataset_repeats)  # val
-    return dataset
+
+    else:  # debug_data
+        train_dataset, dataset_size = load_debug_dataset(image_size, min_dataset_size)
+        val_dataset, dataset_size = load_debug_dataset(image_size, min_dataset_size)
+        dataset = [train_dataset, val_dataset]
+        dataset_size = (dataset_size, dataset_size)
+
+    return dataset, dataset_size
