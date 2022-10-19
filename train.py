@@ -29,24 +29,12 @@ from core.preprocess_dataset import PreprocessDataset
 from core.loss_func import get_loss_func
 from core.parse_model import ParseModel
 
-from core.load_tfrecords import parse_tfrecords
-from core.create_dataset_from_coco_files import create_dataset_from_coco_files
-from core.create_debug_dataset import load_debug_dataset
+from core.create_dataset import create_dataset
+
 from core.transfer_learning import do_transfer_learning
 
 
 class Train:
-    @staticmethod
-    def get_data_from_tfrecords(train_tfrecords, val_tfrecords, image_size, max_bboxes, classes_name_file):
-        dataset = []
-        tfrecords_dir_train = f'{train_tfrecords}'
-        tfrecords_dir_val = f'{val_tfrecords}'
-        for ds_dir in [tfrecords_dir_train, tfrecords_dir_val]:
-            dset = parse_tfrecords(
-                ds_dir, image_size, max_bboxes, classes_name_file)
-            dataset.append(dset)
-        return dataset
-
     @staticmethod
     def _calc_loss(model, images, labels, loss_fn_list, batch_size):
         outputs = model(images, training=True)
@@ -143,42 +131,12 @@ class Train:
         logging.getLogger().setLevel(logging.INFO)
 
         physical_devices = tf.config.experimental.list_physical_devices('GPU')
-        dataset = []
-        if dataset_config['input_data_source'] == 'tfrecords':
-            dataset = self.get_data_from_tfrecords(dataset_config['tfrecords']['train'],
-                                                   dataset_config['tfrecords']['valid'],
-                                                   image_size, max_bboxes,
-                                                   classes_name_file)
-        elif dataset_config['input_data_source'] == 'coco_format_files':
-            dataset_size = []
-            for ds_split_config in (dataset_config['coco_format_files']['train'],
-                                    dataset_config['coco_format_files']['valid']):
-                ds_split, ds_split_size = create_dataset_from_coco_files(ds_split_config['images_dir'],
-                                               ds_split_config['annotations'],
-                                               image_size,
-                                               max_dataset_examples,
-                                               max_bboxes=100
-                                                            )
-
-                dataset.append(ds_split)
-                dataset_size.append(ds_split_size)
-            # Modify batch size, to avoid an empty dataset after batching with drop_remainder=True:
-            batch_size = min((batch_size, min(dataset_size)))
-        else:  # debug_data
-            train_dataset, dataset_size  = load_debug_dataset(image_size, batch_size)
-            val_dataset, dataset_size = load_debug_dataset(image_size, batch_size)
-            dataset = [train_dataset, val_dataset]
-            batch_size = min((batch_size, dataset_size))
-
-        if dataset_repeats:  # repeat train and val
-            dataset[0] = dataset[0].repeat(dataset_repeats)  # train
-            dataset[1] = dataset[1].repeat(dataset_repeats)  # val
 
         anchors_table = get_anchors(anchors_file)
         nclasses = count_file_lines(classes_name_file)
 
         if render_dataset_example:
-            x_train, bboxes = next(iter(dataset[0]))
+            x_train, bboxes = next(iter(train_ds))
             bboxes = bboxes[..., 0:4]
             image = render_bboxes(x_train[tf.newaxis, ...], bboxes[tf.newaxis, ...], colors=[(255, 255, 255)])
             plt.imshow(image[0])
@@ -212,15 +170,17 @@ class Train:
 
         model.compile(optimizer=optimizer, loss=loss_fn_list,
                       run_eagerly=(training_mode == 'eager_fit'))
+
+        ds_train, ds_val = create_dataset(dataset_config, image_size, max_dataset_examples, dataset_repeats)
         preprocess_dataset = PreprocessDataset()
         grid_sizes_table = np.array(grid_sizes_table)
 
         if debug_mode:
-            preprocess_dataset.preprocess_dataset_debug(dataset[0], batch_size, image_size, anchors_table,
+            preprocess_dataset.preprocess_dataset_debug(train_ds, batch_size, image_size, anchors_table,
                                                         grid_sizes_table,
                                                         max_bboxes)
         ds_preprocessed = []
-        for ds_split in dataset:
+        for ds_split in [ds_train, ds_val]:
             data = preprocess_dataset(ds_split, batch_size, image_size, anchors_table, grid_sizes_table,
                                       max_bboxes)
             ds_preprocessed.append(data)
