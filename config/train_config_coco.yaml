@@ -14,7 +14,7 @@
 
 dataset_config:
   # select format:   tfrecords, coco_format_files or default: debug single image dataset
-  input_data_source: coco_format_files # debug_data # tfrecords # coco_format_files # [tfrecords, coco_format_files, debug_data]
+  input_data_source: coco_format_files # debug_data # tfrecords # coco_format_files # [tfrecords, coco_format_files, coco_debug_data]
   tfrecords:
     train: datasets/coco2012/coco-2017/fiftyone_20/input/tfrecords/train # datasets/shapes/two_colors/input/tfrecords/train
     valid: datasets/coco2012/coco-2017/fiftyone_20/input/tfrecords/train # datasets/shapes/two_colors/input/tfrecords/train
@@ -28,20 +28,19 @@ dataset_config:
 
 
 classes_name_file: datasets/pets_breed.names #datasets/coco2012/coco.names # datasets/pets_breed.names # datasets/coco2012/coco-2017/coco.names # datasets/coco2012/coco-2017/class.names # datasets/coco2012/coco.names
-anchors_file: datasets/coco2012/anchors.txt
+anchors_file: datasets/coco2012/anchors_tiny.txt
 max_dataset_examples: null # null or size limit value
 
-dataset_repeats: 0
 max_bboxes: 100
 
 
 # model
-model_config_file: config/models/yolov3/model.yaml
+model_config_file: config/models/yolov3_tiny/model.yaml
 image_size: 416 # preprocess will resize to a square image of this size
 grid_sizes_table:
   - 13
   - 26
-  - 52
+#  - 52
 
 training_mode: eager_tf # 'model execution mode. choices=[eager_tf, fit]'
 
@@ -57,10 +56,10 @@ output_checkpoints_path: 'checkpoints/yolov3_train.tf' # prefix of path checkpoi
 transfer_learning_config:
   transfer_list: # all, none, backbone, or neck (equivalent to listing backbone and neck)
 #    - all
-#    - none
+    - none
 #    - all
-    - backbone
-    - neck
+#    - backbone
+#    - neck
 #    - head
   freeze_train_list: # Can select neck or backbone or both or none
 #     - none

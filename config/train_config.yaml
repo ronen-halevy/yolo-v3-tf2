@@ -31,7 +31,6 @@ dataset_config:
 classes_name_file: datasets/shapes/class.names # datasets/shapes/three_circles/class.names #   datasets/shapes/circle_and_triangle/class.names # 'datasets/shapes/class.names'
 anchors_file: datasets/shapes/anchors/shapes_yolov3_anchors.txt
 max_dataset_examples: null # null or size limit value
-dataset_repeats: 0
 max_bboxes: 100
 
 #model_config:
@@ -43,8 +42,8 @@ grid_sizes_table:
   - 52
 
 
-training_mode: fit # eager_tf # fit # 'model execution mode. choices=[eager_tf, fit]'
-batch_size: 8
+training_mode: eager_tf # eager_tf # fit # 'model execution mode. choices=[eager_tf, fit]'
+batch_size: 1
 epochs: 1000
 learning_rate: 0.001
 early_stopping: False # enables early_stopping callback
