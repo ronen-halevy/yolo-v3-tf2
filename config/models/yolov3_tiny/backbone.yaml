@@ -12,7 +12,7 @@
     pad: 1
     activation: leaky
 
-  - type: MaxPool2D
+  - type: maxpool
     size_xy:
         - 2
         - 2
@@ -29,7 +29,7 @@
     pad: 1
     activation: leaky
 
-  - type: MaxPool2D
+  - type: maxpool
     size_xy:
         - 2
         - 2
@@ -46,7 +46,7 @@
     pad: 1
     activation: leaky
 
-  - type: MaxPool2D
+  - type: maxpool
     size_xy:
         - 2
         - 2
@@ -64,7 +64,7 @@
     pad: 1
     activation: leaky
 
-  - type: MaxPool2D
+  - type: maxpool
     size_xy:
         - 2
         - 2
@@ -81,7 +81,7 @@
     pad: 1
     activation: leaky
 
-  - type: MaxPool2D
+  - type: maxpool
     size_xy:
         - 2
         - 2
@@ -98,7 +98,7 @@
     pad: 1
     activation: leaky
 
-  - type: MaxPool2D
+  - type: maxpool
     size_xy:
         - 2
         - 2

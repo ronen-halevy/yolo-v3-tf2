@@ -29,12 +29,11 @@ def resize_image(img, target_height, target_width):
 
 
 def get_anchors(anchors_file):
-    number_of_scale_grids = 3
-    anchors_per_scale_grid = 3
+    nanchors_per_scale = 3
     anchor_entry_size = 2
     anchors_table = loadtxt(anchors_file, dtype=np.float, delimiter=',')
     anchors_table = anchors_table.reshape(
-        number_of_scale_grids, anchors_per_scale_grid, anchor_entry_size)
+        -1, nanchors_per_scale, anchor_entry_size)
     return anchors_table
 
 

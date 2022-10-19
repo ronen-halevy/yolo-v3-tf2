@@ -87,12 +87,13 @@ class ParseModel:
         :return:
         :rtype:
         """
-        stride = int(layer_conf['stride'])
-        size = int(layer_conf['size'])
+        stride_xy = list(map(int, layer_conf['stride_xy']))
+        size_xy = list(map(int, layer_conf['size_xy']))
+        padding = layer_conf['padding']
 
-        x = MaxPooling2D(pool_size=(size, size),
-                         strides=(stride, stride),
-                         padding='same')(x)
+        x = MaxPooling2D(pool_size=size_xy,
+                         strides=stride_xy,
+                         padding=padding)(x)
         layers.append(x)
 
         return x, layers
