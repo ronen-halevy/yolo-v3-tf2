@@ -29,7 +29,7 @@ dataset_config:
 
 
 classes_name_file: datasets/shapes/class.names # datasets/shapes/three_circles/class.names #   datasets/shapes/circle_and_triangle/class.names # 'datasets/shapes/class.names'
-anchors_file: datasets/shapes/anchors/shapes_yolov3_anchors.txt
+anchors_file: datasets/shapes/anchors/shapes_yolov3_anchors_tiny.txt
 max_dataset_examples: null # null or size limit value
 max_bboxes: 100
 
