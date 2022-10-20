@@ -53,7 +53,7 @@ def create_example(image_annotations, sparse_to_dense_category_id, max_bboxes, i
     return padded_example
 
 
-def create_dataset_from_coco_files(images_dir, annotations_path, image_size, max_dataset_examples, max_bboxes=100):
+def create_dataset_from_files(images_dir, annotations_path, image_size, max_dataset_examples, max_bboxes=100):
 
     with open(annotations_path, 'r') as f:
         annotations = json.load(f)

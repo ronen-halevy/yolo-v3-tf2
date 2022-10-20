@@ -11,7 +11,7 @@
 # ================================================================
 import tensorflow as tf
 from core.load_tfrecords import parse_tfrecords
-from core.create_dataset_from_coco_files import create_dataset_from_coco_files
+from core.create_dataset_from_coco_files import create_dataset_from_files
 from core.load_tfrecords import parse_tfrecords
 
 
@@ -33,44 +33,27 @@ def load_debug_dataset(image_size):
     return ds, dataset_size
 
 
-def get_data_from_tfrecords(train_tfrecords, val_tfrecords, image_size, max_bboxes, classes_name_file):
-    dataset = []
-    tfrecords_dir_train = f'{train_tfrecords}'
-    tfrecords_dir_val = f'{val_tfrecords}'
-    for ds_dir in [tfrecords_dir_train, tfrecords_dir_val]:
-        dset = parse_tfrecords(
-            ds_dir, image_size, max_bboxes, classes_name_file)
-        dataset.append(dset)
-    return dataset
-
-
-def create_dataset(dataset_config, image_size, max_dataset_examples):
-    dataset = []
+def create_dataset(dataset_config, image_size, max_bboxes, classes_name_file, max_dataset_examples):
+    dataset = [None] * 2
+    dataset_size = [-1] * 2
     if dataset_config['input_data_source'] == 'tfrecords':
-        dataset = self.get_data_from_tfrecords(dataset_config['tfrecords']['train'],
-                                               dataset_config['tfrecords']['valid'],
-                                               image_size, max_bboxes,
-                                               classes_name_file)
-        dataset_size = [None, None] # unknown for tfrecords
+        for idx, split_name in enumerate(['train', 'valid']):
+            tfrecord = dataset_config['tfrecords'][split_name]
+            dataset[idx] = parse_tfrecords(
+                tfrecord, image_size, max_bboxes, classes_name_file)
+
     elif dataset_config['input_data_source'] == 'coco_format_files':
-        splits_dataset_size = []
-        for ds_split_config in (dataset_config['coco_format_files']['train'],
-                                dataset_config['coco_format_files']['valid']):
-            ds_split, ds_split_size = create_dataset_from_coco_files(ds_split_config['images_dir'],
-                                                                     ds_split_config['annotations'],
-                                                                     image_size,
-                                                                     max_dataset_examples,
-                                                                     max_bboxes=100)
-
-            dataset.append(ds_split)
-            splits_dataset_size.append(ds_split_size)
-            dataset_size = (splits_dataset_size)
-
+        for idx, split_name in enumerate(['train', 'valid']):
+            train_images_dir = dataset_config['coco_format_files'][split_name]['images_dir']
+            annotations = dataset_config['coco_format_files'][split_name]['annotations']
+            dataset[idx], dataset_size[idx] = create_dataset_from_files(train_images_dir,
+                                                                                    annotations,
+                                                                                    image_size,
+                                                                                    max_dataset_examples,
+                                                                                    max_bboxes=100)
 
     else:  # debug_data
-        train_dataset, dataset_size = load_debug_dataset(image_size, min_dataset_size)
-        val_dataset, dataset_size = load_debug_dataset(image_size, min_dataset_size)
-        dataset = [train_dataset, val_dataset]
-        dataset_size = (dataset_size, dataset_size)
+        for idx in range(2):
+            dataset[id], dataset_size[idx] = load_debug_dataset(image_size)
 
     return dataset, dataset_size
