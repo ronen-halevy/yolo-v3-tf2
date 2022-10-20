@@ -11,7 +11,7 @@
 # ================================================================
 import tensorflow as tf
 from core.load_tfrecords import parse_tfrecords
-from core.create_dataset_from_coco_files import create_dataset_from_files
+from core.create_dataset_from_files import create_dataset_from_files
 from core.load_tfrecords import parse_tfrecords
 
 
