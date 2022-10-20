@@ -34,12 +34,12 @@ max_dataset_examples: null # null or size limit value
 max_bboxes: 100
 
 #model_config:
-model_config_file: config/models/yolov3/model.yaml # config/yolov3_model.yaml
+model_config_file: config/models/yolov3_tiny/model.yaml # config/yolov3_model.yaml
 image_size: 416 # preprocess will resize to a square image of this size
 grid_sizes_table:
   - 13
   - 26
-  - 52
+#  - 52
 
 
 training_mode: eager_tf # eager_tf # fit # 'model execution mode. choices=[eager_tf, fit]'
@@ -49,7 +49,7 @@ learning_rate: 0.001
 early_stopping: False # enables early_stopping callback
 early_stop_patience: 13 # an early_stopping callback parameter
 weights_save_peroid: 4
-output_checkpoints_path: checkpoints/yolov3_train.tf # prefix of path checkpoints save
+output_checkpoints_path: checkpoints/output/yolov3_train.tf # prefix of path checkpoints save
 
 
 transfer_learning_config:
