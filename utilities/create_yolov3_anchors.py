@@ -9,6 +9,10 @@
 #   Description :
 #
 # ================================================================
+# TODO - set in descending order!
+import tensorflow as tf
+import yaml
+
 
 import numpy as np
 from sklearn.cluster import KMeans
@@ -17,6 +21,7 @@ import pathlib
 import os
 
 from core.load_tfrecords import parse_tfrecords
+from core.create_dataset_from_files import create_dataset_from_files
 
 
 # def plot_scatter_graph(w_h, kmeans):
@@ -34,16 +39,6 @@ def sort_anchors(anchors):
     return anchors_sorted
 
 
-def arrange_wh_array(labels):
-    w_h_tuples = (labels[..., 2] - labels[..., 0], labels[..., 3] - labels[..., 1])
-    widths = np.expand_dims(w_h_tuples[0], axis=-1)
-    heights = np.expand_dims(w_h_tuples[1], axis=-1)
-    w_h = np.concatenate([widths, heights], axis=-1)
-    mask = np.all(w_h != [0., 0.], axis=-1)
-    w_h = w_h[mask]
-
-
-import tensorflow as tf
 
 
 def arrange_wh_array(labels):
@@ -56,14 +51,14 @@ def arrange_wh_array(labels):
     return w_h
 
 
-def creat_yolo_anchors(dataset):
+def creat_yolo_anchors(dataset, n_clusters):
     w_h = dataset.map(lambda _, labels: (
         arrange_wh_array(labels)
     ))
     w_h = w_h.unbatch()
     # Still, though it hearts...switching to numpy to use sklearn KMeans
     w_h = list(w_h.as_numpy_iterator())
-    kmeans = KMeans(n_clusters=9)
+    kmeans = KMeans(n_clusters=n_clusters)
     kmeans.fit(w_h)
     anchors = kmeans.cluster_centers_
     sorted_anchors = sort_anchors(anchors).astype(np.float32)
@@ -73,37 +68,53 @@ def creat_yolo_anchors(dataset):
 def main():
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("--tfrecords_dir", type=str,
-                        default='datasets/shapes/three_circles/input/tfrecords/train',
-                        help='path to tfrecords files')
-    parser.add_argument("--limit", type=int, default=None,
-                        help='limit on max input examples')
-    parser.add_argument("--classes", type=str,
-                        default='dataset/class.names',
-                        help='path to classes names file needed to annotate plotted objects')
-    parser.add_argument("--max_bboxes", type=int, default=100,
-                        help='max bounding boxes in an example image')
-
-    parser.add_argument("--image_size", type=int, default=416,
-                        help='image_size assumed a square')
-
-    parser.add_argument("--anchors_out_file", type=str, default='datasets/shapes/anchors/shapes_yolov3_anchors.txt',
-                        help='image_size assumed a square')
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--config", type=str, default='create_anchors_config.yaml',
+                        help='yaml config file')
 
     args = parser.parse_args()
-    tfrecords_dir = args.tfrecords_dir
-    max_bboxes = args.max_bboxes
-    image_size = args.image_size
-    anchors_out_file = args.anchors_out_file
+    config_file = args.config
+    with open(config_file, 'r') as stream:
+        config_file = yaml.safe_load(stream)
 
-    dataset = parse_tfrecords(tfrecords_dir, image_size, max_bboxes, class_file=None)
-    anchors = creat_yolo_anchors(dataset)
+
+
+
+    n_clusters = config_file['n_clusters']
+
+    input_data_source = config_file['input_data_source']
+
+
+    # tfrecords_dir = config_file['tfrecords_dir']
+    # limit = config_file['limit']
+
+    # classes = config_file['classes']
+
+    max_bboxes = config_file['max_bboxes']
+    image_size = config_file['image_size']
+    anchors_out_file = config_file['anchors_out_file']
+
+
+    if input_data_source == 'tfrecords':
+        tfrecords_dir = config_file['tfrecords']['tfrecords_dir']
+        dataset = parse_tfrecords(tfrecords_dir, image_size, max_bboxes, class_file=None)
+    elif input_data_source == 'coco_format_files':
+        images_dir = config_file['coco_format_files']['images_dir']
+        annotations_file = config_file['coco_format_files']['annotations']
+        max_dataset_examples = None
+        dataset, _ = create_dataset_from_files(images_dir, annotations_file,
+                                                                    image_size,
+                                                                    max_dataset_examples,
+                                                                    max_bboxes)
+
+
+    anchors = creat_yolo_anchors(dataset, n_clusters)
     head, tail = os.path.split(anchors_out_file)
     pathlib.Path(head).mkdir(parents=True, exist_ok=True)
 
     np.savetxt(anchors_out_file, anchors, delimiter=',', fmt='%10.5f')
     print(f'result anchors:\n{anchors}')
-
+    print(f'anchors_out_file: {anchors_out_file}')
 
 if __name__ == '__main__':
     main()

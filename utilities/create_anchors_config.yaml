@@ -1,0 +1,20 @@
+n_clusters: 6 # number of output clusters. Typically 9 (3x3) in  yolov3
+tfrecords_dir: datasets/shapes/three_circles/input/tfrecords/train # data supported is in tfrecord file format
+
+input_data_source:   tfrecords #   [tfrecords,   coco_format_files]
+tfrecords:
+  tfrecords_dir: ../datasets/shapes/three_mixed_shapes/blue/input/tfrecords/train # /home/ronen/PycharmProjects/create-tfrecords/dataset/tfrecords/train #datasets/shapes/three_circles/input/tfrecords/train #  datasets/shapes/red_circle/input/tfrecords/train # datasets/shapes/circle_and_triangle/input/tfrecords/train
+
+coco_format_files:
+  images_dir: ../datasets/shapes/large_circle/input/dataset/train # datasets/shapes/three_circles/input/images_and_annotations_file/images #datasets/shapes/three_mixed_shapes/red/input/images_and_annotations/images # directory location of input images used in non-tfrecords_keep mode
+  annotations: ../datasets/shapes/large_circle/input/dataset/train/annotations.json # datasets/shapes/three_circles/input/images_and_annotations_file/annotations/annotations.json
+
+
+
+limit: None # limit on max input examples. None means no limit
+classes: dataset/class.names # path to classes names file needed to annotate plotted objects
+max_bboxes: 10 # max bounding boxes in an example image
+image_size: 416 # image_size assumed a square
+anchors_out_file: ../datasets/shapes/anchors/shapes_yolov3_anchors_tiny.txt
+
+
