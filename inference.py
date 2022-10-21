@@ -12,7 +12,7 @@ from core.render_utils import annotate_detections, render_text_annotated_bboxes
 from core.load_tfrecords import parse_tfrecords
 from core.parse_model import ParseModel
 
-from core.yolo_decode_layer import YoloDecoderLayer
+from core.yolo_decode_layer import yolo_decode
 from core.yolo_nms_layer import YoloNmsLayer
 
 
@@ -95,18 +95,21 @@ class Inference:
         output_stage = model_config['output_stage']
         model = parse_model.build_model(inputs, sub_models_configs, output_stage, nclasses=nclasses)
         # for debug:
-        # with open("model_inference_summary.txt", "w") as file1:
-        #     model.summary(print_fn=lambda x: file1.write(x + '\n'))
+        with open("model_inference_summary.txt", "w") as file1:
+            model.summary(print_fn=lambda x: file1.write(x + '\n'))
 
         # Note:.expect_partial() prevents warnings at exit time, since save model generates extra keys.
         model.load_weights(input_weights_path).expect_partial()
         print('weights loaded')
 
-        model = model(inputs)
+        model_output_grids = model(inputs)
 
-        decoded_output = YoloDecoderLayer(nclasses, anchors_table)(model)
+        all_grids_bboxes, all_grids_confidence, all_grids_class_probs = yolo_decode(model_output_grids,
+                                                                                         anchors_table, nclasses)
+
+
         nms_output = YoloNmsLayer(yolo_max_boxes, nms_iou_threshold,
-                                  nms_score_threshold)(decoded_output)
+                                  nms_score_threshold)((all_grids_bboxes, all_grids_confidence, all_grids_class_probs))
         model = Model(inputs, nms_output, name="yolo_nms")
 
         if input_data_source == 'tfrecords':

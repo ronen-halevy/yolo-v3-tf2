@@ -21,7 +21,7 @@ import matplotlib.pyplot as plt
 from core.load_tfrecords import parse_tfrecords
 from core.parse_model import ParseModel
 
-from core.yolo_decode_layer import YoloDecoderLayer
+from core.yolo_decode_layer import decoded_output
 from core.yolo_nms_layer import YoloNmsLayer
 from core.utils import get_anchors, resize_image
 
@@ -108,7 +108,8 @@ def create_model(model_config_file, nclasses, anchors_table, nms_score_threshold
     print('weights loaded')
     model = model(inputs)
 
-    decoded_output = YoloDecoderLayer(nclasses, anchors_table)(model)
+    decoded_output = yolo_decode(model, anchors_table, nclasses) # todo not checked
+
     nms_output = YoloNmsLayer(yolo_max_boxes, nms_iou_threshold,
                               nms_score_threshold)(decoded_output)
 
