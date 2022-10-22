@@ -2,7 +2,7 @@ from tensorflow.keras.layers import Add, BatchNormalization, Concatenate, Conv2D
     Lambda, LeakyReLU, GlobalMaxPooling2D, UpSampling2D, ZeroPadding2D
 from tensorflow.keras.regularizers import l2
 import tensorflow as tf
-from tensorflow.python.keras.layers import MaxPool2D, MaxPooling2D
+from tensorflow.python.keras.layers import MaxPool2D, MaxPooling2D, Reshape, Activation
 from tensorflow.keras import Input, Model
 import yaml
 
@@ -174,14 +174,12 @@ class ParseModel:
 
         ngrids, xy_field, wh_field, obj_field = 3, 2, 2, 1
 
-        x = Lambda(lambda xx: tf.reshape(xx, (-1, tf.shape(xx)[1], tf.shape(xx)[2],
-                                              ngrids,
-                                              nclasses + (xy_field + wh_field + obj_field))))(
-            x)
+        x = Reshape((tf.shape(x)[1], tf.shape(x)[2],
+                                            ngrids, nclasses + (xy_field + wh_field + obj_field)))(x)
         pred_xy, pred_wh, pred_obj, class_probs = Lambda(lambda xx: tf.split(xx, (2, 2, 1, nclasses), axis=-1))(x)
-        pred_xy = Lambda(lambda xx: tf.sigmoid(xx))(pred_xy)
-        pred_obj = Lambda(lambda xx: tf.sigmoid(xx))(pred_obj)
-        class_probs = Lambda(lambda xx: tf.sigmoid(xx))(class_probs)
+        pred_xy = Activation(tf.nn.sigmoid)(pred_xy)
+        pred_obj = Activation(tf.nn.sigmoid)(pred_obj)
+        class_probs = Activation(tf.nn.sigmoid)(class_probs)
         x = Lambda(lambda xx: tf.concat([xx[0], xx[1], xx[2], xx[3]], axis=-1))((pred_xy, pred_wh, pred_obj,
                                                                                  class_probs))
         layers.append(x)
