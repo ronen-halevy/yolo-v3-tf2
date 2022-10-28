@@ -91,7 +91,7 @@ class ParseModel:
         size_xy = list(map(int, layer_conf['size_xy']))
         padding = layer_conf['padding']
 
-        x = MaxPooling2D(pool_size=size_xy,
+        x = tf.keras.layers.MaxPooling2D(pool_size=size_xy,
                          strides=stride_xy,
                          padding=padding)(x)
         layers.append(x)
@@ -180,8 +180,7 @@ class ParseModel:
         pred_xy = Activation(tf.nn.sigmoid)(pred_xy)
         pred_obj = Activation(tf.nn.sigmoid)(pred_obj)
         class_probs = Activation(tf.nn.sigmoid)(class_probs)
-        x = Lambda(lambda xx: tf.concat([xx[0], xx[1], xx[2], xx[3]], axis=-1))((pred_xy, pred_wh, pred_obj,
-                                                                                 class_probs))
+        x = tf.keras.layers.concatenate([pred_xy, pred_wh, pred_obj, class_probs], axis=-1)
         layers.append(x)
         return x, layers
 
