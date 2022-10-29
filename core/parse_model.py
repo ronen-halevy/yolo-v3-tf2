@@ -1,11 +1,13 @@
+import tensorflow.python.keras.layers.core
 from tensorflow.keras.layers import Add, BatchNormalization, Concatenate, Conv2D, \
     Lambda, LeakyReLU, GlobalMaxPooling2D, UpSampling2D, ZeroPadding2D
 from tensorflow.keras.regularizers import l2
 import tensorflow as tf
-from tensorflow.python.keras.layers import MaxPool2D, MaxPooling2D, Reshape, Activation
+# from tensorflow.python.keras.layers import MaxPool2D, MaxPooling2D, Reshape, Activation
 from tensorflow.keras import Input, Model
 import yaml
 
+print(tf.version.VERSION)
 
 class ParseModel:
 
@@ -159,7 +161,7 @@ class ParseModel:
         return x, layers
 
     @staticmethod
-    def _parse_yolo(x, nclasses, layers):
+    def _parse_yolo(x, grid_size, nclasses, layers):
         """
 
         :param x:
@@ -174,13 +176,11 @@ class ParseModel:
 
         ngrids, xy_field, wh_field, obj_field = 3, 2, 2, 1
 
-        x = Reshape((tf.shape(x)[1], tf.shape(x)[2],
+        # x = Reshape((tf.shape(x)[1], tf.shape(x)[2],
+        #                                     ngrids, nclasses + (xy_field + wh_field + obj_field)))(x)
+
+        x = tf.keras.layers.Reshape((grid_size, grid_size,
                                             ngrids, nclasses + (xy_field + wh_field + obj_field)))(x)
-        pred_xy, pred_wh, pred_obj, class_probs = Lambda(lambda xx: tf.split(xx, (2, 2, 1, nclasses), axis=-1))(x)
-        pred_xy = Activation(tf.nn.sigmoid)(pred_xy)
-        pred_obj = Activation(tf.nn.sigmoid)(pred_obj)
-        class_probs = Activation(tf.nn.sigmoid)(class_probs)
-        x = tf.keras.layers.concatenate([pred_xy, pred_wh, pred_obj, class_probs], axis=-1)
         layers.append(x)
         return x, layers
 
@@ -232,7 +232,8 @@ class ParseModel:
                 x, layers = self._parse_shortcut(x, layer_conf, layers)
 
             elif layer_type == 'yolo':
-                x, layers = self._parse_yolo(x, nclasses, layers)
+
+                x, layers = self._parse_yolo(x, layer_conf['grid_size'], nclasses, layers)
 
             elif layer_type == 'route':
                 x, layers = self._parse_route(layer_conf, inputs, layers)

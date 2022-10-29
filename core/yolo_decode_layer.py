@@ -15,6 +15,11 @@ def __arrange_bbox(xy, wh):
 def yolo_decode(model_output_grids, anchors_table, nclasses):
     pred_xy, pred_wh, pred_obj, class_probs = zip(
         *[tf.split(output_grid, (2, 2, 1, nclasses), axis=-1) for output_grid in model_output_grids])
+
+    pred_xy = [tf.keras.activations.sigmoid(pred) for pred in pred_xy]
+    pred_obj = [tf.keras.activations.sigmoid(pred) for pred in pred_obj]
+    class_probs = [tf.keras.activations.sigmoid(probs) for probs in class_probs]
+
     bboxes_in_grids = [__arrange_bbox(xy, tf.exp(wh) * anchors) for xy, wh, anchors in
                        zip(pred_xy, pred_wh, anchors_table)]
 
