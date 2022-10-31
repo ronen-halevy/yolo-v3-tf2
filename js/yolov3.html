@@ -1,0 +1,80 @@
+<html>
+  <head>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-vis"></script>
+  </head>
+  <img id="img" src="data/img_000001.jpg" />
+  <h1>Handwriting Classifier!</h1>
+  <canvas
+    id="canvas"
+    width="280"
+    height="280"
+    style="position: absolute; top: 100; left: 100; border: 8px solid"
+  ></canvas>
+  <img
+    id="canvasimg"
+    style="position:absolute;top:10%;left:52%;width=280;height=280;display:none;"
+  />
+
+  <script>
+    const img = document.getElementById("img");
+
+    async function run() {
+      const MODEL_URL = "http://127.0.0.1:8887/model/model.json";
+      const model = await tf.loadLayersModel(MODEL_URL);
+      console.log(model.summary());
+    }
+    run();
+
+    canvas = document.getElementById("canvas");
+    rawImage = document.getElementById("canvasimg");
+    ctx = canvas.getContext("2d");
+    ctx.fillStyle = "black";
+    ctx.fillRect(0, 0, 280, 280);
+    canvas.addEventListener("mousemove", draw);
+    <!-- canvas.addEventListener("mousedown", setPosition); -->
+    <!-- canvas.addEventListener("mouseenter", setPosition); -->
+    saveButton = document.getElementById("sb");
+    saveButton.addEventListener("click", save);
+    clearButton = document.getElementById("cb");
+    clearButton.addEventListener("click", erase);
+
+    alert("yolo!");
+    function draw(e) {
+      if (e.buttons != 1) return;
+      ctx.beginPath();
+      ctx.lineWidth = 24;
+      ctx.lineCap = "round";
+      ctx.strokeStyle = "white";
+      ctx.moveTo(pos.x, pos.y);
+      setPosition(e);
+      ctx.lineTo(pos.x, pos.y);
+      ctx.stroke();
+      rawImage.src = canvas.toDataURL("image/png");
+    }
+
+    function save() {
+      var raw = tf.browser.fromPixels(rawImage, 1);
+      var resized = tf.image.resizeBilinear(raw, [28, 28]);
+      var tensor = resized.expandDims(0);
+      var prediction = model.predict(tensor);
+      var pIndex = tf.argMax(prediction, 1).dataSync();
+
+      alert(pIndex);
+    }
+  </script>
+
+  <!-- Replace this with your image. Make sure CORS settings allow reading the image! -->
+
+  <!-- Place your code in the script tag below. You can also use an external .js file -->
+  <script>
+    // Notice there is no 'import' statement. 'cocoSsd' and 'tf' is
+    // available on the index-page because of the script tag above.
+
+    // Load the model.
+  </script>
+
+  <body>
+    <strong>YOLOV3</strong>
+  </body>
+</html>
