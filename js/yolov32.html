@@ -1,0 +1,198 @@
+<html>
+  <head>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-vis"></script>
+
+    /
+  </head>
+  <!-- <script type="text/javascript" src="./yolo_decode.js"></script> -->
+
+  <img id="img" src="data/img_000001.jpg" />
+  <img id="littleGant" src="data/img_000001.jpg" />
+
+  <h1>Handwriting Classifier!</h1>
+  <canvas
+    id="canvas"
+    width="280"
+    height="280"
+    style="position: absolute; top: 100; left: 100; border: 8px solid"
+  ></canvas>
+  <img
+    id="canvasimg"
+    style="position:absolute;top:10%;left:52%;width=280;height=280;display:none;"
+  />
+
+  <script>
+    function arrange_bbox(xy, wh) {
+      console.log("arrange_bbox xy", xy);
+      console.log("arrange_bbox wh", wh);
+
+      let grid_size = [xy.shape[1], xy.shape[1]];
+
+      console.log("pre grid_size", grid_size);
+
+      console.log("xx1", grid_size);
+      console.log("xx1", grid_size);
+      vv = tf.range(0, 13, 1).print();
+      let grid = tf.meshgrid(
+        tf.range(0, xy.shape[1], 1),
+        tf.range(0, xy.shape[1], 1)
+      );
+      console.log("000!!!grid", grid);
+      let axis = -1;
+      grid = tf.stack(grid, axis);
+      console.log("--11111!!!grid", grid);
+
+      axis = 2;
+      grid = grid.expandDims(axis);
+      console.log("!!!grid", grid);
+      xx = tf.cast(grid_size, "float32").print();
+      zz = tf.cast(grid, "float32").print();
+      xy = (xy + tf.cast(grid, "float32")) / tf.cast(grid_size, "float32");
+      console.log("xy", xy);
+      console.log("wh", wh);
+
+      xy_min = xy - wh / 2;
+      xy_max = xy + wh / 2;
+
+      axis = -1;
+      console.log("xy_min", xy_min);
+      console.log("xy_max", xy_max);
+
+      bbox = tf.concat([xy_min, xy_max], axis);
+      return bbox;
+    }
+
+    //import { f1 } from "./yolo_decode.js";
+    function yolo_decode(grids_outputs, nclasses) {
+      const anchors = [
+        0.16827, 0.16827, 0.16827, 0.16827, 0.16827, 0.16827, 0.16827, 0.16827,
+        0.16827, 0.16827, 0.16827, 0.16827,
+      ];
+
+      const nanchors_per_scale = 3;
+      const anchor_entry_size = 2;
+      let anchors_table = tf.reshape(anchors, [
+        -1,
+        nanchors_per_scale,
+        anchor_entry_size,
+      ]);
+
+      let pred_xy = [];
+      let pred_wh = [];
+      let pred_obj = [];
+      let class_probs = [];
+      console.log("??grids_outputs", grids_outputs);
+      console.log("??grids_outputs[0]", grids_outputs[0]);
+      console.log("??grids_outputs[1]", grids_outputs[1]);
+
+      let grids_bboxes = [];
+      let grids_confidence = [];
+      let grids_class_probs = [];
+      console.log("000000grids_outputs!!!!!!!!!!!!!!!!!", grids_outputs);
+      for (let idx = 0; idx < grids_outputs.length; idx++) {
+        console.log("grids_outputs!!!!!!!!!!!!!!!!!", grids_outputs);
+        let [xy, wh, obj, class_prob] = tf.split(
+          grids_outputs[idx],
+          [2, 2, 1, nclasses],
+          (axis = -1)
+        );
+        console.log("after split wh", wh);
+        console.log("after split tf.exp(wh)", tf.exp(wh));
+
+        const bboxes_in_grid = arrange_bbox(
+          tf.sigmoid(xy),
+          tf.exp(wh) * anchors_table[idx]
+        );
+        console.log("after boxes");
+
+        grids_bboxes.push(
+          tf.reshape(bboxes_in_grid, [tf.shape(obj)[0], -1, tf.shape(obj)[-1]])
+        );
+        grids_confidence.push(
+          tf.reshape(tf.sigmoid(obj), [tf.shape(obj)[0], -1, tf.shape(obj)[-1]])
+        );
+        grids_class_probs.push(
+          tf.reshape(tf.sigmoid(class_prob), [
+            tf.shape(class_prob)[0],
+            -1,
+            tf.shape(class_prob)[-1],
+          ])
+        );
+
+        //   console.log("preds", preds);
+
+        //  pred_xy.push(tf.sigmoid(xy));
+        // pred_wh.push(tf.exp(wh));
+        //  all_grids_confidence.push(tf.sigmoid(obj));
+        //  class_probs.push(tf.sigmoid(class_prob));
+      }
+
+      // console.log("1", pred_xy);
+      // console.log("2", pred_wh);
+      // console.log("3", pred_obj);
+      // console.log("4", class_probs);
+    }
+
+    const img = document.getElementById("img");
+
+    async function run() {
+      const MODEL_URL = "http://127.0.0.1:8887/model/model.json";
+      const model = await tf.loadLayersModel(MODEL_URL);
+      console.log(model.summary());
+
+      const newSize = [768, 560]; // 4x larger
+      const littleGantImage = document.getElementById("littleGant");
+      const nnCanvas = document.getElementById("nnCanvas");
+      const blCanvas = document.getElementById("blCanvas");
+      const gantTensor = tf.browser.fromPixels(littleGantImage);
+
+      var resized = tf.image.resizeBilinear(gantTensor, [416, 416]);
+      var tensor = resized.expandDims(0);
+      var model_output_grids = await model.predict(tensor);
+      console.log("model_output_grids", model_output_grids);
+      const nclasses = 7;
+
+      await yolo_decode(model_output_grids, nclasses);
+    }
+    run();
+  </script>
+
+  <!-- Replace this with your image. Make sure CORS settings allow reading the image! -->
+
+  <!-- Place your code in the script tag below. You can also use an external .js file -->
+  <script>
+    // Notice there is no 'import' statement. 'cocoSsd' and 'tf' is
+    // available on the index-page because of the script tag above.
+
+    // Load the model.
+  </script>
+
+  <body>
+    <input type="file"
+    name=""/home/ronen/PycharmProjects/yolo-v3-tf2/datasets/shapes/anchors/shapes_yolov3_anchors_tiny.txt"
+    id="inputfile" />
+
+    <strong>YOLOV3</strong>
+    <h1>Resize Image Tensors</h1>
+    <h3>Actual Image</h3>
+    <img id="littleGant" src="data/img_000001.jpg" />
+    <h3>Resize Nearest Neighbor</h3>
+    <div>
+      <canvas id="nnCanvas" />
+    </div>
+    <h3>Resize Bilinear</h3>
+    <div>
+      <canvas id="blCanvas"></canvas>
+    </div>
+  </body>
+
+  <body>
+    <input type="file"
+    name=""/home/ronen/PycharmProjects/yolo-v3-tf2/datasets/shapes/anchors/shapes_yolov3_anchors_tiny.txt"
+    id="inputfile" />
+    <br />
+
+    <pre id="output"></pre>
+  </body>
+</html>
