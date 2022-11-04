@@ -23,7 +23,7 @@
   />
 
   <script>
-    function arrange_bbox(xy, wh) {
+    async function arrange_bbox(xy, wh) {
       console.log("arrange_bbox xy", xy);
       console.log("arrange_bbox wh", wh);
 
@@ -45,26 +45,33 @@
 
       axis = 2;
       grid = grid.expandDims(axis);
-      console.log("!!!grid", grid);
-      xx = tf.cast(grid_size, "float32").print();
-      zz = tf.cast(grid, "float32").print();
-      xy = (xy + tf.cast(grid, "float32")) / tf.cast(grid_size, "float32");
-      console.log("xy", xy);
-      console.log("wh", wh);
+      console.log("!!!grid", tf.cast(grid, "float32"));
+      //gg.print();
+      //xy.print();
 
-      xy_min = xy - wh / 2;
-      xy_max = xy + wh / 2;
+      //xy.print();
+      //     xx = tf.cast(grid_size, "float32").print();
+      //     zz = tf.cast(grid, "float32").print();
+      xy = xy.add(tf.cast(grid, "float32"));
+      xy = xy.div(tf.cast(grid_size, "float32"));
+
+      console.log("xy", xy);
+
+      // console.log("wh", wh);
+
+      xy_min = xy.sub(wh / 2);
+      xy_max = xy.add(wh / 2);
 
       axis = -1;
-      console.log("xy_min", xy_min);
-      console.log("xy_max", xy_max);
+      //  console.log("xy_min", xy_min);
+      //  console.log("xy_max", xy_max);
 
       bbox = tf.concat([xy_min, xy_max], axis);
       return bbox;
     }
 
     //import { f1 } from "./yolo_decode.js";
-    function yolo_decode(grids_outputs, nclasses) {
+    async function yolo_decode(grids_outputs, nclasses) {
       const anchors = [
         0.16827, 0.16827, 0.16827, 0.16827, 0.16827, 0.16827, 0.16827, 0.16827,
         0.16827, 0.16827, 0.16827, 0.16827,
@@ -100,31 +107,36 @@
         console.log("after split wh", wh);
         console.log("after split tf.exp(wh)", tf.exp(wh));
 
-        const bboxes_in_grid = arrange_bbox(
+        const bboxes_in_grid = await arrange_bbox(
           tf.sigmoid(xy),
           tf.exp(wh) * anchors_table[idx]
         );
-        console.log("after boxes");
+        console.log("after boxes obj", obj);
+
+        bb = [bboxes_in_grid.shape[0], -1, bboxes_in_grid.shape[-1]];
+        console.log("bb", bboxes_in_grid.shape);
+        console.log("bb", bboxes_in_grid.shape[0]);
+        console.log("bb", bboxes_in_grid.shape[4]);
 
         grids_bboxes.push(
-          tf.reshape(bboxes_in_grid, [tf.shape(obj)[0], -1, tf.shape(obj)[-1]])
-        );
-        grids_confidence.push(
-          tf.reshape(tf.sigmoid(obj), [tf.shape(obj)[0], -1, tf.shape(obj)[-1]])
-        );
-        grids_class_probs.push(
-          tf.reshape(tf.sigmoid(class_prob), [
-            tf.shape(class_prob)[0],
+          tf.reshape(bboxes_in_grid, [
+            bboxes_in_grid.shape[0],
             -1,
-            tf.shape(class_prob)[-1],
+            bboxes_in_grid.shape[4],
           ])
         );
 
-        //   console.log("preds", preds);
+        grids_confidence.push(
+          tf.reshape(tf.sigmoid(obj), [obj.shape[0], -1, obj.shape[4]])
+        );
+        grids_class_probs.push(
+          tf.reshape(tf.sigmoid(class_prob), [
+            class_prob.shape[0],
+            -1,
+            class_prob.shape[4],
+          ])
+        );
 
-        //  pred_xy.push(tf.sigmoid(xy));
-        // pred_wh.push(tf.exp(wh));
-        //  all_grids_confidence.push(tf.sigmoid(obj));
         //  class_probs.push(tf.sigmoid(class_prob));
       }
 
@@ -132,6 +144,16 @@
       // console.log("2", pred_wh);
       // console.log("3", pred_obj);
       // console.log("4", class_probs);
+      grids_bboxes = tf.concat(grids_bboxes, (axis = 1));
+      grids_confidence = tf.concat(grids_confidence, (axis = 1));
+
+      grids_class_probs = tf.concat(grids_class_probs, (axis = 1));
+
+      console.log("grids_bboxes", grids_bboxes);
+      console.log("grids_confidence", grids_confidence);
+      console.log("grids_class_probs", grids_class_probs);
+
+      return [grids_bboxes, grids_confidence, grids_class_probs];
     }
 
     const img = document.getElementById("img");
@@ -153,8 +175,15 @@
       console.log("model_output_grids", model_output_grids);
       const nclasses = 7;
 
-      await yolo_decode(model_output_grids, nclasses);
+      let xx = await yolo_decode(model_output_grids, nclasses);
+      zz = await xx[0];
+      console.log("!!!!!!!!!!!!!!!!!!xx", xx[0]);
+      console.log("!!!!!!!!!!!!!!!!!!xx", xx[1]);
+      console.log("!!!!!!!!!!!!!!!!!!xx", xx[2]);
     }
+    //zz = tf.ones([2, 3, 4], "float32");
+    //cc = zz.shape[0];
+    //console.log(cc);
     run();
   </script>
 
