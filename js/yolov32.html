@@ -39,6 +39,7 @@
 
       var resized = tf.image.resizeBilinear(gantTensor, [416, 416]);
       var tensor = resized.expandDims(0);
+      tensor = tensor.div(255);
       var model_output_grids = await model.predict(tensor);
       console.log("model_output_grids", model_output_grids);
       const nclasses = 7;
@@ -51,7 +52,7 @@
       let yolo_max_boxes = 100;
       let nms_iou_threshold = 0.5;
       let nms_score_threshold = 0.5;
-      a = await yolo_nms(
+      let a = await yolo_nms(
         outputs[0],
         outputs[1],
         outputs[1],
@@ -59,10 +60,13 @@
         nms_iou_threshold,
         nms_score_threshold
       );
-      console.log(a);
-    }
-    //zz = tf.ones([2, 3, 4], "float32");
-    //cc = zz.shape[0];
+
+      console.log("nms result", a);
+      let bbbox = outputs[0].squeeze();
+      box = bbbox.gather(a).print();
+
+
+
     run();
   </script>
 

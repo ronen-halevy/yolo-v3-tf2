@@ -5,7 +5,6 @@
 
 
 async function arrange_bbox(xy, wh) {
-  console.log("?????????????????????????????????????????????????????????????????????????????")
   console.log("arrange_bbox xy", xy);
   console.log("arrange_bbox wh", wh);
 
@@ -21,7 +20,7 @@ async function arrange_bbox(xy, wh) {
     tf.range(0, xy.shape[1], 1)
   );
   console.log("000!!!grid", grid);
-  let axis = -1;
+  var axis = -1;
   grid = tf.stack(grid, axis);
   console.log("--11111!!!grid", grid);
 
@@ -40,15 +39,23 @@ async function arrange_bbox(xy, wh) {
   console.log("xy", xy);
 
   // console.log("wh", wh);
+  xy.print()
+  let  value1 = tf.scalar(2.);
+  wh = wh.div(value1);
+  wh.print()
+  var xy_min = xy.sub(wh);
+  var xy_max = xy.add(wh);
 
-  xy_min = xy.sub(wh / 2);
-  xy_max = xy.add(wh / 2);
+//   var xy_min = xy.sub(wh / 2);
+//   var xy_max = xy.add(wh / 2);
+  xy_min.print()
+  xy_max.print()
 
-  axis = -1;
   //  console.log("xy_min", xy_min);
   //  console.log("xy_max", xy_max);
 
-  bbox = tf.concat([xy_min, xy_max], axis);
+  var bbox = tf.concat([xy_min, xy_max], -1);
+  bbox.print();
   return bbox;
 }
 
@@ -107,18 +114,23 @@ async function yolo_decode(grids_outputs, nclasses) {
       0.16827, 0.16827, 0.16827, 0.16827,
     ];
 
+ 
+
     const nanchors_per_scale = 3;
     const anchor_entry_size = 2;
     let anchors_table = tf.reshape(anchors, [
-      -1,
+       -1,
       nanchors_per_scale,
       anchor_entry_size,
     ]);
-
     let pred_xy = [];
     let pred_wh = [];
     let pred_obj = [];
     let class_probs = [];
+    // grids_outputs[0].print()
+    grids_outputs[0].min().print()
+    grids_outputs[0].max().print()
+
     console.log("??grids_outputs", grids_outputs);
     console.log("??grids_outputs[0]", grids_outputs[0]);
     console.log("??grids_outputs[1]", grids_outputs[1]);
@@ -134,12 +146,18 @@ async function yolo_decode(grids_outputs, nclasses) {
         [2, 2, 1, nclasses],
         (axis = -1)
       );
+      wh.print();
       console.log("after split wh", wh);
       console.log("after split tf.exp(wh)", tf.exp(wh));
+      var whh = wh.exp();
+      const indices = tf.tensor1d([0], 'int32');
+      console.log(anchors_table);
+      let anchors =  tf.slice(anchors_table, [idx], 1);
+      var wha =whh.mul(anchors).print();
 
       const bboxes_in_grid = await arrange_bbox(
         tf.sigmoid(xy),
-        tf.exp(wh) * anchors_table[idx]
+        wh.exp().mul(anchors)
       );
       console.log("after boxes obj", obj);
 
