@@ -1,4 +1,5 @@
-<html>
+<!DOCTYPE html>>
+<!DOCTYPE html>>
   <head>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-vis"></script>
@@ -8,10 +9,11 @@
     <script type="text/javascript" src="./src/yolo_nms.js"></script>
     <script type="text/javascript" src="./src/draw.js"></script>
   </head>
+  <img id="myimage" src="data/img_000001.jpg" />
+  <img id="littleGant" src="data/img_000001.jpg" />
 
   <body>
     <strong>YOLOV3</strong>
-    <img id="myimage" src=".data/img_000001.jpg" />
     <canvas id="mycanvas" class="canvas" width="300" height="300"></canvas>
     <input id="upload" type="file" accept="image/*" />
 
@@ -27,10 +29,10 @@
 
     //    runFileByUrl(url, canvas);
 
-    //const img = document.getElementById("myimage");
-    //const gantTensor = tf.browser.fromPixels(img);
+    const imgg = document.getElementById("littleGant");
+    //const imgTensor = tf.browser.fromPixels(imgg);
 
-    //let model = load_model();
-    //runInference(img);
+    //   let model = load_model();
+    runInference(imgg);
   </script>
 </html>
