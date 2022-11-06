@@ -115,7 +115,6 @@ async function yolo_decode(grids_outputs, nclasses) {
     ];
 
  
-
     const nanchors_per_scale = 3;
     const anchor_entry_size = 2;
     let anchors_table = tf.reshape(anchors, [
@@ -127,13 +126,7 @@ async function yolo_decode(grids_outputs, nclasses) {
     let pred_wh = [];
     let pred_obj = [];
     let class_probs = [];
-    // grids_outputs[0].print()
-    grids_outputs[0].min().print()
-    grids_outputs[0].max().print()
 
-    console.log("??grids_outputs", grids_outputs);
-    console.log("??grids_outputs[0]", grids_outputs[0]);
-    console.log("??grids_outputs[1]", grids_outputs[1]);
 
     let grids_bboxes = [];
     let grids_confidence = [];
@@ -185,21 +178,12 @@ async function yolo_decode(grids_outputs, nclasses) {
         ])
       );
 
-      //  class_probs.push(tf.sigmoid(class_prob));
     }
 
-    // console.log("1", pred_xy);
-    // console.log("2", pred_wh);
-    // console.log("3", pred_obj);
-    // console.log("4", class_probs);
     grids_bboxes = tf.concat(grids_bboxes, (axis = 1));
     grids_confidence = tf.concat(grids_confidence, (axis = 1));
 
     grids_class_probs = tf.concat(grids_class_probs, (axis = 1));
-
-    console.log("grids_bboxes", grids_bboxes);
-    console.log("grids_confidence", grids_confidence);
-    console.log("grids_class_probs", grids_class_probs);
 
     return [grids_bboxes, grids_confidence, grids_class_probs];
   }

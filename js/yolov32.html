@@ -2,109 +2,35 @@
   <head>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-vis"></script>
-    <script type="text/javascript" src="./yolo_decode.js"></script>
-    <script type="text/javascript" src="./yolo_nms.js"></script>
+    <script type="text/javascript" src="./src/loadModel.js"></script>
+    <script type="text/javascript" src="./src/inference.js"></script>
+    <script type="text/javascript" src="./src/yolo_decode.js"></script>
+    <script type="text/javascript" src="./src/yolo_nms.js"></script>
+    <script type="text/javascript" src="./src/draw.js"></script>
   </head>
 
-  <img id="img" src="data/img_000001.jpg" />
-  <img id="littleGant" src="data/img_000001.jpg" />
-
-  <h1>Handwriting Classifier!</h1>
-  <canvas
-    id="canvas"
-    width="280"
-    height="280"
-    style="position: absolute; top: 100; left: 100; border: 8px solid"
-  ></canvas>
-  <img
-    id="canvasimg"
-    style="position:absolute;top:10%;left:52%;width=280;height=280;display:none;"
-  />
-
-  <script>
-    //import { f1 } from "./yolo_decode.js";
-
-    const img = document.getElementById("img");
-
-    async function run() {
-      const MODEL_URL = "http://127.0.0.1:8887/model/model.json";
-      const model = await tf.loadLayersModel(MODEL_URL);
-      console.log(model.summary());
-
-      const newSize = [768, 560]; // 4x larger
-      const littleGantImage = document.getElementById("littleGant");
-      const nnCanvas = document.getElementById("nnCanvas");
-      const blCanvas = document.getElementById("blCanvas");
-      const gantTensor = tf.browser.fromPixels(littleGantImage);
-
-      var resized = tf.image.resizeBilinear(gantTensor, [416, 416]);
-      var tensor = resized.expandDims(0);
-      tensor = tensor.div(255);
-      var model_output_grids = await model.predict(tensor);
-      console.log("model_output_grids", model_output_grids);
-      const nclasses = 7;
-
-      let outputs = await yolo_decode(model_output_grids, nclasses);
-      zz = await outputs[0];
-      console.log("!!!!!!!!!!!!!!!!!!outputs", outputs[0]);
-      console.log("!!!!!!!!!!!!!!!!!!outputs", outputs[1]);
-      console.log("!!!!!!!!!!!!!!!!!!outputs", outputs[2]);
-      let yolo_max_boxes = 100;
-      let nms_iou_threshold = 0.5;
-      let nms_score_threshold = 0.5;
-      let a = await yolo_nms(
-        outputs[0],
-        outputs[1],
-        outputs[1],
-        yolo_max_boxes,
-        nms_iou_threshold,
-        nms_score_threshold
-      );
-
-      console.log("nms result", a);
-      let bbbox = outputs[0].squeeze();
-      box = bbbox.gather(a).print();
-
-
-
-    run();
-  </script>
-
-  <!-- Replace this with your image. Make sure CORS settings allow reading the image! -->
-
-  <!-- Place your code in the script tag below. You can also use an external .js file -->
-  <script>
-    // Notice there is no 'import' statement. 'cocoSsd' and 'tf' is
-    // available on the index-page because of the script tag above.
-
-    // Load the model.
-  </script>
-
   <body>
-    <input type="file"
-    name=""/home/ronen/PycharmProjects/yolo-v3-tf2/datasets/shapes/anchors/shapes_yolov3_anchors_tiny.txt"
-    id="inputfile" />
-
     <strong>YOLOV3</strong>
-    <h1>Resize Image Tensors</h1>
-    <h3>Actual Image</h3>
-    <img id="littleGant" src="data/img_000001.jpg" />
-    <h3>Resize Nearest Neighbor</h3>
-    <div>
-      <canvas id="nnCanvas" />
-    </div>
-    <h3>Resize Bilinear</h3>
-    <div>
-      <canvas id="blCanvas"></canvas>
-    </div>
+    <img id="myimage" src=".data/img_000001.jpg" />
+    <canvas id="mycanvas" class="canvas" width="300" height="300"></canvas>
+    <input id="upload" type="file" accept="image/*" />
+
+    <h1>Handwriting Classifier!</h1>
   </body>
 
-  <body>
-    <input type="file"
-    name=""/home/ronen/PycharmProjects/yolo-v3-tf2/datasets/shapes/anchors/shapes_yolov3_anchors_tiny.txt"
-    id="inputfile" />
-    <br />
+  <script>
+    const fileInput = document.querySelector("#upload");
 
-    <pre id="output"></pre>
-  </body>
+    addFileEventListener(fileInput);
+    var canvas = document.getElementById("mycanvas");
+    var context = canvas.getContext("2d");
+
+    //    runFileByUrl(url, canvas);
+
+    //const img = document.getElementById("myimage");
+    //const gantTensor = tf.browser.fromPixels(img);
+
+    //let model = load_model();
+    //runInference(img);
+  </script>
 </html>

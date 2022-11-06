@@ -19,10 +19,6 @@ async function yolo_nms(bboxes, confidence, class_probs, yolo_max_boxes, nms_iou
     // nms_result = await tf.image.nonMaxSuppressionPaddedAsync(bboxes, scores, yolo_max_boxes, nms_iou_threshold, nms_score_threshold, pad_to_max_output_size)
     let nms_result = await tf.image.nonMaxSuppressionAsync(bboxes, scores, yolo_max_boxes, nms_iou_threshold, nms_score_threshold)
     nms_result.print()
-    bb = bboxes[nms_result]
-    console.log("bboxes", bboxes)
-    bboxes.print()
-    console.log("bb", bb)
 
 
     return nms_result;
