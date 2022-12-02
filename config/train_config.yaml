@@ -29,12 +29,12 @@ dataset_config:
 
 
 classes_name_file: datasets/shapes/class.names # datasets/shapes/three_circles/class.names #   datasets/shapes/circle_and_triangle/class.names # 'datasets/shapes/class.names'
-anchors_file: datasets/shapes/anchors/shapes_yolov3_anchors_tiny.txt # datasets/shapes/anchors/shapes_yolov3_anchors.txt #
+anchors_file: datasets/shapes/anchors/shapes_yolov3_anchors.txt #datasets/shapes/anchors/shapes_yolov3_anchors_tiny.txt # datasets/shapes/anchors/shapes_yolov3_anchors.txt #
 max_dataset_examples: null # null or size limit value
 max_bboxes: 100
 
 #model_config:
-model_config_file: config/models/yolov3_tiny/model.yaml # config/models/yolov3/model.yaml # config/models/yolov3/model.yaml
+model_config_file: config/models/yolov3/model.yaml #config/models/yolov3_tiny/model.yaml # config/models/yolov3/model.yaml # config/models/yolov3/model.yaml
 image_size: 416 # preprocess will resize to a square image of this size
 
 
