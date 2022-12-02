@@ -11,7 +11,7 @@
       size: 3
       stride: 1
       pad: 1
-      filters: 512
+      filters: 256
       activation: leaky
 
 
