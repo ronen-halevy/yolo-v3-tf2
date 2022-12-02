@@ -106,7 +106,6 @@ class Train:
     def __call__(self,
                  model_config_file,
                  image_size,
-                 grid_sizes_table,
                  batch_size,
                  max_bboxes,
                  debug_mode,
@@ -149,6 +148,7 @@ class Train:
         sub_models_configs = model_config['sub_models_configs']
         output_stage = model_config['output_stage']
         decay_factor = model_config['decay_factor']
+        grid_sizes = model_config['grid_sizes']
         model = parse_model.build_model(inputs, sub_models_configs, output_stage, decay_factor, nclasses)
 
         with open("model_summary.txt", "w") as file1:
@@ -175,15 +175,15 @@ class Train:
             raise ValueError('Dataset size less than batch size!')
 
         preprocess_dataset = PreprocessDataset()
-        grid_sizes_table = np.array(grid_sizes_table)
+        grid_sizes = np.array(grid_sizes)
         ds_train, ds_val = dataset
         if debug_mode:
             preprocess_dataset.preprocess_dataset_debug(ds_train, batch_size, image_size, anchors_table,
-                                                        grid_sizes_table,
+                                                        grid_sizes,
                                                         max_bboxes)
         ds_preprocessed = []
         for ds_split in [ds_train, ds_val]:
-            data = preprocess_dataset(ds_split, batch_size, image_size, anchors_table, grid_sizes_table,
+            data = preprocess_dataset(ds_split, batch_size, image_size, anchors_table, grid_sizes,
                                       max_bboxes)
             ds_preprocessed.append(data)
 

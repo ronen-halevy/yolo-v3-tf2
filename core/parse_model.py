@@ -185,7 +185,7 @@ class ParseModel:
         return x, layers
 
     @staticmethod
-    def create_sub_model_inputs(inputs_config, sub_models_outputs_list, models_name):
+    def extract_inputs(inputs_config, sub_models_list, models_name):
         if 'shape' in inputs_config:
             inputs = Input(eval(inputs_config['shape']))
             data_inputs = inputs
@@ -194,11 +194,11 @@ class ParseModel:
             data_inputs = []
             for idx, source_entry in enumerate(inputs_config['source']):
                 selected_sourcing_sub_model = list(
-                    filter(lambda x: x['name'] == source_entry['name'], sub_models_outputs_list))
+                    filter(lambda x: x['name'] == source_entry['name'], sub_models_list))
                 selected_sourcing_sub_model = selected_sourcing_sub_model[0]  # a single selected model - name is unique
                 if not len(selected_sourcing_sub_model):
                     raise Exception(f'Error: sub-model {source_entry["name"]} not found')
-                selected_sourcing_output = selected_sourcing_sub_model['outputs']
+                selected_sourcing_output = selected_sourcing_sub_model['sub_model']
 
                 source_entry_index = source_entry.get('entry_index', 0)
                 if isinstance(selected_sourcing_output, list):
@@ -259,29 +259,31 @@ class ParseModel:
         :rtype:  lists
         """
 
-        sub_models_outputs_list = []
+        sub_models_list = []
 
         for sub_model_config in sub_models_configs:
+            # inputs_config is not specified for edge-input submodel, so use model_inputs,
+            # Otherwise input points on peer submodel's output
             inputs_config = sub_model_config.get('inputs')
             if inputs_config:
                 # locate peers' output according to configuration
-                sub_model_inputs, sub_model_data_inputs = self.create_sub_model_inputs(inputs_config, sub_models_outputs_list,
+                sub_model_inputs, sub_model_data_inputs = self.extract_inputs(inputs_config, sub_models_list,
                                                          sub_model_config['name'])
             else:  # peerles bottom model (leftmost) uses model_inputs
                 sub_model_inputs = sub_model_data_inputs = model_inputs
 
             sub_model_layers = self.create_sub_model_layers(sub_model_config['layers_config_file'], sub_model_inputs, nclasses, decay_factor)
-
+            #  outputs_layers config entity points to submodel's layers to be exposed as exither input to submodels
+            #  which follow, or as model's output
             sub_model_outputs = [sub_model_layers[int(layer)] for layer in sub_model_config['outputs_layers']]
-            sub_model_outputs = sub_model_outputs[0] if len(sub_model_outputs) == 0 else sub_model_outputs
 
             model = Model(sub_model_inputs, sub_model_outputs, name=sub_model_config['name'])(sub_model_data_inputs)
-            sub_models_outputs_list.append({'outputs': model, 'name': sub_model_config['name']})
+            sub_models_list.append({'sub_model': model, 'name': sub_model_config['name']})
 
-        model_outputs = [sub_model_entry['outputs'] for sub_model_entry in sub_models_outputs_list if
+        output_edge_sub_models = [sub_model_entry['sub_model'] for sub_model_entry in sub_models_list if
                    output_stage in sub_model_entry['name']]
 
-        model = Model(model_inputs, model_outputs, name="yolo")
+        model = Model(model_inputs, output_edge_sub_models, name="yolo")
         return model
 
     def create_model(self, nclasses, model_config_file):

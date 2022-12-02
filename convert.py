@@ -10,6 +10,9 @@ from core.parse_model import ParseModel
 class Convert:
 
     @staticmethod
+    # The next layer is the one which points to current layer in its 'input' configuration entry.
+    # So loop on model (or sub_models) layer. Skipping 'input' layer which is definetly not the next, if a layer is
+    # sourced by a listof inputs - loop on the list to find a match. If a single input - just check for a match
     def find_next_layer(model, layer_name):
         for layer_index, layer in enumerate(model.layers):
             if 'input' in layer.name:  # input is the first layer, so never the next
@@ -29,29 +32,37 @@ class Convert:
 
         return None
 
-    def load_conv_layer(self, model, layer, wf):
-        print(layer.name)
+
+    def set_conv_layer_weights(self, model, layer, weights_file_ref):
+        # check if next layer is a batch_normalization.
+        # If so, then load 4 words for each filter's bn then filters' wheights. Otherwise load filters' wheights
+        # followed by filters' b byand then the  followed by  first.  , no bias-(according to file format..)
+
         bn = False
         next_layer = self.find_next_layer(model, layer.name)
 
         filters = layer.filters
         size = layer.kernel_size[0]
         in_dim = layer.get_input_shape_at(0)[-1]
-
         if next_layer and next_layer.name.startswith('batch_norm'):
-            print(next_layer.name)
 
             bn = True
             bn_weights = np.fromfile(
-                wf, dtype=np.float32, count=4 * filters)
+                weights_file_ref, dtype=np.float32, count=4 * filters)
             # tf [gamma, beta, mean, variance]
             bn_weights = bn_weights.reshape((4, filters))[[1, 0, 2, 3]]
+        # if no bn: read bias and then weights
         else:
-            conv_bias = np.fromfile(wf, dtype=np.float32, count=filters)
+            conv_bias = np.fromfile(weights_file_ref, dtype=np.float32, count=filters)
 
         conv_shape = (filters, in_dim, size, size)
+        print(f'reading: {np.product(conv_shape)}')
+        print(f'conv_shape: {conv_shape}')
+
         conv_weights = np.fromfile(
-            wf, dtype=np.float32, count=np.product(conv_shape))
+            weights_file_ref, dtype=np.float32, count=np.product(conv_shape))
+        print(f'actual reading: {conv_weights.shape}')
+
         conv_weights = conv_weights.reshape(
             conv_shape).transpose([2, 3, 1, 0])
 
@@ -61,41 +72,60 @@ class Convert:
         else:
             layer.set_weights([conv_weights, conv_bias])
 
-    def load_sub_model_layers(self, model, wf):
+    def set_weights_to_sub_model_layers(self, sub_model, weights_file_ref):
         count = 0
-        for idx in range(len(model.layers)):
-            if 'conv2d' in model.layers[idx].name:
-                self.load_conv_layer(model, model.layers[idx], wf)
+        for idx in range(len(sub_model.layers)):
+            # Assumed  conv layer hame includes 'conv2d' :
+            if 'conv2d' in sub_model.layers[idx].name:
+                self.set_conv_layer_weights(sub_model, sub_model.layers[idx], weights_file_ref)
                 count = count + 1
         return count
 
-    def load_sub_model(self, sub_model, next_conv_layer_name, wf):
+    def load_sub_model(self, sub_model, next_conv_layer_name, weights_file_ref):
         conv_layers_count = 0
         for jdx in range(len(sub_model.layers)):
             if next_conv_layer_name == sub_model.layers[jdx].name:
-                conv_layers_count = self.load_sub_model_layers(sub_model, wf)
-                print(f'Sub-model name: {sub_model.name}, Conv Layers Loaded: {conv_layers_count}')
+                conv_layers_count = self.set_weights_to_sub_model_layers(sub_model, weights_file_ref)
                 break
         return conv_layers_count
 
-    def load_darknet_weights(self, model, weights_file):
-        wf = open(weights_file, 'rb')
-        major, minor, revision, seen, _ = np.fromfile(wf, dtype=np.int32, count=5)
+    def load_all_weights(self, model, weights_file_name):
+        weights_file_ref = open(weights_file_name, 'rb')
+        major, minor, revision, seen, _ = np.fromfile(weights_file_ref, dtype=np.int32, count=5)
         search_conv_layers = True
+        # first conv layer assumed, and then  conv2d_{index} where index 1: count
         next_conv_layer_name = 'conv2d'
 
         next_index = 0
+        # Loop on model's layers. Each layer may either be a sub_model with a list of layers or a single layer.
+        # Goal is to load wheights to conv layers. The model's first conv layer is named 'conv2d', and rest of conv
+        # layers  are numbered i.e. 'conv2d_1', 'conv2d_2' etc. Weights should be loaded consecutively. Sub models list
+        # is not necessarily arranged in this order. So the loop looks for a match with next_conv_layer_name, loads
+        # weights, breaks the for loop, which will next restart.
+        # Example: Submodels arrangement: [[conv2d, conv2d_1], [conv2d_5], [conv2d_2, conv2d_3, conv2d_4]] then:
+        # next_conv_layer_name initialized to 'conv2d'.  Loop will match with first entry, set wheights to conv2d,
+        # set next_conv_layer_name= 'conv2d_2' and break. While-ing to the for-loop again will hit 3rd entry, load
+        # weights to conv2d_2, conv2d_3, conv2d_4, set next_conv_layer_name= 'conv2d_5' and break.  While-ing to
+        # for-loop, the second list entry is hitted, set weights to conv2d_5. Whiling again, find no hit, setting
+        # next_conv_layer_name=0, while loop let go.
         while (search_conv_layers == True):
             conv_layers_count = 0
+             # Loop on sub-models, each holds a list of layers:
             for idx in range(len(model.layers)):
                 if hasattr(model.layers[idx], 'layers'):
-                    conv_layers_count = self.load_sub_model(model.layers[idx], next_conv_layer_name, wf)
+                    # Load sub model's layer. returns num of conv layers in sub model
+                    conv_layers_count = self.load_sub_model(model.layers[idx], next_conv_layer_name, weights_file_ref)
                     if conv_layers_count:
+                        print(f'model.layers[idx].name: {model.layers[idx].name} Layers in Sub model: '
+                              f'{len(model.layers[idx].layers)} Conv Layers: {conv_layers_count}')
+
                         next_index += conv_layers_count
                         next_conv_layer_name = f'conv2d_{next_index}'
                         break
+                # elif corresponds to potentially layers configured not within a submodel of layer but descrertly
+                # (if a conv layer - set weights:)
                 elif model.layers[idx].name == next_conv_layer_name:
-                    self.load_conv_layer(model, model.layers[idx], wf)
+                    self.set_conv_layer_weights(model, model.layers[idx], weights_file_ref)
                     conv_layers_count = 1
                     next_index += conv_layers_count
                     next_conv_layer_name = f'conv2d_{next_index}'
@@ -103,7 +133,6 @@ class Convert:
                     break
             if conv_layers_count == 0:
                 search_conv_layers = False
-
         return model
 
 
@@ -118,7 +147,7 @@ def main():
         convert_config = yaml.safe_load(stream)
 
     nclasses = convert_config['num_classes']
-    weights_file = convert_config['weights_file']
+    weights_file_name = convert_config['weights_file']
     output_weights_file = convert_config['output_weights_file']
     model_config_file = convert_config['model_config_file']
 
@@ -131,8 +160,8 @@ def main():
     # model = parse_model.build_model(inputs, sub_models_configs, output_stage, decay_factor, nclasses)
 
     convert = Convert()
-    model = convert.load_darknet_weights(model, weights_file)
-    img = np.random.random((1, 320, 320, 3)).astype(np.float32)
+    model = convert.load_all_weights(model, weights_file_name)
+    img = np.random.random((1, 416, 416, 3)).astype(np.float32)
     _ = model(img)
     print('sanity check passed')
     model.save_weights(output_weights_file)
