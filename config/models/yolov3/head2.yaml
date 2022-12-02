@@ -22,5 +22,6 @@
       filters:  3*(2+2+1+nclasses) # ngrids*(xy_field+wh_field+obj_field+nclasses)
       activation: linear
     - type: yolo
+      grid_size: 52
       jitter: .3
 

@@ -1,6 +1,10 @@
 ---
 decay_factor: 0.0005
 output_stage: head
+grid_sizes:
+  - 13
+  - 26
+  - 52
 
 sub_models_configs:
 - name: backbone
