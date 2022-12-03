@@ -159,7 +159,7 @@ class ParseModel:
         return x, layers
 
     @staticmethod
-    def _parse_yolo(x, nclasses, layers):
+    def _parse_yolo(x, grid_size, nclasses, layers):
         """
 
         :param x:
@@ -174,16 +174,40 @@ class ParseModel:
 
         ngrids, xy_field, wh_field, obj_field = 3, 2, 2, 1
 
-        x = Lambda(lambda xx: tf.reshape(xx, (-1, tf.shape(xx)[1], tf.shape(xx)[2],
-                                              ngrids,
-                                              nclasses + (xy_field + wh_field + obj_field))))(
-            x)
-        pred_xy, pred_wh, pred_obj, class_probs = Lambda(lambda xx: tf.split(xx, (2, 2, 1, nclasses), axis=-1))(x)
-        pred_xy = Lambda(lambda xx: tf.sigmoid(xx))(pred_xy)
-        pred_obj = Lambda(lambda xx: tf.sigmoid(xx))(pred_obj)
-        class_probs = Lambda(lambda xx: tf.sigmoid(xx))(class_probs)
-        x = Lambda(lambda xx: tf.concat([xx[0], xx[1], xx[2], xx[3]], axis=-1))((pred_xy, pred_wh, pred_obj,
-                                                                                 class_probs))
+        # # x = Lambda(lambda xx: tf.reshape(xx, (-1, tf.shape(xx)[1], tf.shape(xx)[2],
+        # #                                       ngrids,
+        # #                                       nclasses + (xy_field + wh_field + obj_field))))(
+        # #     x)
+        # x = tf.keras.layers.Reshape((grid_size, grid_size,
+        #                              ngrids, nclasses + (xy_field + wh_field + obj_field)))(x)
+        #
+        # # pred_xy, pred_wh, pred_obj, class_probs = Lambda(lambda xx: tf.split(xx, (2, 2, 1, nclasses), axis=-1))(x)
+        # pred_xy, pred_wh, pred_obj, class_probs = tf.split(x, (2, 2, 1, nclasses), axis=-1)
+        #
+        #
+        # # pred_xy = Lambda(lambda xx: tf.sigmoid(xx))(pred_xy)
+        # # pred_obj = Lambda(lambda xx: tf.sigmoid(xx))(pred_obj)
+        # # class_probs = Lambda(lambda xx: tf.sigmoid(xx))(class_probs)
+        #
+        # # x = Lambda(lambda xx: tf.concat([xx[0], xx[1], xx[2], xx[3]], axis=-1))((pred_xy, pred_wh, pred_obj,
+        # #                                                                          class_probs))
+        # # new:
+        # pred_xy = tf.keras.activations.sigmoid(pred_xy)
+        # pred_obj = tf.keras.activations.sigmoid(pred_obj)
+        # class_probs = tf.keras.activations.sigmoid(class_probs)
+        #
+        # x = tf.keras.layers.concatenate(
+        #     [pred_xy, pred_wh, pred_obj,
+        #     class_probs], axis=-1
+        # )
+        #
+
+
+
+
+        x = tf.keras.layers.Reshape((grid_size, grid_size,
+                                     ngrids, nclasses + (xy_field + wh_field + obj_field)))(x)
+
         layers.append(x)
         return x, layers
 
@@ -235,7 +259,7 @@ class ParseModel:
                 x, layers = self._parse_shortcut(x, layer_conf, layers)
 
             elif layer_type == 'yolo':
-                x, layers = self._parse_yolo(x, nclasses, layers)
+                x, layers = self._parse_yolo(x, layer_conf['grid_size'], nclasses, layers)
 
             elif layer_type == 'route':
                 x, layers = self._parse_route(layer_conf, inputs, layers)

@@ -21,9 +21,9 @@ def get_loss_func(anchors, nclasses, eager_mode=True):
         pred_xy, pred_wh, pred_obj, pred_class = tf.split(
             y_pred, (2, 2, 1, nclasses), axis=-1)
 
-        # pred_xy = tf.sigmoid(pred_xy)
-        # pred_obj = tf.sigmoid(pred_obj)
-        # pred_class = tf.sigmoid(pred_class)
+        pred_xy = tf.sigmoid(pred_xy)
+        pred_obj = tf.sigmoid(pred_obj)
+        pred_class = tf.sigmoid(pred_class)
 
         true_box, true_obj, true_class_idx = tf.split(
             y_true, (4, 1, 1), axis=-1)

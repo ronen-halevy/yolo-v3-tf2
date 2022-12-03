@@ -133,12 +133,12 @@ class Train:
         anchors_table = get_anchors(anchors_file)
         nclasses = count_file_lines(classes_name_file)
 
-        if render_dataset_example:
-            x_train, bboxes = next(iter(train_ds))
-            bboxes = bboxes[..., 0:4]
-            image = render_bboxes(x_train[tf.newaxis, ...], bboxes[tf.newaxis, ...], colors=[(255, 255, 255)])
-            plt.imshow(image[0])
-            plt.show()
+        # if render_dataset_example:
+        #     x_train, bboxes = next(iter(train_ds))
+        #     bboxes = bboxes[..., 0:4]
+        #     image = render_bboxes(x_train[tf.newaxis, ...], bboxes[tf.newaxis, ...], colors=[(255, 255, 255)])
+        #     plt.imshow(image[0])
+        #     plt.show()
 
         with open(model_config_file, 'r') as _stream:
             model_config = yaml.safe_load(_stream)
@@ -150,7 +150,10 @@ class Train:
         decay_factor = model_config['decay_factor']
         grid_sizes = model_config['grid_sizes']
         model = parse_model.build_model(inputs, sub_models_configs, output_stage, decay_factor, nclasses)
-
+        ## ronen:
+        # model.load_weights(output_checkpoints_path).expect_partial()
+        # model.save("/tmp/saved_modeln")
+# ##
         with open("model_summary.txt", "w") as file1:
             model.summary(print_fn=lambda x: file1.write(x + '\n'))
 
