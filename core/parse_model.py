@@ -1,13 +1,11 @@
-import tensorflow.python.keras.layers.core
 from tensorflow.keras.layers import Add, BatchNormalization, Concatenate, Conv2D, \
     Lambda, LeakyReLU, GlobalMaxPooling2D, UpSampling2D, ZeroPadding2D
 from tensorflow.keras.regularizers import l2
 import tensorflow as tf
-# from tensorflow.python.keras.layers import MaxPool2D, MaxPooling2D, Reshape, Activation
+from tensorflow.python.keras.layers import MaxPool2D, MaxPooling2D
 from tensorflow.keras import Input, Model
 import yaml
 
-print(tf.version.VERSION)
 
 class ParseModel:
 
@@ -161,7 +159,7 @@ class ParseModel:
         return x, layers
 
     @staticmethod
-    def _parse_yolo(x, grid_size, nclasses, layers):
+    def _parse_yolo(x, nclasses, layers):
         """
 
         :param x:
@@ -176,16 +174,21 @@ class ParseModel:
 
         ngrids, xy_field, wh_field, obj_field = 3, 2, 2, 1
 
-        # x = Reshape((tf.shape(x)[1], tf.shape(x)[2],
-        #                                     ngrids, nclasses + (xy_field + wh_field + obj_field)))(x)
-
-        x = tf.keras.layers.Reshape((grid_size, grid_size,
-                                            ngrids, nclasses + (xy_field + wh_field + obj_field)))(x)
+        x = Lambda(lambda xx: tf.reshape(xx, (-1, tf.shape(xx)[1], tf.shape(xx)[2],
+                                              ngrids,
+                                              nclasses + (xy_field + wh_field + obj_field))))(
+            x)
+        pred_xy, pred_wh, pred_obj, class_probs = Lambda(lambda xx: tf.split(xx, (2, 2, 1, nclasses), axis=-1))(x)
+        pred_xy = Lambda(lambda xx: tf.sigmoid(xx))(pred_xy)
+        pred_obj = Lambda(lambda xx: tf.sigmoid(xx))(pred_obj)
+        class_probs = Lambda(lambda xx: tf.sigmoid(xx))(class_probs)
+        x = Lambda(lambda xx: tf.concat([xx[0], xx[1], xx[2], xx[3]], axis=-1))((pred_xy, pred_wh, pred_obj,
+                                                                                 class_probs))
         layers.append(x)
         return x, layers
 
     @staticmethod
-    def extract_inputs(inputs_config, sub_models_list, models_name):
+    def create_sub_model_inputs(inputs_config, sub_models_list, models_name):
         if 'shape' in inputs_config:
             inputs = Input(eval(inputs_config['shape']))
             data_inputs = inputs
@@ -232,8 +235,7 @@ class ParseModel:
                 x, layers = self._parse_shortcut(x, layer_conf, layers)
 
             elif layer_type == 'yolo':
-
-                x, layers = self._parse_yolo(x, layer_conf['grid_size'], nclasses, layers)
+                x, layers = self._parse_yolo(x, nclasses, layers)
 
             elif layer_type == 'route':
                 x, layers = self._parse_route(layer_conf, inputs, layers)
@@ -262,20 +264,18 @@ class ParseModel:
         sub_models_list = []
 
         for sub_model_config in sub_models_configs:
-            # inputs_config is not specified for edge-input submodel, so use model_inputs,
-            # Otherwise input points on peer submodel's output
             inputs_config = sub_model_config.get('inputs')
             if inputs_config:
                 # locate peers' output according to configuration
-                sub_model_inputs, sub_model_data_inputs = self.extract_inputs(inputs_config, sub_models_list,
+                sub_model_inputs, sub_model_data_inputs = self.create_sub_model_inputs(inputs_config, sub_models_list,
                                                          sub_model_config['name'])
             else:  # peerles bottom model (leftmost) uses model_inputs
                 sub_model_inputs = sub_model_data_inputs = model_inputs
 
             sub_model_layers = self.create_sub_model_layers(sub_model_config['layers_config_file'], sub_model_inputs, nclasses, decay_factor)
-            #  outputs_layers config entity points to submodel's layers to be exposed as exither input to submodels
-            #  which follow, or as model's output
+
             sub_model_outputs = [sub_model_layers[int(layer)] for layer in sub_model_config['outputs_layers']]
+            sub_model_outputs = sub_model_outputs[0] if len(sub_model_outputs) == 0 else sub_model_outputs
 
             model = Model(sub_model_inputs, sub_model_outputs, name=sub_model_config['name'])(sub_model_data_inputs)
             sub_models_list.append({'sub_model': model, 'name': sub_model_config['name']})
