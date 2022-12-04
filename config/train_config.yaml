@@ -43,7 +43,7 @@ image_size: 416 # preprocess will resize to a square image of this size
 
 training_mode: eager_tf # eager_tf # fit # 'model execution mode. choices=[eager_tf, fit]'
 batch_size: 1
-epochs: 1000
+epochs: 100000
 learning_rate: 0.001
 early_stopping: False # enables early_stopping callback
 early_stop_patience: 13 # an early_stopping callback parameter
