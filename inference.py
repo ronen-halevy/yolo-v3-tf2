@@ -64,10 +64,10 @@ class Inference:
                  yolo_max_boxes,
                  nms_iou_threshold,
                  nms_score_threshold,
-                 display_result_images,
-                 save_result_images,
                  bbox_color,
-                 font_size
+                 font_size,
+                 display_result_images=None,
+                 save_model_path=None
                  ):
 
         if not os.path.exists(output_dir):
@@ -101,6 +101,10 @@ class Inference:
         # Note:.expect_partial() prevents warnings at exit time, since save model generates extra keys.
         model.load_weights(input_weights_path).expect_partial()
         print('weights loaded')
+
+        if save_model_path:
+            print(f'Saving weights loaded model to {save_model_path}: (configurable)')
+            model.save(save_model_path)
 
         model_output_grids = model(inputs)
 

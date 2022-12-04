@@ -4,22 +4,22 @@ model_config_file: config/models/yolov3_tiny/model.yaml # config/models/yolov3/m
 image_size: 416 # preprocess will resize to a square image of this size
 #max_detection_images: 25
 #inference_input_data:
-input_data_source:  image_file # [tfrecords, images_dir, image_file]
-images_dir: datasets/shapes/three_circles/input/images_and_annotations_file/images #  datasets/shapes/circle_and_triangle/input/images_and_annotations_file/images # datasets/shapes/three_mixed_shapes/blue/input/images_and_annotations_file/images
-image_file_path: datasets/shapes/large_circle/input/dataset/train/img_000001.jpg # datasets/shapes/circle_and_triangle/input/images_and_annotations_file/images/000001.jpg
+input_data_source:  images_dir # [tfrecords, images_dir, image_file]
+images_dir: datasets/shapes/large_circle/input/dataset/train # datasets/shapes/three_circles/input/images_and_annotations_file/images #  datasets/shapes/circle_and_triangle/input/images_and_annotations_file/images # datasets/shapes/three_mixed_shapes/blue/input/images_and_annotations_file/images
+image_file_path: datasets/shapes/circle_and_triangle/input/images_and_annotations_file/images/000001.jpg
   # datasets/shapes/colors_circles_triangles_trapezoid_2sizes/input/tfrecords/test
 tfrecords_dir: datasets/shapes/three_circles/input/tfrecords/train # datasets/shapes/three_circles/input/tfrecords/test #  # datasets/shapes/three_mixed_shapes/red/input/tfrecords/test  datasets/shapes/three_mixed_shapes/red/input/tfrecords/test
 classes_name_file: datasets/shapes/class.names  # datasets/shapes/new_test2/input/tfrecords/class.names #datasets/shapes/new_test2/input/class.names # datasets/shapes/three_circles/class.names #datasets/shapes/two_colors/class.names  #./datasets/shapes/class.names
-anchors_file:   datasets/shapes/anchors/shapes_yolov3_anchors_tiny.txt # datasets/shapes/anchors/shapes_yolov3_anchors.txt
+anchors_file: datasets/shapes/anchors/shapes_yolov3_anchors_tiny.txt
 batch_size: 8 # currentrly for tfrecords data only
 #infrece_nms_params:
 yolo_max_boxes: 100
-nms_iou_threshold: 0.01
-nms_score_threshold: 0.25
+nms_iou_threshold: 0.5
+nms_score_threshold: 0.1
 
 #inference_output_params:
 display_result_images: True
-save_result_images: True
+
 bbox_color:
   - 1.
   - 1.
@@ -28,9 +28,12 @@ font_size: 15
 output_dir: datasets/shapes/three_circles/output # datasets/shapes/three_mixed_shapes/blue/output
 
 #inference_input:
-input_weights_path: checkpoints/large-red-circle/yolov3_train_tiny.tf # checkpoints/output/yolov3_train_tiny.tf # checkpoints/output/yolov3_train_tiny.tf # checkpoints/output/yolov3_train.tf # datasets/shapes/two_colors/output/weights/yolov3_train3colors500epocs.tf #  #  weights/rb_circles/yolov3_train_rb_circles4.tf
+input_weights_path: checkpoints/large-red-circle/yolov3_train_tiny.tf # checkpoints/yolov3_train_circle_and_triangle.tf # datasets/shapes/two_colors/output/weights/yolov3_train3colors500epocs.tf #  #  weights/rb_circles/yolov3_train_rb_circles4.tf
+# Saving weights loaded model:
+save_model_path: /tmp/saved_modeln # null
 #datasets/shapes/two_colors/input/tfrecords/test
 #datasets/shapes/colors_circles_triangles/input/tfrecords/test
 # datasets/shapes/colors_circles_triangles_trapezoid_2sizes/input/tfrecords/test
 # datasets/shapes/two_colors/input/tfrecords/test
 # datasets/shapes/three_mixed_shapes/blue/input/tfrecords/test
+
