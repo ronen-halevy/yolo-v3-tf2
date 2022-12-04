@@ -112,6 +112,7 @@ class ParseModel:
         :rtype:
         """
         selected_layers = []
+        # route source can be 'inputs' and layers. arrange all. Concatenate input sources if there are more than a single source
         if 'layers' in layer_conf['source']:
             selected_layers = [layers[int(layer)] for layer in layer_conf['source']['layers']]
 
