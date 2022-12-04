@@ -43,6 +43,7 @@ sub_models_configs:
       entry_index: 0
   layers_config_file: config/models/yolov3_tiny/neck1.yaml
   outputs_layers:
+  - -2
   - -1
 
 

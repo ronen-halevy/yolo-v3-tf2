@@ -23,3 +23,11 @@
         - -1
         inputs:
         - 0
+
+    - type: convolutional
+      batch_normalize: 1
+      size: 3
+      stride: 1
+      pad: 1
+      filters: 256
+      activation: leaky

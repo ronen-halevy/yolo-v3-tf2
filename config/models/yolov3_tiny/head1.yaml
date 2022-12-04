@@ -6,13 +6,6 @@
         inputs:
         - 0 # btw - if inputs source holds a scalar and not a list, then inputs value is actually 'don't care'
 
-    - type: convolutional
-      batch_normalize: 1
-      size: 3
-      stride: 1
-      pad: 1
-      filters: 256
-      activation: leaky
 
 
     - type: convolutional
