@@ -214,7 +214,9 @@ class ParseModel:
 
     @staticmethod
     def create_sub_model_inputs(inputs_config, sub_models_list, models_name):
+        # The edge submodule config is asigned with an input shape.
         if 'shape' in inputs_config:
+        # None edge modules are fed by previous submodules
             inputs = Input(eval(inputs_config['shape']))
             data_inputs = inputs
         else:

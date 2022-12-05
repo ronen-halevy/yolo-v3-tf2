@@ -49,19 +49,20 @@ class Convert:
             bn = True
             bn_weights = np.fromfile(
                 weights_file_ref, dtype=np.float32, count=4 * filters)
+            print(f'bn {filters * 4}')
+
             # tf [gamma, beta, mean, variance]
             bn_weights = bn_weights.reshape((4, filters))[[1, 0, 2, 3]]
         # if no bn: read bias and then weights
         else:
             conv_bias = np.fromfile(weights_file_ref, dtype=np.float32, count=filters)
+            print(f'bias {filters}')
 
         conv_shape = (filters, in_dim, size, size)
-        print(f'reading: {np.product(conv_shape)}')
-        print(f'conv_shape: {conv_shape}')
 
         conv_weights = np.fromfile(
             weights_file_ref, dtype=np.float32, count=np.product(conv_shape))
-        print(f'actual reading: {conv_weights.shape}')
+        print(f'weights {conv_shape}')
 
         conv_weights = conv_weights.reshape(
             conv_shape).transpose([2, 3, 1, 0])
@@ -157,6 +158,7 @@ def main():
         model_config = yaml.safe_load(_stream)
     inputs = Input(shape=(None, None, 3))
     model = parse_model.build_model(inputs, nclasses=nclasses, **model_config)
+    model.summary()
     # model = parse_model.build_model(inputs, sub_models_configs, output_stage, decay_factor, nclasses)
 
     convert = Convert()

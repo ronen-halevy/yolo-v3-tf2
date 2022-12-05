@@ -19,7 +19,7 @@ sub_models_configs:
   inputs:  #  a list of sub-model outputs source.
     source:
     - name: backbone
-      entry_index: 1 # entry_index field is needed if source is a list instance. Otherwise - filed is redundant
+      entry_index: -1 # entry_index field is needed if source is a list instance. Otherwise - filed is redundant
 
   layers_config_file: config/models/yolov3_tiny/neck0.yaml
   outputs_layers:
@@ -37,13 +37,13 @@ sub_models_configs:
 - name: neck1
   inputs:
     source:
-    - name: backbone
-      entry_index: 0
     - name: neck0
-      entry_index: 0
+      entry_index: -1
+    - name: backbone
+      entry_index: -2
+
   layers_config_file: config/models/yolov3_tiny/neck1.yaml
   outputs_layers:
-  - -2
   - -1
 
 
