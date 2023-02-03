@@ -10,10 +10,16 @@
 # ================================================================
 
 import os
-model_in = '/tmp/saved_modeln'
+# model_in = '/tmp/saved_model_tiny_coco' # '/tmp/saved_modeln' # '/tmp/saved_modeln'
+# model_tfjs_out = '/tmp/tfjs_modeln'
+# model_json_file = f'{model_tfjs_out}/model.json'
+# js_model_dir = '~/develope/tfjs/yolov3-tfjs/models/coco/'
+
+
+model_in = '/tmp/saved_model_coco' # '/tmp/saved_modeln' # '/tmp/saved_modeln'
 model_tfjs_out = '/tmp/tfjs_modeln'
 model_json_file = f'{model_tfjs_out}/model.json'
-js_model_dir = '~/develope/tfjs/yolov3-tfjs/models/test_temp/'
+js_model_dir = '~/develope/tfjs/yolov3-tfjs/models/coco/'
 
 # 1. Convert model to tfjs:
 ###########################

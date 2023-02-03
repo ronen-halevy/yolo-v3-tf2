@@ -1,6 +1,8 @@
-model_config_file: config/models/yolov3_tiny/model.yaml # config/models/yolov3/model.yaml
-weights_file: weights/coco/coco2012/yolov3-tiny.weights # weights/coco/coco2012/yolov3.weights
-output_weights_file: checkpoints/keras_coco_yolov3-tiny.tf # checkpoints/keras_coco_yolov3.tf
+#model_config_file: config/models/yolov3_tiny/model.yaml # config/models/yolov3/model.yaml
+#weights_file: weights/coco/coco2012/yolov3-tiny.weights # weights/coco/coco2012/yolov3.weights
+#output_weights_file: checkpoints/keras_coco_yolov3-tiny.tf # checkpoints/keras_coco_yolov3.tf
 num_classes: 80
 
-
+model_config_file: config/models/yolov3/model.yaml # config/models/yolov3/model.yaml
+weights_file: weights/coco/coco2012/yolov3.weights # weights/coco/coco2012/yolov3.weights
+output_weights_file: checkpoints/keras_coco_yolov3.tf # checkpoints/keras_coco_yolov3.tf
