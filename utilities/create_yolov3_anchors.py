@@ -98,9 +98,9 @@ def main():
     if input_data_source == 'tfrecords':
         tfrecords_dir = config_file['tfrecords']['tfrecords_dir']
         dataset = parse_tfrecords(tfrecords_dir, image_size, max_bboxes, class_file=None)
-    elif input_data_source == 'coco_format_files':
-        images_dir = config_file['coco_format_files']['images_dir']
-        annotations_file = config_file['coco_format_files']['annotations']
+    elif input_data_source == 'data_files':
+        images_dir = config_file['data_files']['images_dir']
+        annotations_file = config_file['data_files']['annotations']
         max_dataset_examples = None
         dataset, _ = create_dataset_from_files(images_dir, annotations_file,
                                                                     image_size,

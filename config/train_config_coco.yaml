@@ -13,12 +13,12 @@
 #training_dataset_config:
 
 dataset_config:
-  # select format:   tfrecords, coco_format_files or default: debug single image dataset
-  input_data_source: coco_format_files # debug_data # tfrecords # coco_format_files # [tfrecords, coco_format_files, coco_debug_data]
+  # select format:   tfrecords, data_files or default: debug single image dataset
+  input_data_source: data_files # debug_data # tfrecords # data_files # [tfrecords, data_files, coco_debug_data]
   tfrecords:
     train: datasets/coco2012/coco-2017/fiftyone_20/input/tfrecords/train # datasets/shapes/two_colors/input/tfrecords/train
     valid: datasets/coco2012/coco-2017/fiftyone_20/input/tfrecords/train # datasets/shapes/two_colors/input/tfrecords/train
-  coco_format_files:
+  data_files:
     train:
       images_dir: datasets/Oxford Pets.v1-by-breed.coco/train # /home/ronen/fiftyone/coco-2017/validation/data # datasets/coco2012/images
       annotations: datasets/Oxford Pets.v1-by-breed.coco/train/_annotations.coco.json #/home/ronen/fiftyone/coco-2017/validation/labels.json # datasets/coco2012/annotations.json

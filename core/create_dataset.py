@@ -42,10 +42,10 @@ def create_dataset(dataset_config, image_size, max_bboxes, classes_name_file, ma
             dataset[idx] = parse_tfrecords(
                 tfrecord, image_size, max_bboxes, classes_name_file)
 
-    elif dataset_config['input_data_source'] == 'coco_format_files':
+    elif dataset_config['input_data_source'] == 'data_files':
         for idx, split_name in enumerate(['train', 'valid']):
-            train_images_dir = dataset_config['coco_format_files'][split_name]['images_dir']
-            annotations = dataset_config['coco_format_files'][split_name]['annotations']
+            train_images_dir = dataset_config['data_files'][split_name]['images_dir']
+            annotations = dataset_config['data_files'][split_name]['annotations']
             dataset[idx], dataset_size[idx] = create_dataset_from_files(train_images_dir,
                                                                                     annotations,
                                                                                     image_size,
