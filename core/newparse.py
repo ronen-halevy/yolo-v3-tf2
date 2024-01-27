@@ -50,10 +50,12 @@ from keras import mixed_precision
 # def _parse_route(layer_conf, inputs_entry, layers):
 
 def _parse_detect(x, layers, nc):
+    # x = tf.keras.layers.Reshape((x, x.shape[1],
+    #                              3, -1))(x)
     layers.append(x)
     return x,layers
 
-def _parse_decoder(x, layers, nclasses, grid_size):
+def _parse_decoder(x, layers, decay, grid_size):
         """
 
         :param x:
@@ -65,8 +67,17 @@ def _parse_decoder(x, layers, nclasses, grid_size):
         :return:
         :rtype:
         """
+        activation=False
+        bn=False
+        kernel_size=1
+        stride=1
+        nanchors, xy_field, wh_field, obj_field = 3, 2, 2, 1
+        no = (nc+xy_field+ wh_field+ obj_field )
+        filters = nanchors*no
+        x, _=_parse_convolutional(x, layers, decay, bn, activation, filters, kernel_size, stride, pad=1)
+        x  =tf.reshape(x, [-1, grid_size, grid_size,nanchors, no] )
 
-        ngrids, xy_field, wh_field, obj_field = 3, 2, 2, 1
+
 
         # # x = Lambda(lambda xx: tf.reshape(xx, (-1, tf.shape(xx)[1], tf.shape(xx)[2],
         # #                                       ngrids,
@@ -164,7 +175,6 @@ def _parse_upsample(x, layers,stride):
     return x, layers
 def _parse_shortcut(x, layers):
     """
-
     :param x:
     :type x:
     :param layer_conf:
@@ -181,7 +191,7 @@ def _parse_shortcut(x, layers):
 
     return x, layers
 
-def _parse_convolutional(x, layers, decay, bn, activation, c1, filters,kernel_size,stride,pad=1
+def _parse_convolutional(x, layers, decay, bn, activation, filters,kernel_size,stride,pad=1
                           ):
     """
 
@@ -230,6 +240,7 @@ def _parse_convolutional(x, layers, decay, bn, activation, c1, filters,kernel_si
 
 
 def parse_model(inputs, anchors, nc, gd, gw, mlist, ch, imgsz, decay_factor,training):  # model_dict, input_channels(3)
+
     """
     Constructs the model by parsing model layers' configuration
     :param anchors: list[nl[na*2] of anchor sets per layer. int
@@ -269,13 +280,13 @@ def parse_model(inputs, anchors, nc, gd, gw, mlist, ch, imgsz, decay_factor,trai
                 pass
 
         n = max(round(n * gd), 1) if n > 1 else n  # depth gain
-        if m_str in ['Conv',
-                'nn.Conv2d', 'Conv', 'DWConv', 'ConvNbl','DWConvTranspose2d', 'Bottleneck', 'SPP', 'SPPF',  'Focus', 'CrossConv',
+        if m_str in ['Conv','decoder'
+                'nn.Conv2d', 'Conv', 'DWConv','DWConvTranspose2d', 'Bottleneck', 'SPP', 'SPPF',  'Focus', 'CrossConv',
                 'BottleneckCSP', 'C3', 'C3x']:
-            c1, c2 = ch[f], args[0] # c1: nof layer's in channels, c2: nof layer's out channels
+            # c2 =  args[0] # c1: nof layer's in channels, c2: nof layer's out channels
             # c2 = make_divisible(c2 * gw, 8) if c2 != no else c2
 
-            args = [c1, c2, *args[1:]] # [nch_in, nch_o, args]
+            # args = [c2, *args[1:]] # [nch_in, nch_o, args]
             if m_str in ['BottleneckCSP', 'C3', 'C3x']:
                 args.insert(2, n)
                 n = 1
@@ -308,11 +319,10 @@ def parse_model(inputs, anchors, nc, gd, gw, mlist, ch, imgsz, decay_factor,trai
         elif m_str == 'Concat':
             x, layers = _parse_route(x, layers, *args)
         elif m_str == 'decoder':
-            x, layers = _parse_decoder(x, layers, *args)
-        elif m_str == 'ConvNbl':
-            bn = False; activation=False
-
-            x, layers = _parse_convolutional(x, layers, decay_factor,bn, activation, *args)
+            x, layers = _parse_decoder(x, layers, decay_factor, *args)
+        elif m_str == 'decoder':
+            # bn = False; activation=False
+            x, layers = _parse_decoder(x, layers, decay_factor, *args)
 
         elif m_str == 'detect':
             x, layers = _parse_detect(x, layers, *args)
@@ -348,25 +358,18 @@ with open(cfg) as f:
 
 d = deepcopy(yaml)
 
-anchors, nc, gd, gw, mlist = d['anchors'], d['nc'], d['depth_multiple'], d['width_multiple'], d['backbone'] + d['head']
-anchors, nc = anchors, nc
+anchors, gd, gw, mlist = d['anchors'], d['depth_multiple'], d['width_multiple'], d['backbone'] + d['head']
+anchors= anchors
+nc= 80
+
 training=True
 imgsz=[416, 416]
 ch=3
 inputs = Input(shape=(416, 416, 3))
 decay_factor = 0.01
-
 layers = parse_model(inputs,anchors, nc, gd, gw, mlist, ch=[ch], imgsz=imgsz,decay_factor=decay_factor,
                                         training=training)
 model = Model(inputs, layers[-1], name='model')
 xx = tf.zeros([1,416,416,3], dtype=tf.float32)
 dd=model(xx)
 print(model.summary())
-pass
-print(len(layers))
-
-# sub_model_outputs = [sub_model_layers[int(layer)] for layer in sub_model_config['outputs_layers']]
-# sub_model_outputs = sub_model_outputs[0] if len(sub_model_outputs) == 0 else sub_model_outputs
-#
-# model = Model(sub_model_inputs, sub_model_outputs, name=sub_model_config['name'])(sub_model_data_inputs)
-# sub_models_list.append({'sub_model': model, 'name': sub_model_config['name']})
