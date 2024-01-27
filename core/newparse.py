@@ -10,13 +10,12 @@ Export:
     $ python export.py --weights yolov5s.pt --include saved_model pb tflite tfjs
 """
 from tensorflow.keras.layers import Add, BatchNormalization, Concatenate, Conv2D, \
-    Lambda, LeakyReLU, GlobalMaxPooling2D, UpSampling2D, ZeroPadding2D
+    Lambda, LeakyReLU, GlobalMaxPooling2D, UpSampling2D, ZeroPadding2D, MaxPooling2D
 from tensorflow.keras.regularizers import l2
 import tensorflow as tf
 from tensorflow.python.keras.layers import MaxPool2D, MaxPooling2D
 from tensorflow.keras import Input, Model
 import yaml
-
 
 import argparse
 import sys
@@ -36,7 +35,7 @@ import tensorflow as tf
 from tensorflow import keras
 
 from tensorflow.python.ops.numpy_ops import np_config
-np_config.enable_numpy_behavior() # allows running NumPy code, accelerated by TensorFlow
+# np_config.enable_numpy_behavior() # allows running NumPy code, accelerated by TensorFlow
 from keras import mixed_precision
 
 
@@ -53,71 +52,89 @@ def _parse_detect(x, layers, nc):
     # x = tf.keras.layers.Reshape((x, x.shape[1],
     #                              3, -1))(x)
     layers.append(x)
-    return x,layers
+    return x, layers
+
 
 def _parse_decoder(x, layers, decay, nc, grid_size):
-        """
+    """
 
-        :param x:
-        :type x:
-        :param nclasses:
-        :type nclasses:
-        :param layers:
-        :type layers:
-        :return:
-        :rtype:
-        """
-        activation=False
-        bn=False
-        kernel_size=1
-        stride=1
-        nanchors, xy_field, wh_field, obj_field = 3, 2, 2, 1
-        no = (nc+xy_field+ wh_field+ obj_field )
-        filters = nanchors*no
-        x, _=_parse_convolutional(x, layers, decay, bn, activation, filters, kernel_size, stride, pad=1)
-        x  =tf.reshape(x, [-1, grid_size, grid_size,nanchors, no] )
+    :param x:
+    :type x:
+    :param nclasses:
+    :type nclasses:
+    :param layers:
+    :type layers:
+    :return:
+    :rtype:
+    """
+    activation = False
+    bn = False
+    kernel_size = 1
+    stride = 1
+    nanchors, xy_field, wh_field, obj_field = 3, 2, 2, 1
+    no = (nc + xy_field + wh_field + obj_field)
+    filters = nanchors * no
+    x, _ = _parse_convolutional(x, layers, decay, bn, activation, filters, kernel_size, stride, pad=1)
+    x = tf.reshape(x, [-1, grid_size, grid_size, nanchors, no])
+
+    # # x = Lambda(lambda xx: tf.reshape(xx, (-1, tf.shape(xx)[1], tf.shape(xx)[2],
+    # #                                       ngrids,
+    # #                                       nclasses + (xy_field + wh_field + obj_field))))(
+    # #     x)
+    # x = tf.keras.layers.Reshape((grid_size, grid_size,
+    #                              ngrids, nclasses + (xy_field + wh_field + obj_field)))(x)
+    #
+    # # pred_xy, pred_wh, pred_obj, class_probs = Lambda(lambda xx: tf.split(xx, (2, 2, 1, nclasses), axis=-1))(x)
+    # pred_xy, pred_wh, pred_obj, class_probs = tf.split(x, (2, 2, 1, nclasses), axis=-1)
+    #
+    #
+    # # pred_xy = Lambda(lambda xx: tf.sigmoid(xx))(pred_xy)
+    # # pred_obj = Lambda(lambda xx: tf.sigmoid(xx))(pred_obj)
+    # # class_probs = Lambda(lambda xx: tf.sigmoid(xx))(class_probs)
+    #
+    # # x = Lambda(lambda xx: tf.concat([xx[0], xx[1], xx[2], xx[3]], axis=-1))((pred_xy, pred_wh, pred_obj,
+    # #                                                                          class_probs))
+    # # new:
+    # pred_xy = tf.keras.activations.sigmoid(pred_xy)
+    # pred_obj = tf.keras.activations.sigmoid(pred_obj)
+    # class_probs = tf.keras.activations.sigmoid(class_probs)
+    #
+    # x = tf.keras.layers.concatenate(
+    #     [pred_xy, pred_wh, pred_obj,
+    #     class_probs], axis=-1
+    # )
+    #
+
+    # x = tf.keras.layers.Reshape((grid_size, grid_size,
+    #                              ngrids, nclasses + (xy_field + wh_field + obj_field)))(x)
+
+    layers.append(x)
+    return x, layers
 
 
+def _parse_maxpool(x, layers, pool_size, stride_xy, pad='same'):
+    """
 
-        # # x = Lambda(lambda xx: tf.reshape(xx, (-1, tf.shape(xx)[1], tf.shape(xx)[2],
-        # #                                       ngrids,
-        # #                                       nclasses + (xy_field + wh_field + obj_field))))(
-        # #     x)
-        # x = tf.keras.layers.Reshape((grid_size, grid_size,
-        #                              ngrids, nclasses + (xy_field + wh_field + obj_field)))(x)
-        #
-        # # pred_xy, pred_wh, pred_obj, class_probs = Lambda(lambda xx: tf.split(xx, (2, 2, 1, nclasses), axis=-1))(x)
-        # pred_xy, pred_wh, pred_obj, class_probs = tf.split(x, (2, 2, 1, nclasses), axis=-1)
-        #
-        #
-        # # pred_xy = Lambda(lambda xx: tf.sigmoid(xx))(pred_xy)
-        # # pred_obj = Lambda(lambda xx: tf.sigmoid(xx))(pred_obj)
-        # # class_probs = Lambda(lambda xx: tf.sigmoid(xx))(class_probs)
-        #
-        # # x = Lambda(lambda xx: tf.concat([xx[0], xx[1], xx[2], xx[3]], axis=-1))((pred_xy, pred_wh, pred_obj,
-        # #                                                                          class_probs))
-        # # new:
-        # pred_xy = tf.keras.activations.sigmoid(pred_xy)
-        # pred_obj = tf.keras.activations.sigmoid(pred_obj)
-        # class_probs = tf.keras.activations.sigmoid(class_probs)
-        #
-        # x = tf.keras.layers.concatenate(
-        #     [pred_xy, pred_wh, pred_obj,
-        #     class_probs], axis=-1
-        # )
-        #
+    :param x:
+    :type x:
+    :param layer_conf:
+    :type layer_conf:
+    :param layers:
+    :type layers:
+    :return:
+    :rtype:
+    """
+    padding = pad
 
+    x = tf.keras.layers.MaxPooling2D(pool_size=pool_size,
+                                     strides=stride_xy,
+                                     padding=padding)(x)
+    layers.append(x)
 
+    return x, layers
 
-
-        # x = tf.keras.layers.Reshape((grid_size, grid_size,
-        #                              ngrids, nclasses + (xy_field + wh_field + obj_field)))(x)
-
-        layers.append(x)
-        return x, layers
 
 def _parse_route(x, layers):
-
     """
 
     :param _x:
@@ -155,8 +172,7 @@ def _parse_route(x, layers):
     return x, layers
 
 
-
-def _parse_upsample(x, layers,stride):
+def _parse_upsample(x, layers, stride):
     """
 
     :param x:
@@ -173,6 +189,8 @@ def _parse_upsample(x, layers,stride):
     layers.append(x)
 
     return x, layers
+
+
 def _parse_shortcut(x, layers):
     """
     :param x:
@@ -191,8 +209,9 @@ def _parse_shortcut(x, layers):
 
     return x, layers
 
-def _parse_convolutional(x, layers, decay, bn, activation, filters,kernel_size,stride,pad=1
-                          ):
+
+def _parse_convolutional(x, layers, decay, bn, activation, filters, kernel_size, stride, pad=1
+                         ):
     """
 
     :param x:
@@ -211,7 +230,7 @@ def _parse_convolutional(x, layers, decay, bn, activation, filters,kernel_size,s
     # kernel_size = int(layer_conf['size'])
     # pad = int(layer_conf['pad'])
     padding = 'same' if pad == 1 and stride == 1 else 'valid'
-     # 'batch_normalize' in layer_conf
+    # 'batch_normalize' in layer_conf
 
     if stride > 1:
         x = ZeroPadding2D(((1, 0), (1, 0)))(x)
@@ -239,7 +258,7 @@ def _parse_convolutional(x, layers, decay, bn, activation, filters,kernel_size,s
     return x, layers
 
 
-def parse_model(inputs, na, nc,  mlist, ch, imgsz, decay_factor):  # model_dict, input_channels(3)
+def parse_model(inputs, na, nc, mlist, ch, imgsz, decay_factor):  # model_dict, input_channels(3)
 
     """
     Constructs the model by parsing model layers' configuration
@@ -269,7 +288,6 @@ def parse_model(inputs, na, nc,  mlist, ch, imgsz, decay_factor):  # model_dict,
         if f != -1:  # if not from previous layer
             x = y[f] if isinstance(f, int) else [x if j == -1 else y[j] for j in f]  # from earlier layers
 
-
         # if visualize:
         # m = eval(m) if isinstance(m, str) else m  # eval strings
         for j, a in enumerate(args):
@@ -279,9 +297,10 @@ def parse_model(inputs, na, nc,  mlist, ch, imgsz, decay_factor):  # model_dict,
                 pass
 
         # n = max(round(n * gd), 1) if n > 1 else n  # depth gain
-        if m_str in ['Conv','decoder'
-                'nn.Conv2d', 'Conv', 'DWConv','DWConvTranspose2d', 'Bottleneck', 'SPP', 'SPPF',  'Focus', 'CrossConv',
-                'BottleneckCSP', 'C3', 'C3x']:
+        if m_str in ['Conv', 'decoder'
+                             'nn.Conv2d', 'Conv', 'DWConv', 'DWConvTranspose2d', 'Bottleneck', 'SPP', 'SPPF', 'Focus',
+                     'CrossConv',
+                     'BottleneckCSP', 'C3', 'C3x']:
             pass
             # c2 =  args[0] # c1: nof layer's in channels, c2: nof layer's out channels
             # c2 = make_divisible(c2 * gw, 8) if c2 != no else c2
@@ -304,24 +323,25 @@ def parse_model(inputs, na, nc,  mlist, ch, imgsz, decay_factor):  # model_dict,
         #     print('\n!!!!!', m_str)
         #     c2 = ch[f]
 
-
         if m_str == 'Conv':
-            bn = True; activation=True
-            x, layers = _parse_convolutional(x,layers,decay_factor,  bn, activation, *args)
+            bn = True;
+            activation = True
+            x, layers = _parse_convolutional(x, layers, decay_factor, bn, activation, *args)
         elif m_str == 'ADD':
             x, layers = _parse_shortcut(x, layers)
 
         elif m_str == 'upsample':
-                x, layers = _parse_upsample(x, layers, *args)
+            x, layers = _parse_upsample(x, layers, *args)
 
-        elif m_str == 'Concat':
+        elif m_str == 'concate':
             x, layers = _parse_route(x, layers, *args)
+        elif m_str == 'Maxpool':
+            x, layers = _parse_maxpool(x, layers, *args)
         elif m_str == 'decoder':
             x, layers = _parse_decoder(x, layers, decay_factor, nc, *args)
 
         elif m_str == 'detect':
             x, layers = _parse_detect(x, layers, *args)
-
 
             # if isinstance(layer_conf['filters'], str):  # eval('3*(2+2+1+nclasses)')
             #     layer_conf['filters'] = eval(layer_conf['filters'])
@@ -332,11 +352,11 @@ def parse_model(inputs, na, nc,  mlist, ch, imgsz, decay_factor):  # model_dict,
         # else:
         # m_ = keras.Sequential([tf_m(*args) for j in range(n)]) if n > 1 \
         #         else tf_m(*args)  # module
-       # layers.append(m_)
+        # layers.append(m_)
         ch.append(c2)
         y.append(x)  # save output
     return layers
-        # torch_m_ = nn.Sequential(*(m(*args) for _ in range(n))) if n > 1 else m(*args)  # module
+    # torch_m_ = nn.Sequential(*(m(*args) for _ in range(n))) if n > 1 else m(*args)  # module
     #     t = str(m)[8:-2].replace('__main__.', '')  # module type
     #     # np = sum(x.numel() for x in torch_m_.parameters())  # number params
     #     np=0
@@ -346,29 +366,32 @@ def parse_model(inputs, na, nc,  mlist, ch, imgsz, decay_factor):  # model_dict,
     #     layers.append(m_)
     #     ch.append(c2)
     # return keras.Sequential(layers), sorted(save)
+
+
 def build_model(inputs, na, nc, mlist, ch, imgsz, decay_factor):
     # na = (len(anchors[0]) // 2) if isinstance(anchors, list) else anchors  # number of anchors
     layers = parse_model(inputs, na, nc, mlist, ch, imgsz=imgsz, decay_factor=decay_factor)
     model = Model(inputs, layers[-1], name='model')
     return model
 
-if __name__ == '__main__':
 
-    cfg='/home/ronen/devel/PycharmProjects/yolo-v3-tf2/config/models/yolov3/yolov3.yaml'
+if __name__ == '__main__':
+    cfg = '/home/ronen/devel/PycharmProjects/yolo-v3-tf2/config/models/yolov3_tiny/yolov3_tiny.yaml'
     with open(cfg) as f:
         yaml = yaml.load(f, Loader=yaml.FullLoader)  # model dict
 
     d = deepcopy(yaml)
 
-    anchors, gd, gw, mlist = d['anchors'], d['depth_multiple'], d['width_multiple'], d['backbone'] + d['head']
-    nc= 80
+    mlist = d['backbone'] + d['head']
+    nc = 7
 
-    training=True
-    imgsz=[416, 416]
-    ch=3
+    training = True
+    imgsz = [416, 416]
+    ch = 3
     inputs = Input(shape=(416, 416, 3))
     decay_factor = 0.01
-    na = (len(anchors[0]) // 2) if isinstance(anchors, list) else anchors  # number of anchors
+    na = 3
+    # (len(anchors[0]) // 2) if isinstance(anchors, list) else anchors  # number of anchors
 
     # layers=parse_model(inputs, na, nc, mlist, ch=[ch], imgsz=imgsz, decay_factor=decay_factor,
     #                                         )
@@ -376,6 +399,6 @@ if __name__ == '__main__':
     model = build_model(inputs, na, nc, mlist, ch=[ch], imgsz=imgsz, decay_factor=decay_factor)
     #
     #
-    xx = tf.zeros([1,416,416,3], dtype=tf.float32)
-    dd=model(xx)
+    xx = tf.zeros([1, 416, 416, 3], dtype=tf.float32)
+    dd = model(xx)
     print(model.summary())
