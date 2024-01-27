@@ -55,7 +55,7 @@ def _parse_detect(x, layers, nc):
     layers.append(x)
     return x,layers
 
-def _parse_decoder(x, layers, decay, grid_size):
+def _parse_decoder(x, layers, decay, nc, grid_size):
         """
 
         :param x:
@@ -239,7 +239,7 @@ def _parse_convolutional(x, layers, decay, bn, activation, filters,kernel_size,s
     return x, layers
 
 
-def parse_model(inputs, anchors, nc, gd, gw, mlist, ch, imgsz, decay_factor,training):  # model_dict, input_channels(3)
+def parse_model(inputs, na, nc,  mlist, ch, imgsz, decay_factor):  # model_dict, input_channels(3)
 
     """
     Constructs the model by parsing model layers' configuration
@@ -260,7 +260,6 @@ def parse_model(inputs, anchors, nc, gd, gw, mlist, ch, imgsz, decay_factor,trai
 
     # print(f"\n{'':>3}{'from':>18}{'n':>3}{'params':>10}  {'module':<40}{'arguments':<30}")
     # anchors, nc, gd, gw = d['anchors'], d['nc'], d['depth_multiple'], d['width_multiple']
-    na = (len(anchors[0]) // 2) if isinstance(anchors, list) else anchors  # number of anchors
     no = na * (nc + 5)  # number of outputs = anchors * (classes + 5)
 
     layers, save, c2 = [], [], ch[-1]  # layers, savelist, ch out
@@ -279,17 +278,16 @@ def parse_model(inputs, anchors, nc, gd, gw, mlist, ch, imgsz, decay_factor,trai
             except NameError:
                 pass
 
-        n = max(round(n * gd), 1) if n > 1 else n  # depth gain
+        # n = max(round(n * gd), 1) if n > 1 else n  # depth gain
         if m_str in ['Conv','decoder'
                 'nn.Conv2d', 'Conv', 'DWConv','DWConvTranspose2d', 'Bottleneck', 'SPP', 'SPPF',  'Focus', 'CrossConv',
                 'BottleneckCSP', 'C3', 'C3x']:
+            pass
             # c2 =  args[0] # c1: nof layer's in channels, c2: nof layer's out channels
             # c2 = make_divisible(c2 * gw, 8) if c2 != no else c2
 
             # args = [c2, *args[1:]] # [nch_in, nch_o, args]
-            if m_str in ['BottleneckCSP', 'C3', 'C3x']:
-                args.insert(2, n)
-                n = 1
+
         # elif m_str is 'nn.BatchNorm2d':
         #     args = [ch[f]]
         elif m_str == 'Concat':
@@ -319,10 +317,7 @@ def parse_model(inputs, anchors, nc, gd, gw, mlist, ch, imgsz, decay_factor,trai
         elif m_str == 'Concat':
             x, layers = _parse_route(x, layers, *args)
         elif m_str == 'decoder':
-            x, layers = _parse_decoder(x, layers, decay_factor, *args)
-        elif m_str == 'decoder':
-            # bn = False; activation=False
-            x, layers = _parse_decoder(x, layers, decay_factor, *args)
+            x, layers = _parse_decoder(x, layers, decay_factor, nc, *args)
 
         elif m_str == 'detect':
             x, layers = _parse_detect(x, layers, *args)
@@ -351,25 +346,36 @@ def parse_model(inputs, anchors, nc, gd, gw, mlist, ch, imgsz, decay_factor,trai
     #     layers.append(m_)
     #     ch.append(c2)
     # return keras.Sequential(layers), sorted(save)
+def build_model(inputs, na, nc, mlist, ch, imgsz, decay_factor):
+    # na = (len(anchors[0]) // 2) if isinstance(anchors, list) else anchors  # number of anchors
+    layers = parse_model(inputs, na, nc, mlist, ch, imgsz=imgsz, decay_factor=decay_factor)
+    model = Model(inputs, layers[-1], name='model')
+    return model
 
-cfg='/home/ronen/devel/PycharmProjects/yolo-v3-tf2/config/models/yolov3/yolov3.yaml'
-with open(cfg) as f:
-    yaml = yaml.load(f, Loader=yaml.FullLoader)  # model dict
+if __name__ == '__main__':
 
-d = deepcopy(yaml)
+    cfg='/home/ronen/devel/PycharmProjects/yolo-v3-tf2/config/models/yolov3/yolov3.yaml'
+    with open(cfg) as f:
+        yaml = yaml.load(f, Loader=yaml.FullLoader)  # model dict
 
-anchors, gd, gw, mlist = d['anchors'], d['depth_multiple'], d['width_multiple'], d['backbone'] + d['head']
-anchors= anchors
-nc= 80
+    d = deepcopy(yaml)
 
-training=True
-imgsz=[416, 416]
-ch=3
-inputs = Input(shape=(416, 416, 3))
-decay_factor = 0.01
-layers = parse_model(inputs,anchors, nc, gd, gw, mlist, ch=[ch], imgsz=imgsz,decay_factor=decay_factor,
-                                        training=training)
-model = Model(inputs, layers[-1], name='model')
-xx = tf.zeros([1,416,416,3], dtype=tf.float32)
-dd=model(xx)
-print(model.summary())
+    anchors, gd, gw, mlist = d['anchors'], d['depth_multiple'], d['width_multiple'], d['backbone'] + d['head']
+    nc= 80
+
+    training=True
+    imgsz=[416, 416]
+    ch=3
+    inputs = Input(shape=(416, 416, 3))
+    decay_factor = 0.01
+    na = (len(anchors[0]) // 2) if isinstance(anchors, list) else anchors  # number of anchors
+
+    # layers=parse_model(inputs, na, nc, mlist, ch=[ch], imgsz=imgsz, decay_factor=decay_factor,
+    #                                         )
+    # model = Model(inputs, layers[-1], name='model')
+    model = build_model(inputs, na, nc, mlist, ch=[ch], imgsz=imgsz, decay_factor=decay_factor)
+    #
+    #
+    xx = tf.zeros([1,416,416,3], dtype=tf.float32)
+    dd=model(xx)
+    print(model.summary())
