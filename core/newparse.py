@@ -34,7 +34,7 @@ def _parse_output(x, layers, nc):
     return x, layers
 
 
-def _parse_decoder(x, layers,  dim0,dim1,dim2,dim3 ):
+def parse_reshape(x, layers,  dim0,dim1,dim2,dim3 ):
     """
 
     :param x:
@@ -311,7 +311,7 @@ def parse_model(inputs, na, nc, mlist, ch, imgsz, decay_factor):  # model_dict, 
         elif m_str == 'Maxpool':
             x, layers = _parse_maxpool(x, layers, *args)
         elif m_str == 'Reshape':
-            x, layers = _parse_decoder(x, layers,  *args)
+            x, layers = parse_reshape(x, layers,  *args)
 
         elif m_str == 'Output':
             x, layers = _parse_output(x, layers, *args)
@@ -349,7 +349,7 @@ def build_model(inputs, na, nc, mlist, ch, imgsz, decay_factor):
 
 
 if __name__ == '__main__':
-    cfg = '/home/ronen/devel/PycharmProjects/yolo-v3-tf2/config/models/yolov3/yolov3.yaml'
+    cfg = '/home/ronen/devel/PycharmProjects/yolo-v3-tf2/config/models/yolov3_tiny/yolov3_tiny.yaml'
     with open(cfg) as f:
         yaml = yaml.load(f, Loader=yaml.FullLoader)  # model dict
 
