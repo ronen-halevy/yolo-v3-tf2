@@ -9,15 +9,10 @@ Usage:
 Export:
     $ python export.py --weights yolov5s.pt --include saved_model pb tflite tfjs
 """
-from tensorflow.keras.layers import Add, BatchNormalization, Concatenate, Conv2D, \
-    Lambda, LeakyReLU, GlobalMaxPooling2D, UpSampling2D, ZeroPadding2D, MaxPooling2D
 from tensorflow.keras.regularizers import l2
-import tensorflow as tf
-from tensorflow.python.keras.layers import MaxPool2D, MaxPooling2D
-from tensorflow.keras import Input, Model
-import yaml
 
-import argparse
+from tensorflow.keras import Input, Model
+
 import sys
 from copy import deepcopy
 from pathlib import Path
@@ -27,30 +22,14 @@ FILE = Path(__file__).resolve()
 ROOT = FILE.parents[1]  # YOLOv5 root directory
 if str(ROOT) not in sys.path:
     sys.path.append(str(ROOT))  # add ROOT to PATH
-# ROOT = ROOT.relative_to(Path.cwd())  # relative
 
-import numpy as np
 import tensorflow as tf
 
-from tensorflow import keras
-
-from tensorflow.python.ops.numpy_ops import np_config
-# np_config.enable_numpy_behavior() # allows running NumPy code, accelerated by TensorFlow
-from keras import mixed_precision
 
 
-# from models.common import (C3, SPP, SPPF, Bottleneck, BottleneckCSP, C3x, Concat, Conv, CrossConv, DWConv,
-#                            DWConvTranspose2d, Focus, autopad)
-# from models.experimental import  attempt_load
-# from models.yolo import Detect, Segment
-# from utils.tf_general import LOGGER, make_divisible, print_args
 
-# from utils.tf_plots import feature_visualization
-# def _parse_route(layer_conf, inputs_entry, layers):
+def _parse_output(x, layers, nc):
 
-def _parse_detect(x, layers, nc):
-    # x = tf.keras.layers.Reshape((x, x.shape[1],
-    #                              3, -1))(x)
     layers.append(x)
     return x, layers
 
@@ -75,7 +54,9 @@ def _parse_decoder(x, layers, decay, nc, grid_size):
     no = (nc + xy_field + wh_field + obj_field)
     filters = nanchors * no
     x, _ = _parse_convolutional(x, layers, decay, bn, activation, filters, kernel_size, stride, pad=1)
-    x = tf.reshape(x, [-1, grid_size, grid_size, nanchors, no])
+    # x = tf.reshape(x, [-1, grid_size, grid_size, nanchors, no])
+    x = tf.keras.layers.Reshape((grid_size, grid_size,
+                                 nanchors, no))(x)
 
     # # x = Lambda(lambda xx: tf.reshape(xx, (-1, tf.shape(xx)[1], tf.shape(xx)[2],
     # #                                       ngrids,
@@ -166,7 +147,7 @@ def _parse_route(x, layers):
     #     return x, layers
 
     # elif len(selected_layers) == 2:
-    x = Concatenate(axis=3)(x)
+    x = tf.keras.layers.Concatenate(axis=3)(x)
     layers.append(x)
 
     return x, layers
@@ -185,7 +166,7 @@ def _parse_upsample(x, layers, stride):
     :rtype:
     """
     # stride = int(layer_conf['stride'])
-    x = UpSampling2D(size=stride)(x)
+    x = tf.keras.layers.UpSampling2D(size=stride)(x)
     layers.append(x)
 
     return x, layers
@@ -203,7 +184,7 @@ def _parse_shortcut(x, layers):
     :rtype:
     """
     # from_layer = layers[int(layer_conf['from'])]
-    x = Add()(x)
+    x = tf.keras.layers.Add()(x)
     # assert layer_conf['activation'] == 'linear', 'Invalid activation: {}'.format(layer_conf['activation'])
     layers.append(x)
 
@@ -233,9 +214,9 @@ def _parse_convolutional(x, layers, decay, bn, activation, filters, kernel_size,
     # 'batch_normalize' in layer_conf
 
     if stride > 1:
-        x = ZeroPadding2D(((1, 0), (1, 0)))(x)
+        x = tf.keras.layers.ZeroPadding2D(((1, 0), (1, 0)))(x)
 
-    x = Conv2D(filters=filters,
+    x = tf.keras.layers.Conv2D(filters=filters,
                kernel_size=kernel_size,
                strides=(stride, stride),
                padding=padding,
@@ -244,14 +225,14 @@ def _parse_convolutional(x, layers, decay, bn, activation, filters, kernel_size,
                kernel_regularizer=l2(decay))(x)
 
     if bn:
-        x = BatchNormalization()(x)
+        x = tf.keras.layers.BatchNormalization()(x)
 
     # assert layer_conf['activation'] in ['linear', 'leaky'], 'Invalid activation: {}'.format(
     #     layer_conf['activation'])
     #
     # if layer_conf['activation'] == 'leaky':
     if activation:
-        x = LeakyReLU(alpha=0.1)(x)
+        x = tf.keras.layers.LeakyReLU(alpha=0.1)(x)
 
     layers.append(x)
 
@@ -297,7 +278,7 @@ def parse_model(inputs, na, nc, mlist, ch, imgsz, decay_factor):  # model_dict, 
                 pass
 
         # n = max(round(n * gd), 1) if n > 1 else n  # depth gain
-        if m_str in ['Conv', 'decoder'
+        if m_str in ['Conv', 'Decoder'
                              'nn.Conv2d', 'Conv', 'DWConv', 'DWConvTranspose2d', 'Bottleneck', 'SPP', 'SPPF', 'Focus',
                      'CrossConv',
                      'BottleneckCSP', 'C3', 'C3x']:
@@ -319,29 +300,26 @@ def parse_model(inputs, na, nc, mlist, ch, imgsz, decay_factor):  # model_dict, 
             #     args[3] = make_divisible(args[3] * gw, 8)
             args.append(imgsz)
             args.append(training)
-        # else:
-        #     print('\n!!!!!', m_str)
-        #     c2 = ch[f]
 
         if m_str == 'Conv':
             bn = True;
             activation = True
             x, layers = _parse_convolutional(x, layers, decay_factor, bn, activation, *args)
-        elif m_str == 'ADD':
+        elif m_str == 'Shortcut':
             x, layers = _parse_shortcut(x, layers)
 
-        elif m_str == 'upsample':
+        elif m_str == 'Upsample':
             x, layers = _parse_upsample(x, layers, *args)
 
-        elif m_str == 'concate':
+        elif m_str == 'Concat':
             x, layers = _parse_route(x, layers, *args)
         elif m_str == 'Maxpool':
             x, layers = _parse_maxpool(x, layers, *args)
-        elif m_str == 'decoder':
+        elif m_str == 'Decoder':
             x, layers = _parse_decoder(x, layers, decay_factor, nc, *args)
 
-        elif m_str == 'detect':
-            x, layers = _parse_detect(x, layers, *args)
+        elif m_str == 'Output':
+            x, layers = _parse_output(x, layers, *args)
 
             # if isinstance(layer_conf['filters'], str):  # eval('3*(2+2+1+nclasses)')
             #     layer_conf['filters'] = eval(layer_conf['filters'])
