@@ -34,7 +34,7 @@ def _parse_output(x, layers, nc):
     return x, layers
 
 
-def _parse_decoder(x, layers, decay, nc, grid_size):
+def _parse_decoder(x, layers,  dim0,dim1,dim2,dim3 ):
     """
 
     :param x:
@@ -46,17 +46,16 @@ def _parse_decoder(x, layers, decay, nc, grid_size):
     :return:
     :rtype:
     """
-    activation = False
-    bn = False
-    kernel_size = 1
-    stride = 1
-    nanchors, xy_field, wh_field, obj_field = 3, 2, 2, 1
-    no = (nc + xy_field + wh_field + obj_field)
-    filters = nanchors * no
-    x, _ = _parse_convolutional(x, layers, decay, bn, activation, filters, kernel_size, stride, pad=1)
-    # x = tf.reshape(x, [-1, grid_size, grid_size, nanchors, no])
-    x = tf.keras.layers.Reshape((grid_size, grid_size,
-                                 nanchors, no))(x)
+    # activation = False
+    # bn = False
+    # kernel_size = 1
+    # stride = 1
+    # nanchors, xy_field, wh_field, obj_field = 3, 2, 2, 1
+    # no = (nc + xy_field + wh_field + obj_field)
+    # filters = nanchors * no
+    # x, _ = _parse_convolutional(x, layers, decay, bn, activation, filters, kernel_size, stride, pad=1)
+    # # x = tf.reshape(x, [-1, grid_size, grid_size, nanchors, no])
+    x = tf.keras.layers.Reshape((dim0,dim1,dim2,dim3))(x)
 
     # # x = Lambda(lambda xx: tf.reshape(xx, (-1, tf.shape(xx)[1], tf.shape(xx)[2],
     # #                                       ngrids,
@@ -191,8 +190,7 @@ def _parse_shortcut(x, layers):
     return x, layers
 
 
-def _parse_convolutional(x, layers, decay, bn, activation, filters, kernel_size, stride, pad=1
-                         ):
+def _parse_convolutional(x, layers, decay, filters, kernel_size, stride, pad, bn, activation):
     """
 
     :param x:
@@ -212,7 +210,6 @@ def _parse_convolutional(x, layers, decay, bn, activation, filters, kernel_size,
     # pad = int(layer_conf['pad'])
     padding = 'same' if pad == 1 and stride == 1 else 'valid'
     # 'batch_normalize' in layer_conf
-
     if stride > 1:
         x = tf.keras.layers.ZeroPadding2D(((1, 0), (1, 0)))(x)
 
@@ -302,9 +299,7 @@ def parse_model(inputs, na, nc, mlist, ch, imgsz, decay_factor):  # model_dict, 
             args.append(training)
 
         if m_str == 'Conv':
-            bn = True;
-            activation = True
-            x, layers = _parse_convolutional(x, layers, decay_factor, bn, activation, *args)
+            x, layers = _parse_convolutional(x, layers, decay_factor, *args)
         elif m_str == 'Shortcut':
             x, layers = _parse_shortcut(x, layers)
 
@@ -315,8 +310,8 @@ def parse_model(inputs, na, nc, mlist, ch, imgsz, decay_factor):  # model_dict, 
             x, layers = _parse_route(x, layers, *args)
         elif m_str == 'Maxpool':
             x, layers = _parse_maxpool(x, layers, *args)
-        elif m_str == 'Decoder':
-            x, layers = _parse_decoder(x, layers, decay_factor, nc, *args)
+        elif m_str == 'Reshape':
+            x, layers = _parse_decoder(x, layers,  *args)
 
         elif m_str == 'Output':
             x, layers = _parse_output(x, layers, *args)
@@ -354,7 +349,7 @@ def build_model(inputs, na, nc, mlist, ch, imgsz, decay_factor):
 
 
 if __name__ == '__main__':
-    cfg = '/home/ronen/devel/PycharmProjects/yolo-v3-tf2/config/models/yolov3_tiny/yolov3_tiny.yaml'
+    cfg = '/home/ronen/devel/PycharmProjects/yolo-v3-tf2/config/models/yolov3/yolov3.yaml'
     with open(cfg) as f:
         yaml = yaml.load(f, Loader=yaml.FullLoader)  # model dict
 
