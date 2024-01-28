@@ -254,9 +254,6 @@ def parse_model(inputs, na, nc, mlist, ch, imgsz, decay_factor):  # model_dict, 
      savelist: indices list of  layers indices which output is a source to a next but not adjacent (i.e. not -1) layer.
     """
     x = inputs
-
-    # print(f"\n{'':>3}{'from':>18}{'n':>3}{'params':>10}  {'module':<40}{'arguments':<30}")
-    # anchors, nc, gd, gw = d['anchors'], d['nc'], d['depth_multiple'], d['width_multiple']
     no = na * (nc + 5)  # number of outputs = anchors * (classes + 5)
 
     layers, save, c2 = [], [], ch[-1]  # layers, savelist, ch out
@@ -266,35 +263,18 @@ def parse_model(inputs, na, nc, mlist, ch, imgsz, decay_factor):  # model_dict, 
         if f != -1:  # if not from previous layer
             x = y[f] if isinstance(f, int) else [x if j == -1 else y[j] for j in f]  # from earlier layers
 
-        # if visualize:
-        # m = eval(m) if isinstance(m, str) else m  # eval strings
         for j, a in enumerate(args):
             try:
                 args[j] = eval(a) if isinstance(a, str) else a  # eval strings
             except NameError:
                 pass
 
-        # n = max(round(n * gd), 1) if n > 1 else n  # depth gain
-        if m_str in ['Conv', 'Decoder'
-                             'nn.Conv2d', 'Conv', 'DWConv', 'DWConvTranspose2d', 'Bottleneck', 'SPP', 'SPPF', 'Focus',
-                     'CrossConv',
-                     'BottleneckCSP', 'C3', 'C3x']:
-            pass
-            # c2 =  args[0] # c1: nof layer's in channels, c2: nof layer's out channels
-            # c2 = make_divisible(c2 * gw, 8) if c2 != no else c2
-
-            # args = [c2, *args[1:]] # [nch_in, nch_o, args]
-
-        # elif m_str is 'nn.BatchNorm2d':
-        #     args = [ch[f]]
-        elif m_str == 'Concat':
+        if m_str == 'Concat':
             c2 = sum(ch[-1 if x == -1 else x + 1] for x in f)
         elif m_str in ['Detect', 'Segment']:
             args.append([ch[x + 1] for x in f])
             if isinstance(args[1], int):  # number of anchors
                 args[1] = [list(range(args[1] * 2))] * len(f)
-            # if m_str == 'Segment':
-            #     args[3] = make_divisible(args[3] * gw, 8)
             args.append(imgsz)
             args.append(training)
 
@@ -315,30 +295,9 @@ def parse_model(inputs, na, nc, mlist, ch, imgsz, decay_factor):  # model_dict, 
 
         elif m_str == 'Output':
             x, layers = _parse_output(x, layers, *args)
-
-            # if isinstance(layer_conf['filters'], str):  # eval('3*(2+2+1+nclasses)')
-            #     layer_conf['filters'] = eval(layer_conf['filters'])
-            # x, layers = self._parse_convolutional(x, layer_conf, layers, decay_factor)
-        # if ref_model_seq: # feed weights directly
-        #     m_ = keras.Sequential([tf_m(*args, w=ref_model_seq[i][j]) for j in range(n)]) if n > 1 \
-        #         else tf_m(*args, w=ref_model_seq[i])  # module
-        # else:
-        # m_ = keras.Sequential([tf_m(*args) for j in range(n)]) if n > 1 \
-        #         else tf_m(*args)  # module
-        # layers.append(m_)
         ch.append(c2)
         y.append(x)  # save output
     return layers
-    # torch_m_ = nn.Sequential(*(m(*args) for _ in range(n))) if n > 1 else m(*args)  # module
-    #     t = str(m)[8:-2].replace('__main__.', '')  # module type
-    #     # np = sum(x.numel() for x in torch_m_.parameters())  # number params
-    #     np=0
-    #     m_.i, m_.f, m_.type, m_.np = i, f, t, np  # attach index, 'from' index, type, number params
-    #     print(f'{i:>3}{str(f):>18}{str(n):>3}{np:>10}  {t:<40}{str(args):<30}')  # print
-    #     save.extend(x % i for x in ([f] if isinstance(f, int) else f) if x != -1)  # append to savelist
-    #     layers.append(m_)
-    #     ch.append(c2)
-    # return keras.Sequential(layers), sorted(save)
 
 
 def build_model(inputs, na, nc, mlist, ch, imgsz, decay_factor):
@@ -350,6 +309,7 @@ def build_model(inputs, na, nc, mlist, ch, imgsz, decay_factor):
 
 if __name__ == '__main__':
     cfg = '/home/ronen/devel/PycharmProjects/yolo-v3-tf2/config/models/yolov3_tiny/yolov3_tiny.yaml'
+    # cfg = '/home/ronen/devel/PycharmProjects/yolo-v3-tf2/config/models/yolov3/yolov3.yaml'
     with open(cfg) as f:
         yaml = yaml.load(f, Loader=yaml.FullLoader)  # model dict
 
@@ -357,21 +317,13 @@ if __name__ == '__main__':
 
     mlist = d['backbone'] + d['head']
     nc = 7
-
     training = True
     imgsz = [416, 416]
     ch = 3
     inputs = Input(shape=(416, 416, 3))
     decay_factor = 0.01
     na = 3
-    # (len(anchors[0]) // 2) if isinstance(anchors, list) else anchors  # number of anchors
-
-    # layers=parse_model(inputs, na, nc, mlist, ch=[ch], imgsz=imgsz, decay_factor=decay_factor,
-    #                                         )
-    # model = Model(inputs, layers[-1], name='model')
     model = build_model(inputs, na, nc, mlist, ch=[ch], imgsz=imgsz, decay_factor=decay_factor)
-    #
-    #
     xx = tf.zeros([1, 416, 416, 3], dtype=tf.float32)
     dd = model(xx)
     print(model.summary())
